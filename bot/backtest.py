@@ -27,6 +27,9 @@ class Trade:
 class Result:
     trades: list[Trade] = field(default_factory=list)
     equity_curve: list[float] = field(default_factory=list)
+    equity_ts: list[int] = field(default_factory=list)              # close_ts (ms) de cada ponto da curva
+    events: list[dict] = field(default_factory=list)                # compras/vendas para desenhar no gráfico
+    stop_path: dict[str, list] = field(default_factory=dict)        # símbolo -> [(ts, stop) ou (ts, None)]
     initial: float = 0.0
 
     def summary(self) -> dict:
@@ -93,6 +96,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
                     if qty > 0 and cost <= cash and cost >= 10:
                         cash -= cost
                         positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost)
+                        res.events.append({"symbol": sym, "ts": int(row["ts"]), "side": "buy", "price": px,
+                                           "reason": f"compra · stop {stop:.6g}"})
 
             # 2) gerencia posição aberta
             if sym in positions:
@@ -105,6 +110,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
                         pos.proceeds += proceeds
                         pos.reasons.append(act.reason)
                         exit_px = px
+                        res.events.append({"symbol": sym, "ts": int(row["ts"]), "side": "sell", "price": px,
+                                           "reason": act.reason})
                 if pos.qty <= 1e-12:
                     pnl = pos.proceeds - pos.cost
                     qty0 = pos.cost / pos.entry / (1 + fee)
@@ -117,6 +124,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
                     del positions[sym]
 
             last_px[sym] = float(row["close"])
+            res.stop_path.setdefault(sym, []).append(
+                (int(row["ts"]), positions[sym].stop if sym in positions else None))
 
             # 3) procura nova entrada
             guard.new_bar(now, equity(last_px))
@@ -128,4 +137,5 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
                         pending[sym] = (sig.stop, sig.entry - sig.stop)
 
         res.equity_curve.append(equity(last_px))
+        res.equity_ts.append(ts)
     return res

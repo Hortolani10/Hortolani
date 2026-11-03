@@ -74,7 +74,7 @@ def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
     c["rsi"] = (s["rsi_min"] <= row["rsi"] <= s["rsi_max"], f"RSI={row['rsi']:.1f} (faixa {s['rsi_min']}-{s['rsi_max']})")
     c["macd"] = (
         row["macd_hist"] > prev["macd_hist"] and row["macd"] > 0,
-        f"MACD={row['macd']:.5f} (>0), histograma {prev['macd_hist']:.5f} -> {row['macd_hist']:.5f} (subindo)",
+        f"MACD={row['macd']:.5f} (precisa > 0), histograma {prev['macd_hist']:.5f} -> {row['macd_hist']:.5f} (precisa subir)",
     )
     c["adx"] = (row["adx"] >= s["adx_min"], f"ADX={row['adx']:.1f} (mín {s['adx_min']})")
     c["volume"] = (

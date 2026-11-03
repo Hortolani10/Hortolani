@@ -49,14 +49,18 @@ python -m bot backtest --days 180 --symbols BTC/USDT ETH/USDT
 python -m bot analyze
 python -m bot analyze --symbols SOL/USDT --prompt > analise.md   # prompt + dados p/ colar numa IA
 
-# 3) Paper trading: preços reais, dinheiro fictício (config: paper.initial_balance)
+# 3) Painel visual (gráfico com sinais, stop, capital e checklist) -> abre dashboard.html no navegador
+python -m bot dashboard --days 180            # dados reais da Binance
+python -m bot dashboard --demo                # dados simulados, sem internet
+
+# 4) Paper trading: preços reais, dinheiro fictício (config: paper.initial_balance)
 python -m bot paper
 
-# 4) Testnet (ordens de verdade em ambiente de teste)
+# 5) Testnet (ordens de verdade em ambiente de teste)
 #    Crie chaves em https://testnet.binance.vision e coloque no .env; config: testnet: true
 python -m bot live
 
-# 5) Dinheiro real: config testnet: false  e  CONFIRMO_OPERAR_DINHEIRO_REAL=SIM no .env
+# 6) Dinheiro real: config testnet: false  e  CONFIRMO_OPERAR_DINHEIRO_REAL=SIM no .env
 python -m bot live
 ```
 
@@ -81,6 +85,8 @@ bot/backtest.py     simulação candle a candle
 bot/exchange.py     Binance (ccxt) e corretora simulada (paper)
 bot/trader.py       loop ao vivo
 bot/report.py       relatório/checklist de análise
+bot/dashboard.py    gera o painel HTML (bot/dashboard_template.html)
+bot/demo.py         dados simulados para demonstração e testes
 tests/              testes (dados sintéticos)
 ```
 

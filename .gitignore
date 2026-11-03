@@ -8,3 +8,4 @@ logs/
 state.json
 *.log
 .pytest_cache/
+dashboard.html

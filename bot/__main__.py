@@ -69,6 +69,34 @@ def cmd_analyze(cfg, args):
     print(text)
 
 
+def cmd_dashboard(cfg, args):
+    from .backtest import run
+    from .dashboard import build_payload, render
+    from .data import prepare, tf_ms
+
+    data = {}
+    if args.demo:
+        from .demo import regime_series, resample
+
+        k = tf_ms(cfg["timeframes"]["trend"]) // tf_ms(cfg["timeframes"]["entry"])
+        for name, seed, start in [("DEMO-A/USDT", 10, 100.0), ("DEMO-B/USDT", 20, 40.0)]:
+            e = regime_series(4000, tf_ms(cfg["timeframes"]["entry"]), seed, start)
+            data[name] = prepare(e, resample(e, k), cfg)
+    else:
+        from .data import cached_history
+        from .exchange import make_ccxt
+
+        ex = make_ccxt(cfg, with_keys=False)
+        for sym in args.symbols or cfg["symbols"]:
+            print(f"baixando {sym}...")
+            e = cached_history(ex, sym, cfg["timeframes"]["entry"], args.days)
+            t = cached_history(ex, sym, cfg["timeframes"]["trend"], args.days + 60)
+            data[sym] = prepare(e, t, cfg)
+    res = run(data, cfg, initial=args.balance)
+    path = render(build_payload(data, res, cfg, simulated=args.demo), args.out)
+    print(f"painel gerado: {path.resolve()}  (abra no navegador)")
+
+
 def cmd_run(cfg, mode):
     from dotenv import load_dotenv
 
@@ -106,12 +134,20 @@ def main():
     a = sub.add_parser("analyze", help="mostra a análise/checklist atual dos pares")
     a.add_argument("--symbols", nargs="*")
     a.add_argument("--prompt", action="store_true", help="junta o PROMPT_ANALISE.md para colar numa IA")
+    d = sub.add_parser("dashboard", help="gera painel HTML com gráfico, sinais e resultados")
+    d.add_argument("--days", type=int, default=180)
+    d.add_argument("--balance", type=float, default=1000)
+    d.add_argument("--symbols", nargs="*")
+    d.add_argument("--demo", action="store_true", help="usa dados simulados (sem internet)")
+    d.add_argument("--out", default="dashboard.html")
     sub.add_parser("paper", help="opera com dinheiro fictício e preços reais")
     sub.add_parser("live", help="opera de verdade (testnet ou real, conforme config)")
     args = ap.parse_args()
     cfg = load_config(args.config)
     if args.cmd == "backtest":
         cmd_backtest(cfg, args)
+    elif args.cmd == "dashboard":
+        cmd_dashboard(cfg, args)
     elif args.cmd == "analyze":
         cmd_analyze(cfg, args)
     else:
