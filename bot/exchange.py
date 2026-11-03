@@ -1,0 +1,142 @@
+"""Acesso à Binance via ccxt + corretora simulada (paper trading)."""
+from __future__ import annotations
+
+import logging
+import os
+
+import pandas as pd
+
+from .data import drop_open_candle, to_df
+
+log = logging.getLogger("bot")
+
+
+def make_ccxt(cfg: dict, with_keys: bool):
+    import ccxt
+
+    params = {"enableRateLimit": True, "options": {"defaultType": "spot", "adjustForTimeDifference": True}}
+    if with_keys:
+        params["apiKey"] = os.getenv("BINANCE_API_KEY", "")
+        params["secret"] = os.getenv("BINANCE_API_SECRET", "")
+    ex = ccxt.binance(params)
+    if with_keys and cfg.get("testnet", True):
+        ex.set_sandbox_mode(True)
+    return ex
+
+
+class Broker:
+    """Interface comum para LiveBroker e PaperBroker."""
+
+    def __init__(self, cfg: dict, market_ex):
+        self.cfg = cfg
+        self.market = market_ex           # usado para candles/preços
+        self.market.load_markets()
+
+    # ---- dados de mercado ----
+    def candles(self, symbol: str, tf: str, limit: int = 500) -> pd.DataFrame:
+        return drop_open_candle(to_df(self.market.fetch_ohlcv(symbol, tf, limit=limit)), tf)
+
+    def price(self, symbol: str) -> float:
+        return float(self.market.fetch_ticker(symbol)["last"])
+
+    def amount(self, symbol: str, qty: float) -> float:
+        return float(self.market.amount_to_precision(symbol, qty))
+
+    def min_notional(self, symbol: str) -> float:
+        lim = self.market.market(symbol).get("limits", {}).get("cost", {}) or {}
+        return float(lim.get("min") or 10.0)
+
+    # ---- a implementar ----
+    def usdt_free(self) -> float: ...
+    def buy(self, symbol: str, qty: float) -> tuple[float, float, float]: ...   # (qty, preço médio, custo)
+    def sell(self, symbol: str, qty: float) -> tuple[float, float]: ...         # (preço médio, recebido)
+    def place_stop(self, symbol: str, qty: float, stop: float) -> str | None: ...
+    def cancel(self, symbol: str, order_id: str | None) -> None: ...
+    def stop_filled(self, symbol: str, order_id: str | None, stop: float) -> tuple[bool, float, float]: ...
+
+
+class PaperBroker(Broker):
+    """Usa preços reais da Binance, mas as ordens são simuladas."""
+
+    def __init__(self, cfg: dict, market_ex, state: dict):
+        super().__init__(cfg, market_ex)
+        self.state = state
+        self.state.setdefault("paper_cash", float(cfg["paper"]["initial_balance"]))
+        self.fee, self.slip = cfg["fees"]["taker"], cfg["fees"]["slippage"]
+
+    def usdt_free(self) -> float:
+        return self.state["paper_cash"]
+
+    def buy(self, symbol, qty):
+        px = self.price(symbol) * (1 + self.slip)
+        cost = qty * px * (1 + self.fee)
+        self.state["paper_cash"] -= cost
+        return qty, px, cost
+
+    def sell(self, symbol, qty, px: float | None = None):
+        px = (px or self.price(symbol)) * (1 - self.slip)
+        got = qty * px * (1 - self.fee)
+        self.state["paper_cash"] += got
+        return px, got
+
+    def place_stop(self, symbol, qty, stop):
+        return "paper-stop"
+
+    def cancel(self, symbol, order_id):
+        pass
+
+    def stop_filled(self, symbol, order_id, stop):
+        px = self.price(symbol)
+        return (px <= stop, px, 0.0)
+
+
+class LiveBroker(Broker):
+    """Ordens reais. O stop fica REGISTRADO NA BINANCE (STOP_LOSS_LIMIT), então
+    a posição continua protegida mesmo se o bot cair ou a internet falhar."""
+
+    def __init__(self, cfg: dict, market_ex, trade_ex):
+        super().__init__(cfg, market_ex)
+        self.ex = trade_ex
+        self.ex.load_markets()
+
+    def usdt_free(self) -> float:
+        return float(self.ex.fetch_balance()["free"].get("USDT", 0.0))
+
+    def buy(self, symbol, qty):
+        o = self.ex.create_order(symbol, "market", "buy", self.amount(symbol, qty))
+        o = self.ex.fetch_order(o["id"], symbol)
+        filled = float(o["filled"])
+        avg = float(o["average"] or o["price"])
+        fee_base = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == symbol.split("/")[0])
+        return filled - fee_base, avg, float(o["cost"])
+
+    def sell(self, symbol, qty, px: float | None = None):
+        o = self.ex.create_order(symbol, "market", "sell", self.amount(symbol, qty))
+        o = self.ex.fetch_order(o["id"], symbol)
+        fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
+        return float(o["average"] or o["price"]), float(o["cost"]) - fee_q
+
+    def place_stop(self, symbol, qty, stop):
+        limit = float(self.ex.price_to_precision(symbol, stop * 0.995))
+        stop_p = float(self.ex.price_to_precision(symbol, stop))
+        o = self.ex.create_order(
+            symbol, "STOP_LOSS_LIMIT", "sell", self.amount(symbol, qty), limit,
+            {"stopPrice": stop_p, "timeInForce": "GTC"},
+        )
+        return str(o["id"])
+
+    def cancel(self, symbol, order_id):
+        if not order_id:
+            return
+        try:
+            self.ex.cancel_order(order_id, symbol)
+        except Exception as e:  # já executada/cancelada
+            log.warning("cancelar stop %s %s: %s", symbol, order_id, e)
+
+    def stop_filled(self, symbol, order_id, stop):
+        if not order_id:
+            return False, 0.0, 0.0
+        o = self.ex.fetch_order(order_id, symbol)
+        if o["status"] == "closed":
+            return True, float(o["average"] or o["price"]), float(o["cost"])
+        return False, 0.0, 0.0

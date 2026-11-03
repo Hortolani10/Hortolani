@@ -1,0 +1,172 @@
+import pandas as pd
+
+from bot.backtest import run
+from bot.data import drop_open_candle, prepare, tf_ms
+from bot.indicators import add_all, rsi
+from bot.risk import RiskGuard, position_size
+from bot.strategy import ALTA, BAIXA, Position, entry_signal, manage_position, trend_series
+from bot.trader import Trader
+
+H1, H4 = tf_ms("1h"), tf_ms("4h")
+
+
+def make(synth, cfg, drift, n=3000, seed=1):
+    e = synth(n, H1, drift, seed)
+    # TF maior construído agregando o TF de entrada (4 candles de 1h = 1 de 4h)
+    g = e.groupby(e.index // 4)
+    t = pd.DataFrame({"ts": g["ts"].first(), "open": g["open"].first(), "high": g["high"].max(),
+                      "low": g["low"].min(), "close": g["close"].last(), "volume": g["volume"].sum()})
+    return prepare(e, t.reset_index(drop=True), cfg), add_all(t.reset_index(drop=True), cfg)
+
+
+def test_rsi_bounds(synth):
+    r = rsi(synth(500, H1, 0.0)["close"]).dropna()
+    assert r.between(0, 100).all()
+
+
+def test_trend_classification(synth, cfg):
+    _, up = make(synth, cfg, 0.002)
+    _, down = make(synth, cfg, -0.002)
+    assert trend_series(up).iloc[-1] == ALTA
+    assert trend_series(down).iloc[-1] == BAIXA
+
+
+def test_no_lookahead_trend(synth, cfg):
+    df, t = make(synth, cfg, 0.001, n=1200)
+    # a tendência anexada a cada candle de 1h só pode vir de um candle de 4h já FECHADO
+    t_close = t["ts"] + H4
+    for i in range(300, len(df), 37):
+        avail = t[t_close <= df["close_ts"].iloc[i]]
+        assert df["trend"].iloc[i] == trend_series(t).loc[avail.index[-1]]
+
+
+def test_drop_open_candle(synth):
+    df = synth(10, H1, 0)
+    now = int(df["ts"].iloc[-1]) + H1 // 2      # último candle ainda aberto
+    assert len(drop_open_candle(df, "1h", now)) == 9
+
+
+def test_no_buy_in_downtrend(synth, cfg):
+    df, _ = make(synth, cfg, -0.002)
+    assert not any(entry_signal(df, i, df["trend"].iloc[i], cfg).ok for i in range(300, len(df)))
+
+
+def test_signal_has_coherent_stop(synth, cfg):
+    df, _ = make(synth, cfg, 0.0008, n=4000)
+    sigs = [entry_signal(df, i, df["trend"].iloc[i], cfg) for i in range(300, len(df))]
+    oks = [s for s in sigs if s.ok]
+    assert oks, "esperava ao menos um sinal em tendência de alta"
+    for s, row in ((s, None) for s in oks):
+        assert s.stop < s.entry
+        assert s.reward_risk >= cfg["risk"]["min_reward_risk"]
+
+
+def test_position_size_respects_risk(cfg):
+    qty = position_size(1000, 100, 95, cfg)
+    loss = qty * (100 - 95) + qty * 100 * (2 * cfg["fees"]["taker"] + cfg["fees"]["slippage"])
+    assert abs(loss - 10) < 1e-6           # 1% de 1000
+    assert qty * 100 <= 250 + 1e-9         # teto de 25%
+    assert position_size(1000, 100, 99.9, cfg) * 100 <= 250 + 1e-9
+
+
+def candle(o, h, l, c, a=1.0, ema_mid=0.0):
+    return pd.Series({"open": o, "high": h, "low": l, "close": c, "atr": a, "ema_mid": ema_mid})
+
+
+def test_manage_stop_hit(cfg):
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    acts = manage_position(p, candle(99, 100, 94, 96), ALTA, cfg)
+    assert acts[0].kind == "sell" and acts[0].price == 95 and p.qty == 0
+
+
+def test_manage_gap_below_stop_fills_at_open(cfg):
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    acts = manage_position(p, candle(90, 92, 89, 91), ALTA, cfg)
+    assert acts[0].price == 90
+
+
+def test_manage_partial_breakeven_trailing(cfg):
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    acts = manage_position(p, candle(101, 108, 100.5, 107, a=1.0), ALTA, cfg)
+    kinds = [a.kind for a in acts]
+    assert kinds[0] == "sell" and abs(acts[0].qty - 0.5) < 1e-12 and acts[0].price == 107.5
+    assert p.partial_done and p.stop > 100            # stop saiu do prejuízo
+    assert abs(p.stop - (108 - 3)) < 1e-9             # trailing máxima - 3 ATR
+    old = p.stop
+    manage_position(p, candle(107, 107.5, 106, 106.5), ALTA, cfg)
+    assert p.stop == old                              # trailing nunca desce
+
+
+def test_manage_trend_exit(cfg):
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    acts = manage_position(p, candle(100, 101, 99, 99.5, ema_mid=99.8), ALTA, cfg)
+    assert acts[-1].kind == "sell" and p.qty == 0
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    assert manage_position(p, candle(100, 101, 99, 100.5), BAIXA, cfg)[-1].kind == "sell"
+
+
+def test_risk_guard(cfg):
+    from datetime import datetime, timezone
+    now = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    g = RiskGuard(cfg)
+    g.new_bar(now, 1000)
+    assert g.can_open(now, 980)[0]
+    assert not g.can_open(now, 960)[0]                # -4% no dia
+    g2 = RiskGuard(cfg)
+    for _ in range(3):
+        g2.register_close(-1, now)
+    assert not g2.can_open(now, 1000)[0]
+
+
+def test_backtest_runs(synth, cfg):
+    up, _ = make(synth, cfg, 0.0008, n=4000, seed=3)
+    down, _ = make(synth, cfg, -0.001, n=4000, seed=4)
+    res = run({"UP/USDT": up, "DOWN/USDT": down}, cfg, 1000)
+    s = res.summary()
+    assert s["operacoes"] > 0
+    assert all(t.symbol == "UP/USDT" or t.pnl is not None for t in res.trades)
+    # perda por operação nunca muito maior que o risco planejado (1R + gaps/taxas)
+    assert min(t.r_multiple for t in res.trades) > -1.6
+    assert s["drawdown_max"] < 0.5
+
+
+class FakeBroker:
+    """Corretora falsa que alimenta o Trader com candles sintéticos."""
+    def __init__(self, e, t):
+        self.e, self.t, self.n, self.cash, self.stops = e, t, 400, 1000.0, {}
+    def candles(self, sym, tf, limit=500):
+        df = self.e if tf == "1h" else self.t
+        end = self.e["ts"].iloc[self.n]
+        return df[df["ts"] + tf_ms(tf) <= end].reset_index(drop=True)
+    def price(self, sym): return float(self.e["close"].iloc[self.n - 1])
+    def amount(self, sym, q): return round(q, 6)
+    def min_notional(self, sym): return 10.0
+    def usdt_free(self): return self.cash
+    def buy(self, sym, q):
+        px = self.price(sym); self.cash -= q * px * 1.001; return q, px, q * px * 1.001
+    def sell(self, sym, q, px=None):
+        px = self.price(sym); self.cash += q * px * 0.999; return px, q * px * 0.999
+    def place_stop(self, sym, q, s): self.stops[sym] = s; return "id"
+    def cancel(self, sym, oid): self.stops.pop(sym, None)
+    def stop_filled(self, sym, oid, s): return self.price(sym) <= s, 0.0, 0.0
+
+
+def test_trader_end_to_end(synth, cfg, tmp_path):
+    e = synth(2500, H1, 0.0008, 3)
+    g = e.groupby(e.index // 4)
+    t = pd.DataFrame({"ts": g["ts"].first(), "open": g["open"].first(), "high": g["high"].max(),
+                      "low": g["low"].min(), "close": g["close"].last(), "volume": g["volume"].sum()}).reset_index(drop=True)
+    cfg["symbols"] = ["UP/USDT"]
+    br = FakeBroker(e, t)
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    opened = closed = 0
+    while br.n < 2400:
+        had = "UP/USDT" in tr.positions
+        tr.tick()
+        has = "UP/USDT" in tr.positions
+        opened += (not had and has); closed += (had and not has)
+        if has:
+            assert br.stops.get("UP/USDT") == tr.positions["UP/USDT"].stop   # sempre protegido
+        br.n += 1
+    assert opened > 0 and closed > 0
+    assert (tmp_path / "s.json").exists()

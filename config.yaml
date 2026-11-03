@@ -1,0 +1,58 @@
+# ============================================================
+#  Configuração do bot  (valores conservadores por padrão)
+# ============================================================
+
+mode: paper            # backtest | paper | live
+testnet: true          # true = usa testnet.binance.vision (recomendado antes do live)
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+  - SOL/USDT
+  - BNB/USDT
+
+timeframes:
+  trend: 4h            # tempo gráfico maior: define a tendência (só compra a favor dela)
+  entry: 1h            # tempo gráfico de entrada: define o gatilho
+
+strategy:
+  ema_fast: 21
+  ema_mid: 50
+  ema_slow: 200
+  rsi_period: 14
+  rsi_min: 45          # RSI abaixo disso = momentum fraco, não entra
+  rsi_max: 68          # RSI acima disso = esticado/sobrecomprado, não entra
+  adx_period: 14
+  adx_min: 20          # ADX abaixo disso = mercado lateral, não entra
+  atr_period: 14
+  volume_ma: 20
+  volume_factor: 1.0   # volume do candle >= média * fator
+  pullback_lookback: 5 # candles para procurar o toque/pullback na EMA rápida
+  max_extension_atr: 1.5  # não compra se o preço estiver > X ATR acima da EMA rápida
+  swing_lookback: 10   # candles para achar o fundo (swing low) do stop
+  resistance_lookback: 50  # candles para achar a resistência (topo anterior) e medir o R:R
+
+risk:
+  risk_per_trade: 0.01      # arrisca 1% do capital por operação
+  max_position_pct: 0.25    # nenhuma posição maior que 25% do capital
+  max_open_positions: 3
+  stop_min_atr: 1.0         # distância mínima do stop (em ATR)
+  stop_max_atr: 3.0         # distância máxima do stop (em ATR)
+  take_partial_r: 1.5       # realiza parcial quando lucro = 1.5x o risco
+  partial_fraction: 0.5     # % da posição vendida na parcial
+  trailing_atr: 3.0         # trailing stop (chandelier): máxima - 3 ATR
+  breakeven_after_partial: true
+  max_daily_loss: 0.03      # para de operar no dia se perder 3%
+  max_consecutive_losses: 3 # após 3 stops seguidos, pausa
+  cooldown_hours: 24
+  min_reward_risk: 1.5      # só entra se a distância até a resistência for >= 1.5x o risco
+
+fees:
+  taker: 0.001              # 0,1% (Binance spot sem desconto BNB)
+  slippage: 0.0005
+
+paper:
+  initial_balance: 1000     # USDT fictício
+
+loop:
+  poll_seconds: 60
