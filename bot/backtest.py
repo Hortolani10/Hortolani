@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from .risk import RiskGuard, position_size
-from .strategy import Position, entry_signal, manage_position, prefilter
+from .strategy import Position, entry_features, entry_signal, manage_position, prefilter
 
 
 @dataclass
@@ -21,6 +21,7 @@ class Trade:
     pnl: float
     r_multiple: float
     reasons: str
+    features: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -58,12 +59,15 @@ def _ts(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
 
 
-def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start_ts: int | None = None) -> Result:
+def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start_ts: int | None = None,
+        end_ts: int | None = None, close_at_end: bool = False) -> Result:
     """`data`: símbolo -> DataFrame já passado por data.prepare().
 
     Sinal no fechamento do candle i -> entrada na ABERTURA do candle i+1.
     Taxa e slippage aplicados em todas as execuções.
     `start_ts` (ms): candles anteriores servem só de aquecimento (sem operar).
+    `end_ts` (ms): para antes deste instante; `close_at_end` zera as posições no fim
+    (usado para encadear períodos no walk-forward).
     """
     fee, slip = cfg["fees"]["taker"], cfg["fees"]["slippage"]
     cash = initial
@@ -75,6 +79,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
     timeline = sorted({int(ts) for df in data.values() for ts in df["close_ts"]})
     if start_ts is not None:
         timeline = [t for t in timeline if t >= start_ts]
+    if end_ts is not None:
+        timeline = [t for t in timeline if t < end_ts]
     candidates = {s: prefilter(df, cfg).to_numpy() for s, df in data.items()}
     idx = {s: dict(zip(df["close_ts"].astype(int), range(len(df)))) for s, df in data.items()}
 
@@ -92,14 +98,16 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
 
             # 1) executa entrada pendente na abertura deste candle
             if sym in pending:
-                stop, _ = pending.pop(sym)
+                stop, _, feats = pending.pop(sym)
                 px = float(row["open"]) * (1 + slip)
                 if px > stop:
-                    qty = position_size(equity(last_px), px, stop, cfg)
+                    eq_now = equity(last_px)
+                    qty = position_size(eq_now, px, stop, cfg, guard.risk_scale(eq_now))
                     cost = qty * px * (1 + fee)
                     if qty > 0 and cost <= cash and cost >= 10:
                         cash -= cost
-                        positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost)
+                        positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost,
+                                                  features={**feats, "risco_escala": guard.risk_scale(eq_now)})
                         res.events.append({"symbol": sym, "ts": int(row["ts"]), "side": "buy", "price": px,
                                            "reason": f"compra · stop {stop:.6g}"})
 
@@ -122,7 +130,7 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                     risk_cash = qty0 * pos.initial_risk
                     res.trades.append(Trade(
                         sym, pos.opened_at, now.isoformat(), pos.entry, exit_px, qty0, pnl,
-                        pnl / risk_cash if risk_cash else 0.0, ", ".join(pos.reasons),
+                        pnl / risk_cash if risk_cash else 0.0, ", ".join(pos.reasons), pos.features,
                     ))
                     guard.register_close(pnl, now)
                     del positions[sym]
@@ -138,8 +146,23 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                 if ok and candidates[sym][i]:
                     sig = entry_signal(df, i, row["trend"], cfg)
                     if sig.ok:
-                        pending[sym] = (sig.stop, sig.entry - sig.stop)
+                        pending[sym] = (sig.stop, sig.entry - sig.stop, entry_features(df, i))
 
         res.equity_curve.append(equity(last_px))
         res.equity_ts.append(ts)
+
+    if close_at_end and positions:
+        for sym, pos in list(positions.items()):
+            px = last_px.get(sym, pos.entry) * (1 - slip)
+            proceeds = pos.qty * px * (1 - fee)
+            cash += proceeds
+            pos.proceeds += proceeds
+            pnl = pos.proceeds - pos.cost
+            qty0 = pos.cost / pos.entry / (1 + fee)
+            risk_cash = qty0 * pos.initial_risk
+            res.trades.append(Trade(sym, pos.opened_at, _ts(timeline[-1]).isoformat(), pos.entry, px, qty0, pnl,
+                                    pnl / risk_cash if risk_cash else 0.0, "fim do período", pos.features))
+        positions.clear()
+        if res.equity_curve:
+            res.equity_curve[-1] = cash
     return res

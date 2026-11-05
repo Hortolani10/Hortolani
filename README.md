@@ -23,7 +23,7 @@ natural em [`PROMPT_ANALISE.md`](PROMPT_ANALISE.md) para você analisar gráfico
 | **Stop** | Fundo dos últimos 10 candles − 0,2 ATR, limitado entre 1 e 3 ATR |
 | **Tamanho** | Perda no stop = 1% do capital (com taxas); posição ≤ 25% do capital |
 | **Saída** | Trailing stop: máxima desde a entrada − 3 ATR (o stop só sobe) |
-| **Travas** | Para no dia com −3% · pausa 24h após 3 stops seguidos · máx. 3 posições |
+| **Travas** | Para no dia com −3% · pausa 24h após 3 stops seguidos · máx. 2 posições · risco pela metade se a carteira cair 5% do pico |
 
 Moedas: BTC, ETH, BNB, SOL, XRP, ADA, LTC e LINK (consolidadas).
 Estas regras foram escolhidas num teste com 3 anos de dados reais — veja
@@ -70,6 +70,22 @@ python -m bot live
 # 6) Dinheiro real: config testnet: false  e  CONFIRMO_OPERAR_DINHEIRO_REAL=SIM no .env
 python -m bot live
 ```
+
+### Como o bot aprende
+```bash
+python -m bot aprender      # o que funcionou, alarme de desvio e proposta de ajuste
+```
+- **Diário** (`logs/diario.jsonl`): cada operação do paper/live é gravada com o retrato do
+  mercado na entrada (ADX, volatilidade, RSI, volume, sessão, tendência do BTC) e o resultado.
+  O `aprender` junta isso com as operações do histórico e mostra o que deu certo em cada condição.
+- **Defesa automática** (`risk.adaptive_risk`): carteira 5% abaixo do pico → arrisca metade
+  até recuperar. Reage a cada perda sem mudar a estratégia.
+- **Alarme de desvio**: se as últimas 10 operações na prática ficarem abaixo do pior 5% do
+  histórico, o bot arrisca metade e avisa no log — sinal de que o mercado mudou.
+- **Reotimização**: testa um conjunto fixo de ajustes nos últimos 12 meses e, só se um for
+  claramente melhor (≥ 15 operações e 25% de pontuação a mais), salva `config_proposta.yaml`
+  para você revisar. Ela **não** troca sozinha: no teste walk-forward, trocar automaticamente
+  piorou o resultado (111 vs 118 USDT). Veja `PESQUISA.md`.
 
 Logs ficam em `logs/bot.log`; o estado (posições, travas) em `state_<modo>.json`, então o
 bot retoma de onde parou se reiniciar. No modo live o **stop fica na Binance**

@@ -113,6 +113,29 @@ duplos viraram armadilhas. Tendência forte (ADX > 30) foi melhor que ADX 20–3
 períodos; exigir ADX ≥ 25 no bot reduziu o retorno no treino (+9,7%), então **não** foi
 adotado — fica como candidato para observar no paper.
 
+## 6. Aprendizado: o que ajudou e o que não ajudou
+
+**Defesa automática (risco pela metade quando a carteira cai X% do pico)**, escolhida pelo treino:
+
+| Variante | Treino | Queda máx. (treino) | Validação |
+|---|---|---|---|
+| Sem defesa | +14,8% | 8,0% | −1,8% |
+| **−5% → risco ×0,5 (adotada)** | **+15,6%** | **6,4%** | −1,8% |
+| −3% → risco ×0,5 | +12,7% | 5,1% | −1,8% |
+
+**Reotimização automática a cada 3 meses (walk-forward)**: em cada data o bot escolhia, só com
+os 12 meses anteriores, o melhor de 18 ajustes (ADX mínimo, trailing, tipo de saída) e operava
+os 3 meses seguintes. De abr/2025 a nov/2026, partindo de 100 USDT:
+
+| Método | Saldo final |
+|---|---|
+| Bot fixo | **117,71 USDT** |
+| Bot que se reajusta sozinho | 111,20 USDT |
+
+O adaptativo trocou para "parcial" em jul/2025, logo antes de um período em que deixar o lucro
+correr rendia mais. Conclusão: com ~2 operações por mês, reajustar sozinho persegue ruído.
+Por isso a reotimização só **propõe**; a mudança é decisão humana.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

@@ -151,7 +151,8 @@ class FakeBroker:
     def stop_filled(self, sym, oid, s): return self.price(sym) <= s, 0.0, 0.0
 
 
-def test_trader_end_to_end(synth, cfg, tmp_path):
+def test_trader_end_to_end(synth, cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)          # o diário (logs/diario.jsonl) vai para a pasta temporária
     e = synth(2500, H1, 0.0008, 3)
     g = e.groupby(e.index // 4)
     t = pd.DataFrame({"ts": g["ts"].first(), "open": g["open"].first(), "high": g["high"].max(),
@@ -170,6 +171,9 @@ def test_trader_end_to_end(synth, cfg, tmp_path):
         br.n += 1
     assert opened > 0 and closed > 0
     assert (tmp_path / "s.json").exists()
+    from bot.learn import ler_diario
+    d = ler_diario(tmp_path / "logs" / "diario.jsonl")
+    assert len(d) == closed and {"adx", "sessao", "r"} <= set(d.columns)   # cada operação ficou no diário
 
 
 def test_prefilter_is_superset_of_entry_signal(synth, cfg):
@@ -217,3 +221,41 @@ def test_production_config_is_consistent():
     assert c["risk"]["exit_mode"] in ("trailing", "parcial", "alvo")
     assert "BTC/USDT" in c["symbols"] or not c["strategy"].get("btc_filter")
     assert c["risk"]["risk_per_trade"] <= 0.02
+
+
+def test_risk_scale_defense(cfg):
+    cfg["risk"]["adaptive_risk"] = {"enabled": True, "drawdown_trigger": 0.05, "factor": 0.5}
+    g = RiskGuard(cfg)
+    assert g.risk_scale(100) == 1.0
+    assert g.risk_scale(96) == 1.0            # -4%: normal
+    assert g.risk_scale(94) == 0.5            # -6%: defesa
+    assert g.risk_scale(101) == 1.0           # novo pico: volta ao normal
+    assert position_size(1000, 100, 95, cfg, 0.5) * 2 == position_size(1000, 100, 95, cfg)
+
+
+def test_drift_alarm():
+    from bot.learn import checar_desvio
+    import numpy as np
+    hist = list(np.random.default_rng(0).normal(0.2, 1.5, 200))     # histórico com média +0,2R
+    assert not checar_desvio(hist[-10:], hist)["alarme"]
+    assert checar_desvio([-1.0] * 10, hist)["alarme"]
+    assert not checar_desvio([-1.0] * 3, hist)["alarme"]        # poucas operações: não conclui
+
+
+def test_backtest_window_and_close_at_end(synth, cfg):
+    up, _ = make(synth, cfg, 0.0008, n=4000, seed=3)
+    mid = int(up["close_ts"].iloc[2500])
+    r = run({"UP/USDT": up}, cfg, 1000, end_ts=mid, close_at_end=True)
+    assert r.equity_ts[-1] < mid
+    assert all(t.closed <= pd.Timestamp(mid, unit="ms", tz="UTC").isoformat() for t in r.trades)
+    assert all("adx" in t.features for t in r.trades)
+
+
+def test_journal_report(tmp_path):
+    from bot.learn import ler_diario, registrar, relatorio
+    p = tmp_path / "d.jsonl"
+    for k in range(12):
+        registrar({"origem": "paper", "simbolo": "BTC/USDT", "r": (-1.0 if k % 2 else 2.0),
+                   "features": {"adx": 20 + k, "atr_pct": 1 + k / 10, "rsi": 50, "volume_rel": 1.2, "sessao": "EUA"}}, p)
+    txt = relatorio(ler_diario(p))
+    assert "12 operações" in txt and "EUA" in txt

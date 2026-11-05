@@ -9,7 +9,8 @@ from pathlib import Path
 
 from .data import attach_btc_trend, prepare
 from .risk import RiskGuard, position_size, utcnow
-from .strategy import Position, entry_signal, manage_position
+from .learn import checar_desvio, ler_diario, registrar
+from .strategy import Position, entry_features, entry_signal, manage_position
 
 log = logging.getLogger("bot")
 
@@ -44,9 +45,32 @@ class Trader:
     # ---------- execução ----------
     def _close(self, sym: str, pos: Position, reason: str) -> None:
         pnl = pos.proceeds - pos.cost
-        log.info("FECHOU %s | motivo: %s | PnL %.2f USDT", sym, reason, pnl)
+        risk_cash = (pos.cost / pos.entry) * pos.initial_risk if pos.entry else 0
+        r_mult = pnl / risk_cash if risk_cash else 0.0
+        log.info("FECHOU %s | motivo: %s | PnL %.2f USDT (%+.2fR)", sym, reason, pnl, r_mult)
         self.guard.register_close(pnl, utcnow())
         del self.positions[sym]
+        # diário: memória do bot para aprender com a prática
+        registrar({"origem": self.cfg["mode"], "simbolo": sym, "aberta": pos.opened_at,
+                   "fechada": utcnow().isoformat(), "entrada": pos.entry, "pnl": pnl, "r": r_mult,
+                   "motivo": ", ".join(pos.reasons), "features": pos.features})
+        self._check_drift()
+
+    def _check_drift(self) -> None:
+        """Alarme de desvio: se a prática estiver muito pior que o histórico, arrisca metade."""
+        try:
+            hp = Path("logs/historico_r.json")
+            hist = json.loads(hp.read_text()) if hp.exists() else []
+            d = ler_diario()
+            pratica = d[d["origem"] == self.cfg["mode"]]["r"].tolist() if not d.empty else []
+        except Exception:
+            log.exception("erro lendo o diário")
+            return
+        res = checar_desvio(pratica, hist)
+        self.state["alarme_desvio"] = res
+        if res["alarme"]:
+            log.warning("ALARME DE DESVIO: %s -> risco reduzido à metade. Revise com 'python -m bot aprender'.",
+                        res["motivo"])
 
     def _sell(self, sym: str, pos: Position, qty: float, reason: str) -> None:
         self.broker.cancel(sym, pos.stop_order_id)
@@ -126,12 +150,16 @@ class Trader:
         px = self.broker.price(sym)
         if px <= sig.stop:
             return
-        qty = self.broker.amount(sym, position_size(eq, px, sig.stop, self.cfg))
+        scale = self.guard.risk_scale(eq)
+        if (self.state.get("alarme_desvio") or {}).get("alarme"):
+            scale *= 0.5
+        qty = self.broker.amount(sym, position_size(eq, px, sig.stop, self.cfg, scale))
         if qty * px < self.broker.min_notional(sym) or qty * px * 1.002 > self.broker.usdt_free():
             log.info("%s: sinal válido mas saldo/tamanho insuficiente", sym)
             return
         filled, avg, cost = self.broker.buy(sym, qty)
-        pos = Position(sym, filled, avg, sig.stop, avg - sig.stop, utcnow().isoformat(), highest=avg, cost=cost)
+        pos = Position(sym, filled, avg, sig.stop, avg - sig.stop, utcnow().isoformat(), highest=avg, cost=cost,
+                       features={**entry_features(df, i), "risco_escala": scale})
         self.positions[sym] = pos
         self._protect(sym, pos)
         log.info(

@@ -56,6 +56,10 @@ risk:
   partial_fraction: 0.5     # % da posição vendida na parcial
   trailing_atr: 3.0         # trailing stop (chandelier): máxima desde a entrada - 3 ATR
   breakeven_after_partial: true
+  adaptive_risk:            # defesa automática: reage a cada perda sem mudar a estratégia
+    enabled: true
+    drawdown_trigger: 0.05  # carteira 5% abaixo do pico...
+    factor: 0.5             # ...arrisca metade (0,5%) até voltar ao pico
   max_daily_loss: 0.03      # para de operar no dia se perder 3%
   max_consecutive_losses: 3 # após 3 stops seguidos, pausa
   cooldown_hours: 24

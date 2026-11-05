@@ -5,14 +5,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 
-def position_size(equity: float, entry: float, stop: float, cfg: dict) -> float:
+def position_size(equity: float, entry: float, stop: float, cfg: dict, scale: float = 1.0) -> float:
     """Quantidade a comprar para que, se o stop for atingido, a perda seja
-    ~risk_per_trade do capital (incluindo taxas), limitada a max_position_pct."""
+    ~risk_per_trade × scale do capital (incluindo taxas), limitada a max_position_pct."""
     r, f = cfg["risk"], cfg["fees"]
     per_unit_loss = (entry - stop) + entry * (f["taker"] * 2 + f["slippage"])
     if per_unit_loss <= 0 or entry <= 0:
         return 0.0
-    qty_risk = equity * r["risk_per_trade"] / per_unit_loss
+    qty_risk = equity * r["risk_per_trade"] * scale / per_unit_loss
     qty_cap = equity * r["max_position_pct"] / entry
     return max(0.0, min(qty_risk, qty_cap))
 
@@ -25,9 +25,21 @@ class RiskGuard:
     day_start_equity: float = 0.0
     consecutive_losses: int = 0
     paused_until: str | None = None
+    peak_equity: float = 0.0
     history: list = field(default_factory=list)
 
+    def risk_scale(self, equity: float) -> float:
+        """Defesa automática: se a carteira estiver X% abaixo do pico, arrisca menos
+        (ex.: metade) até recuperar o pico. Reage a cada perda sem mudar a estratégia."""
+        a = self.cfg["risk"].get("adaptive_risk") or {}
+        self.peak_equity = max(self.peak_equity, equity)
+        if not a.get("enabled") or self.peak_equity <= 0:
+            return 1.0
+        dd = 1 - equity / self.peak_equity
+        return float(a.get("factor", 0.5)) if dd >= float(a.get("drawdown_trigger", 0.05)) else 1.0
+
     def new_bar(self, now: datetime, equity: float) -> None:
+        self.peak_equity = max(self.peak_equity, equity)
         d = now.strftime("%Y-%m-%d")
         if d != self.day:
             self.day, self.day_start_equity = d, equity

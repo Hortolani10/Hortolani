@@ -72,6 +72,34 @@ def prefilter(df: pd.DataFrame, cfg: dict) -> pd.Series:
     return m.fillna(False)
 
 
+def _session(hour: int) -> str:
+    if hour < 8:
+        return "Ásia/China"
+    if hour < 13:
+        return "Europa"
+    if hour < 21:
+        return "EUA"
+    return "fim do dia"
+
+
+def entry_features(df: pd.DataFrame, i: int) -> dict:
+    """Retrato do mercado no candle do sinal, guardado no diário para o bot aprender."""
+    row = df.iloc[i]
+    ts = pd.Timestamp(int(row["close_ts"]), unit="ms", tz="UTC")
+    return {
+        "adx": round(float(row["adx"]), 1),
+        "atr_pct": round(float(row["atr"] / row["close"] * 100), 2),
+        "rsi": round(float(row["rsi"]), 1),
+        "volume_rel": round(float(row["volume"] / row["vol_ma"]), 2) if row["vol_ma"] else None,
+        "dist_ema21_atr": round(float((row["close"] - row["ema_fast"]) / row["atr"]), 2),
+        "hora_utc": int(ts.hour),
+        "sessao": _session(int(ts.hour)),
+        "dia_semana": int(ts.dayofweek),
+        "tendencia": str(row["trend"]),
+        "btc_tendencia": str(row["btc_trend"]) if "btc_trend" in row else None,
+    }
+
+
 def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
     """Avalia se o candle FECHADO de índice `i` gera uma entrada de compra."""
     s, r = cfg["strategy"], cfg["risk"]
@@ -145,6 +173,7 @@ class Position:
     highest: float = 0.0
     partial_done: bool = False
     stop_order_id: str | None = None
+    features: dict = field(default_factory=dict)   # retrato do mercado na entrada (diário de operações)
     cost: float = 0.0            # USDT gasto na compra (com taxa)
     proceeds: float = 0.0        # USDT recebido nas vendas (já líquido de taxa)
     reasons: list = field(default_factory=list)

@@ -8,6 +8,7 @@ import os
 import sys
 from pathlib import Path
 
+import pandas as pd
 import yaml
 
 
@@ -121,6 +122,54 @@ def cmd_dashboard(cfg, args):
     print(f"painel gerado: {path.resolve()}  (abra no navegador)")
 
 
+def cmd_aprender(cfg, args):
+    """Relatório de aprendizado: histórico + prática, alarme de desvio e proposta de ajuste."""
+    import time as _t
+
+    from .backtest import run
+    from .data import cached_history, prepare
+    from .exchange import make_ccxt
+    from .learn import checar_desvio, ler_diario, relatorio, reotimizar, trades_para_linhas
+
+    ex = make_ccxt(cfg, with_keys=False)
+    data = {}
+    for sym in cfg["symbols"]:
+        print(f"baixando {sym}...")
+        data[sym] = prepare(cached_history(ex, sym, cfg["timeframes"]["entry"], args.days),
+                            cached_history(ex, sym, cfg["timeframes"]["trend"], args.days), cfg)
+    data = _with_btc(cfg, data, lambda: None)
+    hist = run(data, cfg, 100)
+    Path("logs").mkdir(exist_ok=True)
+    Path("logs/historico_r.json").write_text(json.dumps([t.r_multiple for t in hist.trades]))
+
+    pratica = ler_diario()
+    todas = pd.concat([pd.json_normalize(trades_para_linhas(hist.trades, "backtest")), pratica], ignore_index=True)
+    todas.columns = [c.replace("features.", "") for c in todas.columns]
+    print("\n=== O QUE O BOT APRENDEU (histórico + prática) ===")
+    print(relatorio(todas))
+
+    print("\n=== ALARME DE DESVIO (prática x histórico) ===")
+    for modo in ("paper", "live"):
+        r = pratica[pratica["origem"] == modo]["r"].tolist() if not pratica.empty else []
+        print(f"{modo:<6}", checar_desvio(r, [t.r_multiple for t in hist.trades])["motivo"])
+
+    print("\n=== REOTIMIZAÇÃO (últimos 12 meses) ===")
+    fim = int(_t.time() * 1000)
+    dec = reotimizar(data, cfg, fim)
+    a = dec["atual"]
+    print(f"atual: {a['operacoes']} ops, retorno {a['retorno_total']:+.2%}, queda máx {a['drawdown_max']:.2%}")
+    for x in dec["ranking"][:5]:
+        print(f"  {x['params']}  ops={x['operacoes']} ret={x['retorno_total']:+.2%} dd={x['drawdown_max']:.2%}")
+    if dec["trocar"]:
+        prop = Path("config_proposta.yaml")
+        prop.write_text(yaml.safe_dump(dec["melhor"]["cfg"], allow_unicode=True, sort_keys=False), encoding="utf-8")
+        print(f"\nPROPOSTA salva em {prop}: {dec['melhor']['params']}")
+        print("Atenção: no teste walk-forward, trocar automaticamente PIOROU o resultado (111 vs 118 USDT).")
+        print("Só adote se a melhora persistir em mais de uma revisão e for coerente com o mercado.")
+    else:
+        print("\nSem proposta: nenhum ajuste foi claramente melhor. Mantenha a configuração atual.")
+
+
 def cmd_run(cfg, mode):
     from dotenv import load_dotenv
 
@@ -164,12 +213,16 @@ def main():
     d.add_argument("--symbols", nargs="*")
     d.add_argument("--demo", action="store_true", help="usa dados simulados (sem internet)")
     d.add_argument("--out", default="dashboard.html")
+    ap_ = sub.add_parser("aprender", help="relatório do que funcionou, alarme de desvio e proposta de ajuste")
+    ap_.add_argument("--days", type=int, default=1150)
     sub.add_parser("paper", help="opera com dinheiro fictício e preços reais")
     sub.add_parser("live", help="opera de verdade (testnet ou real, conforme config)")
     args = ap.parse_args()
     cfg = load_config(args.config)
     if args.cmd == "backtest":
         cmd_backtest(cfg, args)
+    elif args.cmd == "aprender":
+        cmd_aprender(cfg, args)
     elif args.cmd == "dashboard":
         cmd_dashboard(cfg, args)
     elif args.cmd == "analyze":
