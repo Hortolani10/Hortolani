@@ -46,7 +46,7 @@ strategy:
 risk:
   risk_per_trade: 0.01      # arrisca 1% do capital por operação
   max_position_pct: 0.25    # nenhuma posição maior que 25% do capital
-  max_open_positions: 3
+  max_open_positions: 2     # moedas têm correlação 0,6-0,8 com o BTC: 3 posições ≈ mesma aposta repetida
   stop_min_atr: 1.0         # distância mínima do stop (em ATR)
   stop_max_atr: 3.0         # distância máxima do stop (em ATR)
   exit_mode: trailing       # trailing | parcial | alvo   (trailing venceu no teste de 3 anos)

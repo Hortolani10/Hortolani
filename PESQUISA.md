@@ -79,6 +79,40 @@ XRP, ADA e LTC tiveram só 3 operações cada — amostra pequena demais para co
 sobre elas isoladamente. **Não remova moedas com base nesta tabela**: escolher as
 vencedoras olhando o passado é exatamente o tipo de ajuste que falha no futuro.
 
+## 5. Auditoria dos dados e análise de mercado (nov/2026)
+
+**Dados:** 8 moedas × 1h/4h/1d, set/2023–nov/2026. Nenhum buraco, duplicata, candle inválido
+ou volume zero. Os maiores saltos batem com eventos reais (crise do iene em ago/2024,
+eleição dos EUA em nov/2024, −14% e +12% em 5–6/fev/2026).
+
+**Horários (UTC):** a abertura da China (01:30 UTC) não mostra efeito consistente; as
+diferenças de retorno por hora são de 0,01–0,05% e trocam de sinal entre treino e validação.
+A volatilidade e o volume são maiores no horário dos EUA (13–16 UTC: amplitude ~60% maior,
+volume até 1,6×), quando saem dados econômicos e abre Wall Street. Fins de semana têm
+~25% menos amplitude. Nenhum desses efeitos virou regra: não se repetem com consistência.
+
+**Correlação diária com o BTC:** ETH 0,81 · SOL 0,75 · ADA 0,69 · LINK 0,68 · BNB 0,66 ·
+XRP 0,64 · LTC 0,61. Por isso o limite caiu para **2 posições abertas** (treino +14,8% contra
++13,0%; validação −1,8% contra −2,5%).
+
+**Padrões gráficos (4h, diário e BTC em alta; retorno em 3 dias descontando 0,3% de custos):**
+
+| Padrão | Treino | Validação |
+|---|---|---|
+| Candle qualquer (base) | −0,30% | −0,77% |
+| Engolfo de alta | −0,17% | −0,58% |
+| Martelo | −0,57% | −1,09% |
+| Inside bar rompida | +0,11% | −1,61% |
+| Squeeze + rompimento | −0,51% | −3,83% |
+| Rompimento da máxima de 20 | +0,72% | −2,00% |
+| Fundo duplo (rompido) | −0,38% | −3,23% |
+| **Sinal do bot** | **+1,50%** | −0,72% |
+
+Nenhum padrão clássico teve vantagem consistente; no ano de baixa, rompimentos e fundos
+duplos viraram armadilhas. Tendência forte (ADX > 30) foi melhor que ADX 20–30 nos dois
+períodos; exigir ADX ≥ 25 no bot reduziu o retorno no treino (+9,7%), então **não** foi
+adotado — fica como candidato para observar no paper.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
