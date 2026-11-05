@@ -170,3 +170,50 @@ def test_trader_end_to_end(synth, cfg, tmp_path):
         br.n += 1
     assert opened > 0 and closed > 0
     assert (tmp_path / "s.json").exists()
+
+
+def test_prefilter_is_superset_of_entry_signal(synth, cfg):
+    from bot.strategy import prefilter
+    for drift, seed in [(0.0008, 3), (0.0, 5), (0.0012, 9)]:
+        df, _ = make(synth, cfg, drift, n=3000, seed=seed)
+        m = prefilter(df, cfg).to_numpy()
+        for i in range(len(df)):
+            if entry_signal(df, i, df["trend"].iloc[i], cfg).ok:
+                assert m[i], f"prefilter perdeu o sinal em {i}"
+
+
+def test_exit_modes(cfg):
+    cfg["risk"]["exit_mode"] = "alvo"; cfg["risk"]["target_r"] = 2.0
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    acts = manage_position(p, candle(101, 111, 100.5, 108, ema_mid=99), ALTA, cfg)
+    assert acts[0].price == 110 and p.qty == 0
+    cfg["risk"]["exit_mode"] = "trailing"
+    p = Position("X", 1, 100, 95, 5, "t", highest=100)
+    manage_position(p, candle(101, 104, 100.5, 103.5, a=1.0, ema_mid=99), ALTA, cfg)
+    assert p.stop == 101 and p.qty == 1          # 104 - 3 ATR
+
+
+def test_btc_filter_blocks_alt_entries_when_btc_not_up(synth, cfg):
+    from bot.data import attach_btc_trend
+    alt, _ = make(synth, cfg, 0.0008, n=4000, seed=3)
+    btc_down, _ = make(synth, cfg, -0.002, n=4000, seed=4)
+    cfg["strategy"]["btc_filter"] = True
+    alt_f = attach_btc_trend(alt, btc_down)
+    assert not any(entry_signal(alt_f, i, alt_f["trend"].iloc[i], cfg).ok for i in range(300, len(alt_f)))
+    assert not prefilter_any(alt_f, cfg)
+    cfg["strategy"]["btc_filter"] = False
+    assert any(entry_signal(alt, i, alt["trend"].iloc[i], cfg).ok for i in range(300, len(alt)))
+
+
+def prefilter_any(df, cfg):
+    from bot.strategy import prefilter
+    return bool(prefilter(df, cfg).any())
+
+
+def test_production_config_is_consistent():
+    import yaml
+    from pathlib import Path
+    c = yaml.safe_load((Path(__file__).resolve().parents[1] / "config.yaml").read_text(encoding="utf-8"))
+    assert c["risk"]["exit_mode"] in ("trailing", "parcial", "alvo")
+    assert "BTC/USDT" in c["symbols"] or not c["strategy"].get("btc_filter")
+    assert c["risk"]["risk_per_trade"] <= 0.02

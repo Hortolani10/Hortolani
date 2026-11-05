@@ -39,7 +39,7 @@ def build_payload(data: dict[str, pd.DataFrame], res: Result, cfg: dict, simulat
         if sig.ok:
             risk = sig.entry - sig.stop
             plan = {"entrada": _r(sig.entry), "stop": _r(sig.stop),
-                    "parcial": _r(sig.entry + r["take_partial_r"] * risk),
+                    "parcial": _r(sig.entry + r["take_partial_r"] * risk) if r.get("exit_mode", "parcial") == "parcial" else None,
                     "alvo": _r(sig.target), "rr": _r(sig.reward_risk, 3)}
         symbols[sym] = {
             "candles": [[int(t) // 1000, _r(o), _r(h), _r(l), _r(c), _r(v, 4)]
@@ -65,8 +65,8 @@ def build_payload(data: dict[str, pd.DataFrame], res: Result, cfg: dict, simulat
         "gerado_em": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "simulado": simulated,
         "timeframes": cfg["timeframes"],
-        "risco": {k: cfg["risk"][k] for k in ("risk_per_trade", "take_partial_r", "partial_fraction",
-                                               "trailing_atr", "max_daily_loss", "min_reward_risk")},
+        "risco": {k: cfg["risk"].get(k) for k in ("risk_per_trade", "take_partial_r", "partial_fraction",
+                                                   "trailing_atr", "max_daily_loss", "min_reward_risk", "exit_mode")},
         "resumo": summary,
         "capital_inicial": res.initial,
         "equity": [[t // 1000, _r(v, 7)] for t, v in zip(res.equity_ts, res.equity_curve)],

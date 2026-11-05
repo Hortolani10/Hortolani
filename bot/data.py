@@ -68,3 +68,22 @@ def prepare(entry_df: pd.DataFrame, trend_df: pd.DataFrame, cfg: dict) -> pd.Dat
     )
     merged["trend"] = merged["trend"].fillna("LATERAL")
     return merged.reset_index(drop=True)
+
+
+def attach_btc_trend(df: pd.DataFrame, btc: pd.DataFrame) -> pd.DataFrame:
+    """Anexa a tendência do BTC (já calculada por prepare) a outro par, sem look-ahead."""
+    b = btc[["close_ts", "trend"]].rename(columns={"trend": "btc_trend"}).sort_values("close_ts")
+    out = pd.merge_asof(df.drop(columns=["btc_trend"], errors="ignore").sort_values("close_ts"), b,
+                        on="close_ts", direction="backward")
+    out["btc_trend"] = out["btc_trend"].fillna("LATERAL")
+    return out.reset_index(drop=True)
+
+
+def apply_btc_filter(data: dict[str, pd.DataFrame], cfg: dict, btc: pd.DataFrame | None = None) -> dict:
+    """Se strategy.btc_filter estiver ligado, anexa a tendência do BTC a todos os pares."""
+    if not cfg["strategy"].get("btc_filter"):
+        return data
+    btc = btc if btc is not None else data.get("BTC/USDT")
+    if btc is None:
+        return data
+    return {s: attach_btc_trend(df, btc) for s, df in data.items()}

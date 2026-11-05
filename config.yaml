@@ -9,17 +9,24 @@ testnet: true          # true = usa testnet.binance.vision (recomendado antes do
 # O espelho oficial data-api.binance.vision funciona onde api.binance.com é bloqueado.
 market_data_url: https://data-api.binance.vision/api/v3
 
+# Moedas consolidadas (testadas em 3 anos de dados reais)
 symbols:
   - BTC/USDT
   - ETH/USDT
-  - SOL/USDT
   - BNB/USDT
+  - SOL/USDT
+  - XRP/USDT
+  - ADA/USDT
+  - LTC/USDT
+  - LINK/USDT
 
 timeframes:
-  trend: 4h            # tempo gráfico maior: define a tendência (só compra a favor dela)
-  entry: 1h            # tempo gráfico de entrada: define o gatilho
+  trend: 1d            # tempo gráfico maior: define a tendência (só compra a favor dela)
+  entry: 4h            # tempo gráfico de entrada: define o gatilho
+  # 1h/4h foi testado e perdeu para as taxas: no 1h nada superou entradas aleatórias
 
 strategy:
+  btc_filter: true     # só compra qualquer moeda se o BTC também estiver em tendência de ALTA
   ema_fast: 21
   ema_mid: 50
   ema_slow: 200
@@ -42,14 +49,17 @@ risk:
   max_open_positions: 3
   stop_min_atr: 1.0         # distância mínima do stop (em ATR)
   stop_max_atr: 3.0         # distância máxima do stop (em ATR)
-  take_partial_r: 1.5       # realiza parcial quando lucro = 1.5x o risco
+  exit_mode: trailing       # trailing | parcial | alvo   (trailing venceu no teste de 3 anos)
+  trend_exit: false         # true = também sai se fechar abaixo da EMA50 / tendência virar BAIXA
+  target_r: 2.0             # usado só no exit_mode "alvo"
+  take_partial_r: 1.5       # usado só no exit_mode "parcial": realiza parcial em 1.5x o risco
   partial_fraction: 0.5     # % da posição vendida na parcial
-  trailing_atr: 3.0         # trailing stop (chandelier): máxima - 3 ATR
+  trailing_atr: 3.0         # trailing stop (chandelier): máxima desde a entrada - 3 ATR
   breakeven_after_partial: true
   max_daily_loss: 0.03      # para de operar no dia se perder 3%
   max_consecutive_losses: 3 # após 3 stops seguidos, pausa
   cooldown_hours: 24
-  min_reward_risk: 1.5      # só entra se a distância até a resistência for >= 1.5x o risco
+  min_reward_risk: 0.0      # exige espaço até a resistência (em R). No 4h, 1.5 barrava 95% dos sinais
 
 fees:
   taker: 0.001              # 0,1% (Binance spot sem desconto BNB)

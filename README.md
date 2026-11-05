@@ -14,16 +14,20 @@ natural em [`PROMPT_ANALISE.md`](PROMPT_ANALISE.md) para você analisar gráfico
 
 | Etapa | Regra |
 |---|---|
-| **Tendência (4h)** | ALTA = preço > EMA200, EMA50 > EMA200 e EMA200 subindo. Só compra em ALTA. |
-| **Estrutura (1h)** | EMA21 > EMA50 > EMA200 |
+| **Mercado (BTC, diário)** | Só compra qualquer moeda se o BTC também estiver em tendência de ALTA |
+| **Tendência (diário)** | ALTA = preço > EMA200, EMA50 > EMA200 e EMA200 subindo. Só compra em ALTA. |
+| **Estrutura (4h)** | EMA21 > EMA50 > EMA200 |
 | **Pullback** | Nos últimos 5 candles o preço tocou a EMA21 sem fechar abaixo da EMA50 |
 | **Gatilho** | Candle de alta fechando acima da EMA21 e da máxima anterior |
 | **Filtros** | RSI 45–68 · MACD > 0 com histograma subindo · ADX ≥ 20 · volume ≥ média · no máx. 1,5 ATR acima da EMA21 |
-| **Espaço** | Distância até a resistência ≥ 1,5× o risco (ou rompimento de topo) |
 | **Stop** | Fundo dos últimos 10 candles − 0,2 ATR, limitado entre 1 e 3 ATR |
 | **Tamanho** | Perda no stop = 1% do capital (com taxas); posição ≤ 25% do capital |
-| **Saída** | 50% em +1,5R → stop no empate → trailing de 3 ATR · sai se fechar abaixo da EMA50 ou se o 4h virar BAIXA |
+| **Saída** | Trailing stop: máxima desde a entrada − 3 ATR (o stop só sobe) |
 | **Travas** | Para no dia com −3% · pausa 24h após 3 stops seguidos · máx. 3 posições |
+
+Moedas: BTC, ETH, BNB, SOL, XRP, ADA, LTC e LINK (consolidadas).
+Estas regras foram escolhidas num teste com 3 anos de dados reais — veja
+[`PESQUISA.md`](PESQUISA.md) para os números, inclusive o que **não** funcionou.
 
 Tudo é ajustável em [`config.yaml`](config.yaml).
 
@@ -31,6 +35,9 @@ Tudo é ajustável em [`config.yaml`](config.yaml).
 cada candle de 1h vem apenas de candles de 4h **já fechados** (sem olhar o futuro — há
 teste para isso); e o backtest usa **exatamente o mesmo código** do bot ao vivo, entrando
 na abertura do candle seguinte ao sinal, com taxa e slippage.
+
+Os dados públicos de preço vêm do espelho oficial `data-api.binance.vision`
+(`market_data_url` no config), que funciona em regiões onde `api.binance.com` é bloqueado.
 
 ## Instalação
 ```bash
@@ -42,7 +49,7 @@ cp .env.example .env
 ## Uso
 ```bash
 # 1) Backtest com dados reais da Binance (não precisa de chave)
-python -m bot backtest --days 365
+python -m bot backtest --days 1150          # ~3 anos
 python -m bot backtest --days 180 --symbols BTC/USDT ETH/USDT
 
 # 2) Análise atual de cada par (checklist + plano de trade)

@@ -132,11 +132,11 @@ footer p { margin: 0 0 6px; }
       <div id="chart"></div>
       <div id="rsi"></div>
       <div class="keys">
-        <span><i class="sw" style="background:var(--band-up)"></i>Tendência de alta (4h)</span>
-        <span><i class="sw" style="background:var(--band-down)"></i>Tendência de baixa (4h)</span>
+        <span><i class="sw" style="background:var(--band-up)"></i>Tendência de alta (<span class="tfT"></span>)</span>
+        <span><i class="sw" style="background:var(--band-down)"></i>Tendência de baixa (<span class="tfT"></span>)</span>
         <span><i class="sw" style="background:var(--stop);height:3px"></i>Stop loss da posição</span>
         <span><b style="color:var(--up)">▲</b> Compra</span>
-        <span><b style="color:var(--down)">▼</b> Venda (parcial, stop ou saída)</span>
+        <span><b style="color:var(--down)">▼</b> Venda (stop/trailing ou saída)</span>
       </div>
     </section>
 
@@ -180,11 +180,12 @@ const fmt = (v, d = 2) => v == null ? "—" : Number(v).toLocaleString("pt-BR", 
 const px = (v) => { if (v == null) return "—"; const a = Math.abs(v); return fmt(v, a >= 100 ? 2 : a >= 1 ? 4 : 6); };
 const pct = (v) => v == null ? "—" : fmt(v * 100, 1) + "%";
 const dt = (s) => new Date(s * 1000).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-const NOMES = { tendencia_maior: "Tendência do 4h", emas_alinhadas: "Médias alinhadas (21 > 50 > 200)", pullback: "Pullback na EMA21",
+const NOMES = { tendencia_maior: "Tendência do " + D.timeframes.trend, emas_alinhadas: "Médias alinhadas (21 > 50 > 200)", pullback: "Pullback na EMA21",
   gatilho: "Gatilho de compra", rsi: "RSI na faixa", macd: "MACD virando para cima", adx: "Força da tendência (ADX)",
-  volume: "Volume acima da média", nao_esticado: "Preço não esticado", reward_risk: "Espaço até a resistência", dados: "Histórico" };
+  volume: "Volume acima da média", mercado_btc: "BTC em tendência de alta", nao_esticado: "Preço não esticado", reward_risk: "Espaço até a resistência", dados: "Histórico" };
 const SAIDA = (r) => r.startsWith("parcial") ? "Parcial" : r.startsWith("stop") ? "Stop" : r.includes("EMA") ? "EMA50" : r.includes("tendência") ? "4h baixa" : "Saída";
 
+document.querySelectorAll(".tfT").forEach((e) => e.textContent = D.timeframes.trend);
 const symbols = Object.keys(D.simbolos);
 let current = symbols[0];
 try { const s = localStorage.getItem("painel-par"); if (s && D.simbolos[s]) current = s; } catch (e) {}
@@ -324,14 +325,14 @@ function setLegend(time) {
     `<span><i style="background:var(--ema21)"></i>EMA21 <span class="v">${px(at(S.ema21))}</span></span>` +
     `<span><i style="background:var(--ema50)"></i>EMA50 <span class="v">${px(at(S.ema50))}</span></span>` +
     `<span><i style="background:var(--ema200);height:3px"></i>EMA200 <span class="v">${px(at(S.ema200))}</span></span>` +
-    `<span>RSI <span class="v">${fmt(at(S.rsi), 1)}</span></span><span>4h: <span class="v">${tr}</span></span>`;
+    `<span>RSI <span class="v">${fmt(at(S.rsi), 1)}</span></span><span>${D.timeframes.trend}: <span class="v">${tr}</span></span>`;
 }
 main.subscribeCrosshairMove((p) => setLegend(p && p.time ? p.time : null));
 
 function renderSide(s) {
   const S = D.simbolos[s];
   const t = S.tendencia_atual, pill = $("trendPill");
-  pill.textContent = "Tendência 4h: " + t.toLowerCase();
+  pill.textContent = `Tendência ${D.timeframes.trend}: ` + t.toLowerCase();
   pill.className = "pill " + (t === "ALTA" ? "up" : t === "BAIXA" ? "down" : "flat");
   const falhas = S.checklist.filter((c) => !c.ok).length;
   if (S.sinal) { $("decision").textContent = "Comprar"; $("decision").style.color = "var(--up)"; $("decisionHint").textContent = "Todas as regras passaram no último candle."; }
@@ -339,7 +340,7 @@ function renderSide(s) {
   else { $("decision").textContent = "Esperar"; $("decision").style.color = "var(--fg)"; $("decisionHint").textContent = `${falhas} ${falhas === 1 ? "regra ainda não passou" : "regras ainda não passaram"}. Último preço ${px(S.ultimo)}.`; }
   const P = S.plano;
   $("plan").hidden = !P;
-  if (P) $("plan").innerHTML = `<dt>Entrada</dt><dd>${px(P.entrada)}</dd><dt>Stop loss</dt><dd class="neg">${px(P.stop)}</dd><dt>Parcial (${D.risco.take_partial_r}R)</dt><dd class="pos">${px(P.parcial)}</dd><dt>Alvo / R:R</dt><dd>${px(P.alvo)} · ${fmt(P.rr)}</dd>`;
+  if (P) $("plan").innerHTML = `<dt>Entrada</dt><dd>${px(P.entrada)}</dd><dt>Stop loss</dt><dd class="neg">${px(P.stop)}</dd>${P.parcial != null ? `<dt>Parcial (${D.risco.take_partial_r}R)</dt><dd class="pos">${px(P.parcial)}</dd>` : `<dt>Saída</dt><dd>trailing ${D.risco.trailing_atr} ATR</dd>`}<dt>Alvo / R:R</dt><dd>${px(P.alvo)} · ${fmt(P.rr)}</dd>`;
   $("checks").innerHTML = S.checklist.map((c) => `<li class="${c.ok ? "ok" : "no"}"><span class="ic" aria-label="${c.ok ? "passou" : "falhou"}">${c.ok ? "✓" : "✕"}</span><div><b>${NOMES[c.regra] || c.regra}</b><small>${c.detalhe}</small></div></li>`).join("");
 
   $("chartTitle").textContent = s;

@@ -30,6 +30,18 @@ def load_state(path: str) -> dict:
     return json.loads(p.read_text()) if p.exists() else {}
 
 
+def _with_btc(cfg, data, fetch_btc):
+    """Aplica o filtro do BTC; busca o BTC se ele não estiver na lista de pares."""
+    from .data import apply_btc_filter, prepare
+
+    if not cfg["strategy"].get("btc_filter"):
+        return data
+    btc = data.get("BTC/USDT")
+    if btc is None:
+        btc = prepare(*fetch_btc(), cfg)
+    return apply_btc_filter(data, cfg, btc)
+
+
 def cmd_backtest(cfg, args):
     from .backtest import run
     from .data import cached_history, prepare
@@ -42,6 +54,8 @@ def cmd_backtest(cfg, args):
         e = cached_history(ex, sym, cfg["timeframes"]["entry"], args.days)
         t = cached_history(ex, sym, cfg["timeframes"]["trend"], args.days + 60)
         data[sym] = prepare(e, t, cfg)
+    data = _with_btc(cfg, data, lambda: (cached_history(ex, "BTC/USDT", cfg["timeframes"]["entry"], args.days),
+                                         cached_history(ex, "BTC/USDT", cfg["timeframes"]["trend"], args.days + 60)))
     res = run(data, cfg, initial=args.balance)
     print("\n=== RESULTADO DO BACKTEST ===")
     for k, v in res.summary().items():
@@ -58,11 +72,19 @@ def cmd_analyze(cfg, args):
     from .report import analysis_report
 
     ex = make_ccxt(cfg, with_keys=False)
+    tf_e, tf_t = cfg["timeframes"]["entry"], cfg["timeframes"]["trend"]
+
+    def get(sym):
+        e = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_e, limit=500)), tf_e)
+        t = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_t, limit=500)), tf_t)
+        return e, t
+
     out = []
-    for sym in args.symbols or cfg["symbols"]:
-        e = drop_open_candle(to_df(ex.fetch_ohlcv(sym, cfg["timeframes"]["entry"], limit=500)), cfg["timeframes"]["entry"])
-        t = drop_open_candle(to_df(ex.fetch_ohlcv(sym, cfg["timeframes"]["trend"], limit=500)), cfg["timeframes"]["trend"])
-        out.append(analysis_report(sym, prepare(e, t, cfg), add_all(t, cfg), cfg))
+    syms = args.symbols or cfg["symbols"]
+    raw = {sym: get(sym) for sym in syms}
+    data = _with_btc(cfg, {s: prepare(e, t, cfg) for s, (e, t) in raw.items()}, lambda: get("BTC/USDT"))
+    for sym in syms:
+        out.append(analysis_report(sym, data[sym], add_all(raw[sym][1], cfg), cfg))
     text = "\n\n---\n\n".join(out)
     if args.prompt:
         text = Path("PROMPT_ANALISE.md").read_text(encoding="utf-8") + "\n\n# DADOS DE MERCADO\n\n" + text
@@ -92,6 +114,8 @@ def cmd_dashboard(cfg, args):
             e = cached_history(ex, sym, cfg["timeframes"]["entry"], args.days)
             t = cached_history(ex, sym, cfg["timeframes"]["trend"], args.days + 60)
             data[sym] = prepare(e, t, cfg)
+        data = _with_btc(cfg, data, lambda: (cached_history(ex, "BTC/USDT", cfg["timeframes"]["entry"], args.days),
+                                             cached_history(ex, "BTC/USDT", cfg["timeframes"]["trend"], args.days + 60)))
     res = run(data, cfg, initial=args.balance)
     path = render(build_payload(data, res, cfg, simulated=args.demo), args.out)
     print(f"painel gerado: {path.resolve()}  (abra no navegador)")

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from .risk import RiskGuard, position_size
-from .strategy import Position, entry_signal, manage_position
+from .strategy import Position, entry_signal, manage_position, prefilter
 
 
 @dataclass
@@ -58,11 +58,12 @@ def _ts(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
 
 
-def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Result:
+def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start_ts: int | None = None) -> Result:
     """`data`: símbolo -> DataFrame já passado por data.prepare().
 
     Sinal no fechamento do candle i -> entrada na ABERTURA do candle i+1.
     Taxa e slippage aplicados em todas as execuções.
+    `start_ts` (ms): candles anteriores servem só de aquecimento (sem operar).
     """
     fee, slip = cfg["fees"]["taker"], cfg["fees"]["slippage"]
     cash = initial
@@ -72,6 +73,9 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
     res = Result(initial=initial)
 
     timeline = sorted({int(ts) for df in data.values() for ts in df["close_ts"]})
+    if start_ts is not None:
+        timeline = [t for t in timeline if t >= start_ts]
+    candidates = {s: prefilter(df, cfg).to_numpy() for s, df in data.items()}
     idx = {s: dict(zip(df["close_ts"].astype(int), range(len(df)))) for s, df in data.items()}
 
     def equity(prices: dict[str, float]) -> float:
@@ -131,7 +135,7 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0) -> Re
             guard.new_bar(now, equity(last_px))
             if sym not in positions and sym not in pending and len(positions) + len(pending) < cfg["risk"]["max_open_positions"]:
                 ok, _ = guard.can_open(now, equity(last_px))
-                if ok:
+                if ok and candidates[sym][i]:
                     sig = entry_signal(df, i, row["trend"], cfg)
                     if sig.ok:
                         pending[sym] = (sig.stop, sig.entry - sig.stop)

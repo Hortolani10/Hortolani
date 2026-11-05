@@ -7,7 +7,7 @@ import logging
 import time
 from pathlib import Path
 
-from .data import prepare
+from .data import attach_btc_trend, prepare
 from .risk import RiskGuard, position_size, utcnow
 from .strategy import Position, entry_signal, manage_position
 
@@ -142,11 +142,20 @@ class Trader:
 
     def tick(self) -> None:
         tf_e, tf_t = self.cfg["timeframes"]["entry"], self.cfg["timeframes"]["trend"]
+        btc = None
+        if self.cfg["strategy"].get("btc_filter"):
+            try:
+                btc = prepare(self.broker.candles("BTC/USDT", tf_e), self.broker.candles("BTC/USDT", tf_t), self.cfg)
+            except Exception:
+                log.exception("erro buscando BTC para o filtro de mercado")
+                return                      # sem o filtro, não decide nada neste ciclo
         for sym in self.cfg["symbols"]:
             try:
                 if sym in self.positions:
                     self._check_stop(sym, self.positions[sym])
                 df = prepare(self.broker.candles(sym, tf_e), self.broker.candles(sym, tf_t), self.cfg)
+                if btc is not None:
+                    df = attach_btc_trend(df, btc)
                 last_ts = int(df["ts"].iloc[-1])
                 if last_ts > int(self.state["last_bar"].get(sym, 0)):
                     self._on_closed_bar(sym, df)

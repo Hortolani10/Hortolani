@@ -11,6 +11,16 @@ import pandas as pd
 from .strategy import entry_signal
 
 
+def exit_plan(sig, risk: float, r: dict) -> list[str]:
+    mode = r.get("exit_mode", "parcial")
+    if mode == "trailing":
+        return [f"- Saída: trailing stop = máxima desde a entrada − {r['trailing_atr']} ATR (só sobe)"]
+    if mode == "alvo":
+        return [f"- Alvo fixo ({r.get('target_r', 2.0)}R): {sig.entry + r.get('target_r', 2.0) * risk:.6g}"]
+    return [f"- Parcial ({r['partial_fraction']:.0%}) em {r['take_partial_r']}R: {sig.entry + r['take_partial_r'] * risk:.6g}",
+            f"- Depois: stop no empate + trailing de {r['trailing_atr']} ATR"]
+
+
 def analysis_report(symbol: str, df: pd.DataFrame, trend_df: pd.DataFrame, cfg: dict) -> str:
     i = len(df) - 1
     row = df.iloc[i]
@@ -45,9 +55,8 @@ def analysis_report(symbol: str, df: pd.DataFrame, trend_df: pd.DataFrame, cfg: 
             "## ✅ SINAL DE COMPRA",
             f"- Entrada: {sig.entry:.6g}",
             f"- Stop loss: {sig.stop:.6g} ({(1 - sig.stop / sig.entry):.2%} abaixo)",
-            f"- Parcial ({r['partial_fraction']:.0%}) em {r['take_partial_r']}R: {sig.entry + r['take_partial_r'] * risk:.6g}",
-            f"- Depois: stop no empate + trailing de {r['trailing_atr']} ATR",
-            f"- Alvo estrutural: {sig.target:.6g} (R:R {sig.reward_risk:.2f})",
+            *exit_plan(sig, risk, r),
+            f"- Resistência / alvo estrutural: {sig.target:.6g} (R:R {sig.reward_risk:.2f})",
             f"- Risco por operação: {r['risk_per_trade']:.1%} do capital",
         ]
     else:

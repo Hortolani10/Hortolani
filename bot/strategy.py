@@ -45,6 +45,33 @@ class Signal:
         return [k for k, (ok, _) in self.checks.items() if not ok]
 
 
+def prefilter(df: pd.DataFrame, cfg: dict) -> pd.Series:
+    """Versão vetorizada (rápida) das regras de entrada, exceto o R:R.
+
+    É um SUPERCONJUNTO de entry_signal().ok: onde dá False, entry_signal também
+    daria False. O backtest só chama entry_signal nos candles marcados aqui.
+    """
+    s = cfg["strategy"]
+    pl = s["pullback_lookback"]
+    touched = (df["low"] <= df["ema_fast"] * 1.002).astype(float).rolling(pl).max() == 1
+    held = (df["close"] > df["ema_mid"]).astype(float).rolling(pl).min() == 1
+    m = (
+        (df["trend"] == ALTA)
+        & (df["ema_fast"] > df["ema_mid"]) & (df["ema_mid"] > df["ema_slow"])
+        & touched & held
+        & (df["close"] > df["ema_fast"]) & (df["close"] > df["open"]) & (df["close"] > df["high"].shift(1))
+        & (df["rsi"] >= s["rsi_min"]) & (df["rsi"] <= s["rsi_max"])
+        & (df["macd_hist"] > df["macd_hist"].shift(1)) & (df["macd"] > 0)
+        & (df["adx"] >= s["adx_min"])
+        & (df["volume"] >= df["vol_ma"] * s["volume_factor"])
+        & ((df["close"] - df["ema_fast"]) <= s["max_extension_atr"] * df["atr"])
+    )
+    if s.get("btc_filter") and "btc_trend" in df.columns:
+        m &= df["btc_trend"] == ALTA
+    m.iloc[: max(s["ema_slow"], s["resistance_lookback"]) + 5] = False
+    return m.fillna(False)
+
+
 def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
     """Avalia se o candle FECHADO de índice `i` gera uma entrada de compra."""
     s, r = cfg["strategy"], cfg["risk"]
@@ -57,6 +84,9 @@ def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
     c: dict[str, tuple[bool, str]] = {}
 
     c["tendencia_maior"] = (trend == ALTA, f"tendência do TF maior = {trend}")
+    if s.get("btc_filter") and "btc_trend" in df.columns:
+        bt = row["btc_trend"]
+        c["mercado_btc"] = (bt == ALTA, f"tendência do BTC = {bt} (altcoins só com BTC em alta)")
     c["emas_alinhadas"] = (
         row["ema_fast"] > row["ema_mid"] > row["ema_slow"],
         f"EMA{s['ema_fast']}={row['ema_fast']:.4f} EMA{s['ema_mid']}={row['ema_mid']:.4f} EMA{s['ema_slow']}={row['ema_slow']:.4f}",
@@ -159,24 +189,42 @@ def manage_position(pos: Position, candle: pd.Series, trend: str, cfg: dict) -> 
 
     pos.highest = max(pos.highest, h)
 
-    if not pos.partial_done:
-        target = pos.entry + r["take_partial_r"] * pos.initial_risk
-        if h >= target:
-            q = pos.qty * r["partial_fraction"]
-            actions.append(Action("sell", q, max(o, target), f"parcial {r['take_partial_r']}R"))
-            pos.qty -= q
-            pos.partial_done = True
-            if r["breakeven_after_partial"]:
-                be = pos.entry * (1 + 2 * fee)
-                if be > pos.stop:
-                    pos.stop = be
-                    actions.append(Action("move_stop", price=pos.stop, reason="empate (breakeven)"))
+    mode = r.get("exit_mode", "parcial")
 
-    if pos.partial_done:
+    if mode == "alvo":                       # alvo fixo em target_r, sem trailing
+        target = pos.entry + r.get("target_r", 2.0) * pos.initial_risk
+        if h >= target:
+            actions.append(Action("sell", pos.qty, max(o, target), f"alvo {r.get('target_r', 2.0)}R"))
+            pos.qty = 0.0
+            return actions
+
+    elif mode == "trailing":                 # sem parcial: trailing desde a entrada
         trail = pos.highest - r["trailing_atr"] * a
         if trail > pos.stop:
             pos.stop = trail
             actions.append(Action("move_stop", price=pos.stop, reason="trailing"))
+
+    else:                                    # "parcial": parcial + empate + trailing
+        if not pos.partial_done:
+            target = pos.entry + r["take_partial_r"] * pos.initial_risk
+            if h >= target:
+                q = pos.qty * r["partial_fraction"]
+                actions.append(Action("sell", q, max(o, target), f"parcial {r['take_partial_r']}R"))
+                pos.qty -= q
+                pos.partial_done = True
+                if r["breakeven_after_partial"]:
+                    be = pos.entry * (1 + 2 * fee)
+                    if be > pos.stop:
+                        pos.stop = be
+                        actions.append(Action("move_stop", price=pos.stop, reason="empate (breakeven)"))
+        if pos.partial_done:
+            trail = pos.highest - r["trailing_atr"] * a
+            if trail > pos.stop:
+                pos.stop = trail
+                actions.append(Action("move_stop", price=pos.stop, reason="trailing"))
+
+    if not r.get("trend_exit", True):
+        return actions
 
     if c < float(candle["ema_mid"]) or trend == BAIXA:
         why = "fechou abaixo da EMA média" if c < float(candle["ema_mid"]) else "tendência maior virou BAIXA"
