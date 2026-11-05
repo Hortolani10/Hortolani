@@ -14,11 +14,20 @@ log = logging.getLogger("bot")
 def make_ccxt(cfg: dict, with_keys: bool):
     import ccxt
 
-    params = {"enableRateLimit": True, "options": {"defaultType": "spot", "adjustForTimeDifference": True}}
+    params = {"enableRateLimit": True, "timeout": 60000,
+              "options": {"defaultType": "spot", "adjustForTimeDifference": True, "fetchMarkets": ["spot"]}}
     if with_keys:
         params["apiKey"] = os.getenv("BINANCE_API_KEY", "")
         params["secret"] = os.getenv("BINANCE_API_SECRET", "")
     ex = ccxt.binance(params)
+    # ccxt ignora as variáveis de proxy do sistema; repassa se existirem
+    proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+    if proxy:
+        ex.httpsProxy = proxy
+    # Só dados públicos (sem chave): usa o espelho oficial de dados de mercado da Binance,
+    # que funciona mesmo em regiões onde api.binance.com responde 451.
+    if not with_keys and cfg.get("market_data_url"):
+        ex.urls["api"]["public"] = cfg["market_data_url"]
     if with_keys and cfg.get("testnet", True):
         ex.set_sandbox_mode(True)
     return ex

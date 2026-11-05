@@ -5,6 +5,10 @@
 mode: paper            # backtest | paper | live
 testnet: true          # true = usa testnet.binance.vision (recomendado antes do live)
 
+# Endereço para baixar candles/preços públicos (backtest, analyze, dashboard, paper).
+# O espelho oficial data-api.binance.vision funciona onde api.binance.com é bloqueado.
+market_data_url: https://data-api.binance.vision/api/v3
+
 symbols:
   - BTC/USDT
   - ETH/USDT
