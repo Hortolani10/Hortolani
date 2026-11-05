@@ -61,6 +61,24 @@ no 4h; ele foi desligado (`min_reward_risk: 0`).
   pior mês −2,5%, melhor mês +10,3%.
 - Período de alta (treino): média +0,73% a cada 30 dias. Ano de baixa (validação): −0,21%.
 
+### Resultado por moeda (3 anos, mesma carteira de 100 USDT)
+
+| Moeda | Operações | Acerto | Fator de lucro | Média (R) | Resultado |
+|---|---|---|---|---|---|
+| BNB | 15 | 40% | 2,10 | +0,61R | +6,93 USDT |
+| ETH | 9 | 44% | 2,79 | +0,53R | +4,54 USDT |
+| XRP | 3 | 67% | 5,60 | +2,80R | +4,43 USDT |
+| ADA | 3 | 33% | 2,28 | +0,67R | +1,91 USDT |
+| SOL | 12 | 50% | 1,16 | +0,02R | +0,53 USDT |
+| LINK | 6 | 50% | 0,69 | −0,10R | −0,60 USDT |
+| LTC | 3 | 0% | 0,00 | −0,49R | −1,56 USDT |
+| BTC | 18 | 28% | 0,28 | −0,39R | −4,63 USDT |
+
+Cada moeda tem operações próprias. O BTC foi o pior: muitos sinais, poucos andaram.
+XRP, ADA e LTC tiveram só 3 operações cada — amostra pequena demais para concluir algo
+sobre elas isoladamente. **Não remova moedas com base nesta tabela**: escolher as
+vencedoras olhando o passado é exatamente o tipo de ajuste que falha no futuro.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

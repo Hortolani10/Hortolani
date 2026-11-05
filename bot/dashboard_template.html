@@ -51,6 +51,8 @@ h1 { font-family: var(--f-display); font-size: clamp(26px, 4vw, 36px); line-heig
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .dot.up { background: var(--up); } .dot.down { background: var(--down); }
 
+.strip { display: grid; gap: 8px; }
+.strip-title { font: 700 13px var(--f-body); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0; }
 .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .kpi { padding: 12px 16px; border-left: 1px solid var(--line); min-width: 0; }
 .kpi:first-child { border-left: 0; }
@@ -98,7 +100,9 @@ td { padding: 8px 16px; border-bottom: 1px solid var(--line); text-align: right;
 th:first-child, td:first-child, th:last-child, td:last-child { text-align: left; }
 td.reason { font-family: var(--f-body); color: var(--muted); }
 tr:last-child td { border-bottom: 0; }
-tbody tr[data-a] { cursor: pointer; }
+tbody tr[data-a], tbody tr[data-s] { cursor: pointer; }
+tbody tr[data-s]:hover, tbody tr[data-s]:focus-visible { background: var(--soft); outline: none; }
+tbody tr.cur td { background: var(--soft); }
 tbody tr[data-a]:hover, tbody tr[data-a]:focus-visible { background: var(--soft); outline: none; }
 .empty { padding: 16px; color: var(--muted); }
 
@@ -123,7 +127,10 @@ footer p { margin: 0 0 6px; }
 
   <nav class="tabs" id="tabs" aria-label="Par"></nav>
 
-  <section class="kpis" id="kpis" aria-label="Resultado do backtest (todos os pares)"></section>
+  <section class="strip" aria-labelledby="kpiCoinTitle">
+    <h2 class="strip-title" id="kpiCoinTitle">Esta moeda</h2>
+    <div class="kpis" id="kpisCoin"></div>
+  </section>
 
   <div class="main">
     <section class="card">
@@ -151,6 +158,19 @@ footer p { margin: 0 0 6px; }
       <ul class="checks" id="checks"></ul>
     </aside>
   </div>
+
+  <section class="card">
+    <div class="card-head"><h2>Resultado por moeda</h2><span class="hint">Clique numa moeda para ver o gráfico dela</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Moeda</th><th>Operações</th><th>Acerto</th><th>Fator de lucro</th><th>Média (R)</th><th>Melhor / pior (R)</th><th>Resultado (USDT)</th></tr></thead>
+      <tbody id="bySymbol"></tbody>
+    </table></div>
+  </section>
+
+  <section class="strip" aria-labelledby="kpiWalletTitle">
+    <h2 class="strip-title" id="kpiWalletTitle">Carteira</h2>
+    <div class="kpis" id="kpis"></div>
+  </section>
 
   <section class="card">
     <div class="card-head"><h2>Capital da carteira</h2><span class="hint num" id="eqHint"></span></div>
@@ -205,7 +225,38 @@ const kpis = [
   ["Retorno total", (R.retorno_total >= 0 ? "+" : "") + pct(R.retorno_total), R.retorno_total >= 0 ? "pos" : "neg"],
   ["Queda máxima", "−" + pct(R.drawdown_max), ""],
 ];
-$("kpis").innerHTML = kpis.map(([k, v, c]) => `<div class="kpi"><span>${k}</span><b class="${c}">${v}</b></div>`).join("");
+const kpiHtml = (list) => list.map(([k, v, c]) => `<div class="kpi"><span>${k}</span><b class="${c}">${v}</b></div>`).join("");
+const sign = (v, f) => v == null ? "—" : (v >= 0 ? "+" : "") + f(v);
+const cls = (v, ref = 0) => v == null ? "" : v >= ref ? "pos" : "neg";
+$("kpis").innerHTML = kpiHtml(kpis);
+$("kpiWalletTitle").textContent = `Carteira (${symbols.length} moedas juntas, ${fmt(D.capital_inicial, 0)} USDT)`;
+
+function renderCoinKpis(s) {
+  const Q = D.simbolos[s].resumo;
+  $("kpiCoinTitle").textContent = `Esta moeda: ${s}`;
+  $("kpisCoin").innerHTML = kpiHtml([
+    ["Operações", fmt(Q.operacoes, 0), ""],
+    ["Taxa de acerto", pct(Q.taxa_acerto), ""],
+    ["Fator de lucro", Q.operacoes ? (Q.fator_lucro == null ? "∞" : fmt(Q.fator_lucro)) : "—", cls(Q.fator_lucro, 1)],
+    ["Média por operação", Q.media_R == null ? "—" : sign(Q.media_R, fmt) + "R", cls(Q.media_R)],
+    ["Melhor / pior", Q.operacoes ? `${sign(Q.melhor_R, (v) => fmt(v, 1))} / ${fmt(Q.pior_R, 1)}R` : "—", ""],
+    ["Resultado", sign(Q.pnl, fmt) + " USDT", cls(Q.pnl)],
+  ]);
+}
+
+function renderBySymbol() {
+  const rows = symbols.map((s) => [s, D.simbolos[s].resumo]).sort((a, b) => b[1].pnl - a[1].pnl);
+  $("bySymbol").innerHTML = rows.map(([s, Q]) => `<tr tabindex="0" data-s="${s}" aria-current="${s === current}"${s === current ? ' class="cur"' : ""}>
+    <td><b>${s}</b></td><td>${fmt(Q.operacoes, 0)}</td><td>${pct(Q.taxa_acerto)}</td>
+    <td class="${cls(Q.fator_lucro, 1)}">${Q.operacoes ? (Q.fator_lucro == null ? "∞" : fmt(Q.fator_lucro)) : "—"}</td>
+    <td class="${cls(Q.media_R)}">${Q.media_R == null ? "—" : sign(Q.media_R, fmt) + "R"}</td>
+    <td>${Q.operacoes ? `${sign(Q.melhor_R, (v) => fmt(v, 1))} / ${fmt(Q.pior_R, 1)}` : "—"}</td>
+    <td class="${cls(Q.pnl)}">${sign(Q.pnl, fmt)}</td></tr>`).join("");
+  $("bySymbol").querySelectorAll("tr[data-s]").forEach((tr) => {
+    const go = () => { select(tr.dataset.s); $("chart").scrollIntoView({ block: "center" }); };
+    tr.onclick = go; tr.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+  });
+}
 $("eqHint").textContent = `${fmt(D.capital_inicial)} → ${fmt(R.saldo_final)} USDT`;
 
 // ---------- abas ----------
@@ -359,7 +410,7 @@ function renderSide(s) {
 function select(s) {
   current = s;
   try { localStorage.setItem("painel-par", s); } catch (e) {}
-  renderTabs(); drawSymbol(s); renderSide(s);
+  renderTabs(); drawSymbol(s); renderSide(s); renderCoinKpis(s); renderBySymbol();
 }
 
 eqS.setData(D.equity.map(([time, value]) => ({ time, value })));

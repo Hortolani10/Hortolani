@@ -29,6 +29,21 @@ def _series(df: pd.DataFrame, col: str) -> list:
     return [[int(t) // 1000, _r(v)] for t, v in zip(df["ts"], df[col]) if not pd.isna(v)]
 
 
+def symbol_summary(trades) -> dict:
+    n = len(trades)
+    wins = [t.pnl for t in trades if t.pnl > 0]
+    losses = [-t.pnl for t in trades if t.pnl <= 0]
+    return {
+        "operacoes": n,
+        "taxa_acerto": _r(len(wins) / n, 4) if n else None,
+        "fator_lucro": _r(sum(wins) / sum(losses), 4) if losses and sum(losses) > 0 else None,
+        "media_R": _r(sum(t.r_multiple for t in trades) / n, 4) if n else None,
+        "pnl": _r(sum(t.pnl for t in trades), 4),
+        "melhor_R": _r(max(t.r_multiple for t in trades), 3) if n else None,
+        "pior_R": _r(min(t.r_multiple for t in trades), 3) if n else None,
+    }
+
+
 def build_payload(data: dict[str, pd.DataFrame], res: Result, cfg: dict, simulated: bool) -> dict:
     symbols = {}
     for sym, df in data.items():
@@ -54,6 +69,7 @@ def build_payload(data: dict[str, pd.DataFrame], res: Result, cfg: dict, simulat
             "trades": [{"aberta": t.opened, "fechada": t.closed, "entrada": _r(t.entry), "saida": _r(t.exit),
                         "r": _r(t.r_multiple, 3), "pnl": _r(t.pnl, 4), "motivo": t.reasons}
                        for t in res.trades if t.symbol == sym],
+            "resumo": symbol_summary([t for t in res.trades if t.symbol == sym]),
             "checklist": [{"regra": k, "ok": bool(ok), "detalhe": d} for k, (ok, d) in sig.checks.items()],
             "sinal": sig.ok,
             "plano": plan,
