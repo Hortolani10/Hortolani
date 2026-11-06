@@ -5,8 +5,10 @@ Use para começar o modo paper e testar o Telegram. Depois é só levar a pasta 
 (a pasta `runtime`/arquivos `state_paper.json` e `logs/` levam o histórico junto).
 
 ## Windows
-1. Instale o **Python 3.13** em https://www.python.org/downloads/ —
-   na primeira tela marque **"Add python.exe to PATH"**.
+1. Instale o **Python 3.14.10 ou mais novo** (https://www.python.org/downloads/windows/,
+   "Windows installer (64-bit)") — na primeira tela marque **"Add python.exe to PATH"**.
+   Não use versões anteriores a 3.14.10 / 3.13.18: elas não bloqueiam os certificados
+   comprometidos da eMudhra (out/2026). O bot foi testado em 3.13.18 e 3.14.6.
 2. Descompacte o `Hortolani-bot.zip` numa pasta (ex.: `Documentos\Hortolani`).
 3. Dê dois cliques em **`iniciar_paper.bat`**. Na primeira vez ele prepara tudo e abre o
    `.env` no Bloco de Notas.
@@ -18,7 +20,7 @@ Para o bot não parar quando a tela apagar: *Configurações → Sistema → Ene
 Suspensão: Nunca* (quando ligado na tomada).
 
 ## Mac
-1. Instale o Python 3.13 em https://www.python.org/downloads/.
+1. Instale o Python 3.14.10 ou mais novo em https://www.python.org/downloads/.
 2. Descompacte o zip, abra o **Terminal** na pasta e rode: `bash iniciar_paper.sh`.
 3. Preencha o `.env` (`nano .env`), rode `bash iniciar_paper.sh` de novo.
 4. Para o Mac não dormir: rode com `caffeinate -i bash iniciar_paper.sh`.

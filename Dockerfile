@@ -8,7 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN useradd --create-home --uid 10001 bot
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade "pip>=26.2.2" certifi \
+ && pip install --no-cache-dir -r requirements.txt
 COPY bot ./bot
 COPY config.yaml PROMPT_ANALISE.md ./
 
