@@ -91,10 +91,25 @@ Logs ficam em `logs/bot.log`; o estado (posições, travas) em `state_<modo>.jso
 bot retoma de onde parou se reiniciar. No modo live o **stop fica na Binance**
 (`STOP_LOSS_LIMIT`), protegendo a posição mesmo se o bot cair.
 
-### Segurança da API key
-- Permissão **somente Spot Trading**. **Nunca** habilite saque.
-- Restrinja a chave ao IP do servidor.
-- Nunca faça commit do `.env` (já está no `.gitignore`).
+### Segurança
+**Chave da API**
+- Permissão **somente Spot Trading**. **Nunca** habilite saque nem transferências.
+  Com dinheiro real o bot **confere isso na Binance e se recusa a operar** se a chave puder sacar.
+- Restrinja a chave ao IP do servidor (o bot avisa no log se não estiver restrita).
+- O `.env` fica fora do git. No servidor: `chmod 600 .env` (o bot avisa se estiver aberto).
+- Ative 2FA na conta Binance e use um e-mail exclusivo para ela.
+
+**Proteções do bot no modo real**
+- O stop fica registrado na Binance; a cada minuto o bot confere se ele continua ativo e o
+  registra de novo se tiver sumido (falha de rede, cancelado no aplicativo).
+- Queda com "gap" (preço pulou o limite da ordem stop-limit): o bot vende a mercado na hora.
+- Execução parcial do stop é contabilizada; na partida, o estado é conferido com o saldo
+  real (venda manual, stop executado com o bot desligado).
+- Os stops são conferidos **antes** de qualquer outra coisa em cada ciclo.
+- Uma só cópia por modo (trava de arquivo) para não duplicar ordens.
+- **Botão de emergência:** crie um arquivo `PAUSAR` na pasta do bot (`touch PAUSAR`) e ele
+  para de abrir posições; as abertas continuam protegidas. Apague o arquivo para voltar.
+- Logs com rotação (5 arquivos de 5 MB). Dependências com versões fixas (`requirements.txt`).
 
 ## Estrutura
 ```

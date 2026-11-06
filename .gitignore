@@ -6,6 +6,12 @@ venv/
 data/
 logs/
 state.json
+state_*.json
+state_*.tmp
+*.lock
+.bot_*.lock
+config_proposta.yaml
+PAUSAR
 *.log
 .pytest_cache/
 dashboard.html

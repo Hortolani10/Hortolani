@@ -60,7 +60,9 @@ class Broker:
     def buy(self, symbol: str, qty: float) -> tuple[float, float, float]: ...   # (qty, preço médio, custo)
     def sell(self, symbol: str, qty: float) -> tuple[float, float]: ...         # (preço médio, recebido)
     def place_stop(self, symbol: str, qty: float, stop: float) -> str | None: ...
-    def cancel(self, symbol: str, order_id: str | None) -> None: ...
+    def cancel(self, symbol: str, order_id: str | None) -> tuple[float, float]: ...   # (qtd já vendida, USDT recebido)
+    def base_balance(self, symbol: str) -> float | None: ...   # saldo total da moeda (None = não verificável)
+    def stop_active(self, symbol: str, order_id: str | None) -> bool: ...
     def stop_filled(self, symbol: str, order_id: str | None, stop: float) -> tuple[bool, float, float]: ...
 
 
@@ -92,7 +94,13 @@ class PaperBroker(Broker):
         return "paper-stop"
 
     def cancel(self, symbol, order_id):
-        pass
+        return 0.0, 0.0
+
+    def base_balance(self, symbol):
+        return None
+
+    def stop_active(self, symbol, order_id):
+        return bool(order_id)
 
     def stop_filled(self, symbol, order_id, stop):
         px = self.price(symbol)
@@ -135,12 +143,47 @@ class LiveBroker(Broker):
         return str(o["id"])
 
     def cancel(self, symbol, order_id):
+        """Cancela o stop e devolve o que ele JÁ tinha vendido (execução parcial)."""
         if not order_id:
-            return
+            return 0.0, 0.0
         try:
             self.ex.cancel_order(order_id, symbol)
         except Exception as e:  # já executada/cancelada
             log.warning("cancelar stop %s %s: %s", symbol, order_id, e)
+        try:
+            o = self.ex.fetch_order(order_id, symbol)
+            filled = float(o.get("filled") or 0)
+            fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
+            return filled, float(o.get("cost") or 0) - fee_q
+        except Exception as e:
+            log.warning("conferir stop cancelado %s %s: %s", symbol, order_id, e)
+            return 0.0, 0.0
+
+    def base_balance(self, symbol):
+        b = self.ex.fetch_balance()
+        return float((b.get("total") or {}).get(symbol.split("/")[0], 0.0))
+
+    def stop_active(self, symbol, order_id):
+        if not order_id:
+            return False
+        try:
+            return self.ex.fetch_order(order_id, symbol)["status"] in ("open", "closed")
+        except Exception:
+            return False
+
+    def check_key_permissions(self, real_money: bool) -> None:
+        """Recusa operar com dinheiro real se a chave da API puder SACAR."""
+        if not real_money:
+            return
+        r = self.ex.sapi_get_account_apirestrictions()
+        if str(r.get("enableWithdrawals")).lower() == "true":
+            raise SystemExit("SEGURANÇA: esta API key tem permissão de SAQUE. Crie outra chave só com "
+                             "'Spot Trading' habilitado. O bot não vai operar com essa chave.")
+        if str(r.get("enableInternalTransfer", "false")).lower() == "true" or \
+           str(r.get("permitsUniversalTransfer", "false")).lower() == "true":
+            raise SystemExit("SEGURANÇA: esta API key permite transferências. Desabilite e tente de novo.")
+        if str(r.get("ipRestrict")).lower() != "true":
+            log.warning("SEGURANÇA: a API key não está restrita por IP. Recomendado restringir ao IP do servidor.")
 
     def stop_filled(self, symbol, order_id, stop):
         if not order_id:

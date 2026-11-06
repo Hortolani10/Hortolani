@@ -147,8 +147,10 @@ class FakeBroker:
     def sell(self, sym, q, px=None):
         px = self.price(sym); self.cash += q * px * 0.999; return px, q * px * 0.999
     def place_stop(self, sym, q, s): self.stops[sym] = s; return "id"
-    def cancel(self, sym, oid): self.stops.pop(sym, None)
+    def cancel(self, sym, oid): self.stops.pop(sym, None); return 0.0, 0.0
     def stop_filled(self, sym, oid, s): return self.price(sym) <= s, 0.0, 0.0
+    def stop_active(self, sym, oid): return sym in self.stops
+    def base_balance(self, sym): return None
 
 
 def test_trader_end_to_end(synth, cfg, tmp_path, monkeypatch):
@@ -259,3 +261,102 @@ def test_journal_report(tmp_path):
                    "features": {"adx": 20 + k, "atr_pct": 1 + k / 10, "rsi": 50, "volume_rel": 1.2, "sessao": "EUA"}}, p)
     txt = relatorio(ler_diario(p))
     assert "12 operações" in txt and "EUA" in txt
+
+
+
+# ---------------- falhas do modo real (corretora simulada que se comporta como a Binance) ----------------
+class LiveLikeBroker:
+    """Stop-limit que pode NÃO executar (gap), execução parcial e cancelamento no app."""
+    def __init__(self, price=100.0):
+        self.px, self.cash, self.sold, self.placed, self.active = price, 1000.0, [], [], True
+        self.partial = (0.0, 0.0); self.balance = None; self.filled_stop = False
+    def price(self, sym): return self.px
+    def amount(self, sym, q): return q
+    def min_notional(self, sym): return 5.0
+    def usdt_free(self): return self.cash
+    def sell(self, sym, q, px=None): self.sold.append(q); self.cash += q * self.px; return self.px, q * self.px
+    def place_stop(self, sym, q, s): self.placed.append((q, s)); self.active = True; return f"id{len(self.placed)}"
+    def cancel(self, sym, oid): self.active = False; r = self.partial; self.partial = (0.0, 0.0); return r
+    def stop_filled(self, sym, oid, s): return (self.filled_stop, s, 950.0) if self.filled_stop else (False, 0.0, 0.0)
+    def stop_active(self, sym, oid): return self.active
+    def base_balance(self, sym): return self.balance
+
+
+def live_trader(cfg, tmp_path, br):
+    cfg["mode"] = "live"
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    tr.positions["X/USDT"] = Position("X/USDT", 10.0, 100.0, 95.0, 5.0, "t", highest=100.0, cost=1001.0, stop_order_id="id0")
+    return tr
+
+
+def test_gap_below_stop_sells_at_market(cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    br = LiveLikeBroker(price=90.0)              # caiu de 100 para 90, stop em 95 não executou
+    tr = live_trader(cfg, tmp_path, br)
+    tr._check_stop("X/USDT", tr.positions["X/USDT"])
+    assert br.sold == [10.0] and "X/USDT" not in tr.positions
+
+
+def test_reprotects_position_without_active_stop(cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    br = LiveLikeBroker(price=100.0); br.active = False      # stop cancelado no aplicativo
+    tr = live_trader(cfg, tmp_path, br)
+    tr._check_stop("X/USDT", tr.positions["X/USDT"])
+    assert br.placed == [(10.0, 95.0)] and tr.positions["X/USDT"].stop_order_id == "id1"
+
+
+def test_partial_stop_fill_is_accounted(cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    br = LiveLikeBroker(price=100.0); br.partial = (4.0, 380.0)   # stop vendeu 4 antes de cancelar
+    tr = live_trader(cfg, tmp_path, br)
+    pos = tr.positions["X/USDT"]
+    tr._sell("X/USDT", pos, 10.0, "saída")
+    assert br.sold == [6.0]                       # vende só o que sobrou
+    assert "X/USDT" not in tr.positions
+
+
+def test_reconcile_detects_manual_sale_and_offline_stop(cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    br = LiveLikeBroker(); br.balance = 0.0
+    tr = live_trader(cfg, tmp_path, br)
+    tr.reconcile()
+    assert "X/USDT" not in tr.positions           # vendida no app: bot para de gerenciar
+    br2 = LiveLikeBroker(); br2.balance = 0.0; br2.filled_stop = True
+    tr2 = live_trader(cfg, tmp_path, br2)
+    tr2.reconcile()
+    from bot.learn import ler_diario
+    assert "X/USDT" not in tr2.positions and len(ler_diario()) == 1   # stop offline vai para o diário
+
+
+def test_pause_file_blocks_new_buys(synth, cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "PAUSAR").write_text("")
+    e = synth(2500, H1, 0.0008, 3)
+    from bot.demo import resample
+    cfg["symbols"] = ["UP/USDT"]
+    br = FakeBroker(e, resample(e, 4))
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    while br.n < 2400:
+        tr.tick(); br.n += 1
+        assert not tr.positions
+
+
+def test_refuses_key_with_withdrawal_permission(cfg):
+    import pytest
+    from bot.exchange import LiveBroker
+    b = LiveBroker.__new__(LiveBroker)
+    b.ex = type("E", (), {"sapi_get_account_apirestrictions": lambda self: {"enableWithdrawals": True, "ipRestrict": True}})()
+    with pytest.raises(SystemExit):
+        b.check_key_permissions(real_money=True)
+    b.ex = type("E", (), {"sapi_get_account_apirestrictions": lambda self: {"enableWithdrawals": False, "ipRestrict": True}})()
+    b.check_key_permissions(real_money=True)      # chave correta: passa
+
+
+def test_single_instance_lock(tmp_path, monkeypatch):
+    import pytest
+    from bot.__main__ import single_instance
+    monkeypatch.chdir(tmp_path)
+    first = single_instance("paper")
+    with pytest.raises(SystemExit):
+        single_instance("paper")
+    first.close()

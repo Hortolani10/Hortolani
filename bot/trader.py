@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 
 from .data import attach_btc_trend, prepare
+
+PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras (posições seguem protegidas)
 from .risk import RiskGuard, position_size, utcnow
 from .learn import checar_desvio, ler_diario, registrar
 from .strategy import Position, entry_features, entry_signal, manage_position
@@ -72,10 +74,21 @@ class Trader:
             log.warning("ALARME DE DESVIO: %s -> risco reduzido à metade. Revise com 'python -m bot aprender'.",
                         res["motivo"])
 
-    def _sell(self, sym: str, pos: Position, qty: float, reason: str) -> None:
-        self.broker.cancel(sym, pos.stop_order_id)
+    def _cancel_stop(self, sym: str, pos: Position) -> None:
+        """Cancela o stop da corretora e contabiliza o que ele já tinha vendido."""
+        done, got = self.broker.cancel(sym, pos.stop_order_id)
         pos.stop_order_id = None
+        if done > 0:
+            log.warning("%s: stop tinha executado parcialmente (%.8f) antes do cancelamento", sym, done)
+            pos.qty = max(0.0, pos.qty - done)
+            pos.proceeds += got
+
+    def _sell(self, sym: str, pos: Position, qty: float, reason: str) -> None:
+        self._cancel_stop(sym, pos)
         qty = min(qty, pos.qty)
+        if qty <= 0:
+            self._close(sym, pos, reason)
+            return
         px, got = self.broker.sell(sym, qty)
         pos.qty -= qty
         pos.proceeds += got
@@ -98,6 +111,19 @@ class Trader:
     def _check_stop(self, sym: str, pos: Position) -> None:
         filled, px, got = self.broker.stop_filled(sym, pos.stop_order_id, pos.stop)
         if not filled:
+            # Queda com "gap": o preço passou do limite da ordem stop-limit e ela não executou.
+            # Não espera o próximo candle: vende a mercado agora.
+            now_px = self.broker.price(sym)
+            if now_px <= pos.stop * (1 - 0.006):
+                log.warning("%s: preço %.6g abaixo do stop %.6g sem execução (gap) -> venda a mercado",
+                            sym, now_px, pos.stop)
+                self._sell(sym, pos, pos.qty, "stop (gap)")
+                return
+            # Posição sem stop registrado (falha ao colocar, ou cancelado no app): protege de novo.
+            if not self.broker.stop_active(sym, pos.stop_order_id):
+                log.warning("%s: posição sem stop ativo na corretora -> registrando de novo", sym)
+                pos.stop_order_id = None
+                self._protect(sym, pos)
             return
         if got <= 0:      # paper: simula a venda agora
             px, got = self.broker.sell(sym, pos.qty)
@@ -128,12 +154,17 @@ class Trader:
                 elif act.kind == "move_stop":
                     log.info("STOP %s -> %.4f (%s)", sym, act.price, act.reason)
             if not sold and pos.stop != old_stop:
-                self.broker.cancel(sym, pos.stop_order_id)
-                pos.stop_order_id = None
-                self._protect(sym, pos)
+                self._cancel_stop(sym, pos)
+                if pos.qty * float(row["close"]) < self.broker.min_notional(sym):
+                    self._close(sym, pos, "stop (executado parcialmente)")
+                else:
+                    self._protect(sym, pos)
             return
 
         if len(self.positions) >= self.cfg["risk"]["max_open_positions"]:
+            return
+        if PAUSE_FILE.exists():
+            log.info("%s: arquivo PAUSAR presente -> sem novas compras", sym)
             return
         eq = self.equity()
         self.guard.new_bar(utcnow(), eq)
@@ -162,25 +193,31 @@ class Trader:
                        features={**entry_features(df, i), "risco_escala": scale})
         self.positions[sym] = pos
         self._protect(sym, pos)
-        log.info(
-            "COMPRA %s qty=%.6f @ %.4f | stop %.4f (%.2f%%) | R:R %.2f | parcial em %.4f",
-            sym, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, sig.reward_risk,
-            avg + self.cfg["risk"]["take_partial_r"] * pos.initial_risk,
-        )
+        log.info("COMPRA %s qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s",
+                 sym, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, scale,
+                 self.cfg["risk"].get("exit_mode", "parcial"))
 
     def tick(self) -> None:
         tf_e, tf_t = self.cfg["timeframes"]["entry"], self.cfg["timeframes"]["trend"]
+        # 1) PROTEÇÃO PRIMEIRO: confere stops de todas as posições, aconteça o que acontecer depois
+        for sym in list(self.positions):
+            try:
+                self._check_stop(sym, self.positions[sym])
+            except Exception:
+                log.exception("erro conferindo stop de %s", sym)
+            finally:
+                self.save()
+        # 2) filtro de mercado (BTC). Se falhar, não abre nada neste ciclo
         btc = None
         if self.cfg["strategy"].get("btc_filter"):
             try:
                 btc = prepare(self.broker.candles("BTC/USDT", tf_e), self.broker.candles("BTC/USDT", tf_t), self.cfg)
             except Exception:
                 log.exception("erro buscando BTC para o filtro de mercado")
-                return                      # sem o filtro, não decide nada neste ciclo
+                return
+        # 3) análise de cada par no candle fechado
         for sym in self.cfg["symbols"]:
             try:
-                if sym in self.positions:
-                    self._check_stop(sym, self.positions[sym])
                 df = prepare(self.broker.candles(sym, tf_e), self.broker.candles(sym, tf_t), self.cfg)
                 if btc is not None:
                     df = attach_btc_trend(df, btc)
@@ -193,8 +230,34 @@ class Trader:
             finally:
                 self.save()
 
+    def reconcile(self) -> None:
+        """Na partida, confere o estado salvo com a corretora (vendas manuais, stop executado
+        com o bot desligado, stop cancelado no aplicativo)."""
+        for sym, pos in list(self.positions.items()):
+            try:
+                bal = self.broker.base_balance(sym)
+                if bal is not None and bal < pos.qty * 0.98:
+                    filled, px, got = self.broker.stop_filled(sym, pos.stop_order_id, pos.stop)
+                    if filled:
+                        log.warning("%s: stop executou com o bot desligado", sym)
+                        pos.proceeds += got
+                        pos.qty = 0
+                        pos.reasons.append("stop")
+                        self._close(sym, pos, "stop (bot desligado)")
+                    else:
+                        log.error("%s: saldo na corretora (%.8f) menor que o registrado (%.8f). "
+                                  "Venda manual? Posição removida do bot.", sym, bal, pos.qty)
+                        self.broker.cancel(sym, pos.stop_order_id)
+                        del self.positions[sym]
+                    continue
+                self._check_stop(sym, pos)
+            except Exception:
+                log.exception("erro reconciliando %s", sym)
+        self.save()
+
     def run_forever(self) -> None:
         log.info("Bot iniciado | modo=%s | símbolos=%s", self.cfg["mode"], self.cfg["symbols"])
+        self.reconcile()
         while True:
             self.tick()
             time.sleep(self.cfg["loop"]["poll_seconds"])

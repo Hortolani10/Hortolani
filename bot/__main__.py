@@ -18,12 +18,34 @@ def load_config(path: str) -> dict:
 
 
 def setup_logging() -> None:
+    from logging.handlers import RotatingFileHandler
+
     Path("logs").mkdir(exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("logs/bot.log", encoding="utf-8")],
+        handlers=[logging.StreamHandler(sys.stdout),
+                  RotatingFileHandler("logs/bot.log", maxBytes=5_000_000, backupCount=5, encoding="utf-8")],
     )
+
+
+def single_instance(mode: str):
+    """Impede duas cópias do bot no mesmo modo (ordens duplicadas)."""
+    import fcntl
+
+    f = open(f".bot_{mode}.lock", "w")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(f"Já existe um bot rodando em modo {mode}. Pare o outro antes de iniciar.")
+    return f          # manter a referência viva mantém o bloqueio
+
+
+def check_env_file() -> None:
+    p = Path(".env")
+    if p.exists() and p.stat().st_mode & 0o077:
+        logging.getLogger("bot").warning(
+            "SEGURANÇA: .env pode ser lido por outros usuários do sistema. Rode: chmod 600 .env")
 
 
 def load_state(path: str) -> dict:
@@ -178,6 +200,8 @@ def cmd_run(cfg, mode):
 
     load_dotenv()
     setup_logging()
+    lock = single_instance(mode)  # noqa: F841
+    check_env_file()
     cfg["mode"] = mode
     state_path = f"state_{mode}.json"
     state = load_state(state_path)
@@ -192,6 +216,7 @@ def cmd_run(cfg, mode):
             sys.exit("Modo live com dinheiro real bloqueado. Defina CONFIRMO_OPERAR_DINHEIRO_REAL=SIM no .env")
         trade_ex = make_ccxt(cfg, with_keys=True)
         broker = LiveBroker(cfg, trade_ex, trade_ex)
+        broker.check_key_permissions(real_money=not cfg.get("testnet", True))
         logging.getLogger("bot").warning("MODO LIVE (%s)", "TESTNET" if cfg.get("testnet", True) else "DINHEIRO REAL")
     Trader(cfg, broker, state, state_path).run_forever()
 
