@@ -4,11 +4,11 @@
 
 | Parte | Quanto | O que faz | Por quê |
 |---|---|---|---|
-| **Bot** | 75% | Operações de poucos dias (4h) com stop, só a favor da tendência | Protege o capital: queda máx. ~9% em 6 anos, ficou de fora em 2022 |
+| **Bot** | 75% | Operações de poucos dias (4h) com stop, só a favor da tendência | Protege o capital: queda máx. ~12% em 6 anos, ficou de fora em 2022 |
 | **Cofre de tendência** | 25% | Segura BTC/ETH enquanto a tendência diária está em alta; senão USDT | Aproveita as grandes altas que o bot perde |
 
 Reequilíbrio para 75/25 todo mês. Teste em 6 anos (out/2020–nov/2026, 100 USDT):
-**100 → ~213–221 USDT, queda máxima 17%** (só o bot: 100 → 117, queda 9%;
+**100 → ~227 USDT, queda máxima 19%** (só o bot: 100 → 139, queda 12%;
 segurar BTC: 100 → 717, queda 77%). Detalhes em [`PESQUISA.md`](PESQUISA.md).
 
 Bot em Python para **Binance Spot (somente compra)** que segue regras objetivas:

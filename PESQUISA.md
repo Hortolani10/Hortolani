@@ -242,6 +242,36 @@ recente, não no de 2020–2023. Comprar a mesma "esticada" com o diário em BAI
 **Decisão:** fica em **observação** (`bot/shadow.py`): o bot registra no diário o que teria
 acontecido, sem operar. Depois de semanas de dados reais, `python -m bot aprender` mostra o resultado.
 
+## 11. Correção: valor mínimo de ordem e mais moedas (nov/2026)
+
+**Erro corrigido:** o backtest descartava ordens abaixo de **10 USDT**, mas o mínimo real da Binance
+é **5 USDT** (DOGE: 1). Com carteira pequena (100 USDT, 75 no bot, defesa reduzindo o risco pela
+metade), muitas ordens reais eram puladas no teste. Agora é `fees.min_order: 5` no config.
+Números corrigidos (out/2020–nov/2026, 100 USDT):
+
+| | Antes (mínimo 10) | **Corrigido (mínimo 5)** |
+|---|---|---|
+| Bot sozinho, 8 moedas | 117 (queda 9%) | **139 (queda 12%)** |
+| Carteira bot + cofre | ~213–221 (queda 17%) | **~226–227 (queda 19%)** |
+| Por ano (carteira) | — | 2020 +34% · 2021 +32% · 2022 0% · 2023 +5% · 2024 +14% · 2025 +11% · 2026 −3% |
+
+As escolhas anteriores (defesa automática, máx. 2 posições) foram feitas com o mínimo errado e
+não foram refeitas, para não ajustar de novo em cima dos mesmos dados.
+
+**Mais moedas:** 8 atuais vs 16 (+ DOGE, AVAX, DOT, TRX, ATOM, UNI, BCH, XLM), escolhidas por
+critério fixo (grandes, líquidas, na Binance desde 2020), mesmas regras:
+
+| Período | Bot 8 moedas | Bot 16 moedas | Carteira 8 | Carteira 16 |
+|---|---|---|---|---|
+| Nunca visto out/20–set/23 | **+8,5%** (FL 1,26) | +6,9% (FL 1,17) | 163 (queda 18%) | 161 (queda 20%) |
+| Treino set/23–nov/25 | +35,5% (FL 2,65) | +43,4% (FL 2,28) | 141 | 159 |
+| Último ano | −1,8% | −1,5% | 97 | 97 |
+| Tudo out/20–nov/26 | +39,0% (FL 1,70, queda 11,6%) | +41,6% (FL 1,53, queda 12,9%) | 226 (19%) | 235 (21%) |
+
+Viés de sobrevivência: moedas que quebraram (LUNA, FTT) saíram da Binance e não entram no teste,
+o que favorece qualquer lista "de hoje". **Decisão: manter 8 moedas** — ganho pequeno, pior no
+período nunca visto, operações de qualidade menor e quedas maiores.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

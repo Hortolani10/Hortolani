@@ -68,7 +68,7 @@ risk:
 # Cofre "seguir a tendência": parte da carteira fica em BTC/ETH enquanto a tendência
 # DIÁRIA estiver em ALTA (ETH só com o BTC também em alta); senão fica em USDT.
 # Testado em 6 anos: 25% no cofre + 75% no bot, reequilibrando todo mês:
-# 100 -> 222 USDT (queda máx. 17%); só o bot: 100 -> 117 (queda 9%). Ver PESQUISA.md.
+# 100 -> ~227 USDT (queda máx. 19%); só o bot: 100 -> 139 (queda 12%). Ver PESQUISA.md.
 trend_sleeve:
   enabled: true
   fraction: 0.25              # 25% da carteira
@@ -81,6 +81,7 @@ observacao:
   lateralizacao: true         # reversão à média quando o diário está LATERAL (PESQUISA.md, seção 10)
 
 fees:
+  min_order: 5.0            # valor mínimo de uma ordem na Binance (USDT) — conferido em nov/2026
   taker: 0.001              # 0,1% (Binance spot sem desconto BNB)
   slippage: 0.0005
 

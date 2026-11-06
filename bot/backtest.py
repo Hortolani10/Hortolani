@@ -104,7 +104,7 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                     eq_now = equity(last_px)
                     qty = position_size(eq_now, px, stop, cfg, guard.risk_scale(eq_now))
                     cost = qty * px * (1 + fee)
-                    if qty > 0 and cost <= cash and cost >= 10:
+                    if qty > 0 and cost <= cash and cost >= cfg["fees"].get("min_order", 5.0):
                         cash -= cost
                         positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost,
                                                   features={**feats, "risco_escala": guard.risk_scale(eq_now)})
