@@ -136,6 +136,22 @@ O adaptativo trocou para "parcial" em jul/2025, logo antes de um período em que
 correr rendia mais. Conclusão: com ~2 operações por mês, reajustar sozinho persegue ruído.
 Por isso a reotimização só **propõe**; a mudança é decisão humana.
 
+## 7. Outros tempos gráficos de entrada (tendência no diário) e combinações
+
+| Entrada | Treino ops | Acerto | FL | Treino retorno | Queda | Dias/op | Validação |
+|---|---|---|---|---|---|---|---|
+| 2h | 76 | 29% | 0,62 | −7,7% | 13,0% | 1,1 | +0,1% |
+| **4h** | 42 | 43% | 2,28 | **+15,6%** | 6,4% | 2,8 | −1,8% |
+| 6h | 31 | 29% | 1,03 | +0,3% | 5,4% | 4,2 | −1,0% |
+| 8h | 24 | 29% | 0,36 | −6,4% | 6,5% | 4,5 | +0,6% |
+| 12h | 16 | 19% | 0,32 | −5,2% | 6,2% | 6,1 | −0,8% |
+
+Combinações 50/50 (4h + outro) ficaram todas piores que o 4h sozinho no treino
+(+3,9% a +7,9%). **Alerta:** uma estratégia robusta costuma piorar aos poucos quando se
+muda o tempo gráfico; aqui o 4h é um pico isolado (vizinhos 2h e 6h bem piores). Isso indica
+que parte do resultado do 4h pode ser sorte do período — mais um motivo para o teste com
+5–6 anos de dados e o paper antes de dinheiro real.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
