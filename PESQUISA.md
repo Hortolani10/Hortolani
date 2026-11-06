@@ -152,6 +152,49 @@ muda o tempo gráfico; aqui o 4h é um pico isolado (vizinhos 2h e 6h bem piores
 que parte do resultado do 4h pode ser sorte do período — mais um motivo para o teste com
 5–6 anos de dados e o paper antes de dinheiro real.
 
+## 8. Teste com 6 anos (fev/2020–nov/2026) — período NUNCA usado nas escolhas
+
+As regras foram escolhidas com dados de 2023–2025. De out/2020 a set/2023 nada foi visto.
+
+| Período | Bot 4h ops | Bot retorno | Bot queda | BTC segurar | BTC queda | Bot 2h | Bot 6h |
+|---|---|---|---|---|---|---|---|
+| fim 2020 | 17 | +6,4% | 5,4% | +172% | 11% | −1,5% | +10,9% |
+| 2021 (alta forte) | 17 | −5,5% | 6,8% | +58% | 53% | +2,5% | +5,0% |
+| 2022 (queda, FTX) | **0** | **0,0%** | 0,0% | −65% | 67% | 0,0% | 0,0% |
+| 2023 (recuperação) | 23 | −3,6% | 7,7% | +154% | 20% | −3,1% | −0,1% |
+| 2024 | 26 | −0,9% | 7,7% | +112% | 26% | −7,3% | +2,8% |
+| 2025 | 26 | +16,2% | 3,7% | −7% | 32% | −4,8% | +3,2% |
+| 2026 (até nov) | 8 | −1,8% | 4,1% | −14% | 40% | +0,1% | −1,0% |
+| **Nunca visto out/20–set/23** | 53 | **+4,0%** | 8,3% | +143% | 77% | −0,8% | +11,2% |
+| **Tudo out/20–nov/26** | 116 | **+17,3%** | 9,3% | +617% | 77% | −8,5% | +25,8% |
+
+Leituras:
+- **Protege muito bem:** em 2022 o filtro do BTC deixou o bot 100% fora (zero operações)
+  enquanto o BTC caía 65%.
+- **Não aproveita as altas:** em 2021 e 2023 perdeu um pouco enquanto o BTC subia 58% e 154%.
+- O retorno é baixo (~2,7% ao ano em 6 anos) e veio quase todo de 2025.
+- O 6h foi melhor que o 4h no período nunca visto: a vantagem do 4h era do período.
+
+**Seguir a tendência diária (mesma definição do bot, sem ajuste):** segurar a moeda quando a
+tendência diária está em ALTA, senão ficar em USDT; custo 0,15% por troca, ~7 trocas por ano.
+
+| Período | BTC seguindo tendência | Queda | 50% BTC + 50% ETH (tendência) | Queda | BTC segurar | Queda |
+|---|---|---|---|---|---|---|
+| Nunca visto out/20–set/23 | +167% | 58% | +304% | 51% | +140% | 77% |
+| Tudo out/20–nov/26 | +496% | 58% | +621% | 51% | +606% | 77% |
+
+**Misturas** (fração fixa em "BTC+ETH seguindo tendência", resto no bot), partindo de 100:
+
+| Período | 0% (só bot) | 25% | 50% | 100% |
+|---|---|---|---|---|
+| Nunca visto out/20–set/23 | 104 (queda 8%) | 156 (16%) | 223 (29%) | 404 (51%) |
+| Último ano nov/25–nov/26 | 98 (4%) | 97 (7%) | 96 (10%) | 94 (16%) |
+| Tudo out/20–nov/26 | 117 (9%) | 204 (16%) | 332 (29%) | 721 (51%) |
+
+Cuidado: os 6 anos começam perto de um fundo de ciclo (BTC ~10 mil dólares em out/2020),
+o que favorece qualquer estratégia compradora. Seguir tendência ainda tem quedas grandes
+(51–58%), porque não escapa de tombos rápidos dentro de uma tendência de alta (ex.: maio/2021).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
