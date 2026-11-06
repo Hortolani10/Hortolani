@@ -144,6 +144,38 @@ def cmd_dashboard(cfg, args):
     print(f"painel gerado: {path.resolve()}  (abra no navegador)")
 
 
+def cmd_carteira(cfg, args):
+    """Backtest da carteira completa: bot + cofre de tendência, reequilíbrio mensal."""
+    import time as _t
+
+    from .data import cached_history, prepare
+    from .exchange import make_ccxt
+    from .sleeve import portfolio_backtest
+
+    ex = make_ccxt(cfg, with_keys=False)
+    data = {}
+    for sym in cfg["symbols"]:
+        print(f"baixando {sym}...")
+        data[sym] = prepare(cached_history(ex, sym, cfg["timeframes"]["entry"], args.days),
+                            cached_history(ex, sym, cfg["timeframes"]["trend"], args.days), cfg)
+    data = _with_btc(cfg, data, lambda: None)
+    syms = set(cfg["trend_sleeve"]["symbols"]) | {"BTC/USDT"}
+    daily = {s: cached_history(ex, s, "1d", args.days) for s in syms}
+    start = int(_t.time() * 1000) - (args.days - 240) * 86_400_000     # 240 dias de aquecimento das médias
+    r = portfolio_backtest(data, daily, cfg, args.balance, start)
+    eq = r["equity"]
+    f = cfg["trend_sleeve"]["fraction"]
+    print(f"\n=== CARTEIRA: {f:.0%} cofre de tendência + {1 - f:.0%} bot, reequilíbrio mensal ===")
+    print(f"período: {eq.index[0]:%d/%m/%Y} a {eq.index[-1]:%d/%m/%Y}")
+    print(f"{args.balance:.2f} -> {eq.iloc[-1]:.2f} USDT ({r['retorno']:+.1%}) · queda máxima {r['queda_max']:.1%}")
+    print(f"operações do bot: {len(r['bot'].trades)} · ordens do cofre: {r['cofre_ordens']}")
+    anos = eq.resample("YE").last()
+    prev = args.balance
+    for d, v in anos.items():
+        print(f"  {d.year}: {v / prev - 1:+.1%}")
+        prev = v
+
+
 def cmd_aprender(cfg, args):
     """Relatório de aprendizado: histórico + prática, alarme de desvio e proposta de ajuste."""
     import time as _t
@@ -238,6 +270,9 @@ def main():
     d.add_argument("--symbols", nargs="*")
     d.add_argument("--demo", action="store_true", help="usa dados simulados (sem internet)")
     d.add_argument("--out", default="dashboard.html")
+    c_ = sub.add_parser("carteira", help="backtest da carteira completa (bot + cofre de tendência)")
+    c_.add_argument("--days", type=int, default=2450)
+    c_.add_argument("--balance", type=float, default=100)
     ap_ = sub.add_parser("aprender", help="relatório do que funcionou, alarme de desvio e proposta de ajuste")
     ap_.add_argument("--days", type=int, default=1150)
     sub.add_parser("paper", help="opera com dinheiro fictício e preços reais")
@@ -246,6 +281,8 @@ def main():
     cfg = load_config(args.config)
     if args.cmd == "backtest":
         cmd_backtest(cfg, args)
+    elif args.cmd == "carteira":
+        cmd_carteira(cfg, args)
     elif args.cmd == "aprender":
         cmd_aprender(cfg, args)
     elif args.cmd == "dashboard":

@@ -195,6 +195,20 @@ Cuidado: os 6 anos começam perto de um fundo de ciclo (BTC ~10 mil dólares em 
 o que favorece qualquer estratégia compradora. Seguir tendência ainda tem quedas grandes
 (51–58%), porque não escapa de tombos rápidos dentro de uma tendência de alta (ex.: maio/2021).
 
+## 9. Carteira adotada: 25% cofre de tendência + 75% bot (versão implementada)
+
+Testada exatamente como roda (cofres separados, ordens reais simuladas, taxas):
+
+| Reequilíbrio entre os cofres | Nunca visto out/20–set/23 | 6 anos | Último ano |
+|---|---|---|---|
+| Nunca | 185 (queda 38%) | 284 (queda 39%) | 98 (7%) |
+| Quando o cofre zera | 198 (34%) | 267 (34%) | 98 (7%) |
+| **Mensal (adotado)** | **165 (16%)** | **221 (17%)** | 97 (7%) |
+
+Sem reequilíbrio o cofre cresce nas altas e passa de 25% para ~60% da carteira, e a queda
+máxima vai a ~39% — risco que não foi o escolhido. Por ano (100 USDT, out/2020–nov/2026):
+2020 +35% · 2021 +26% · 2022 0% · 2023 +4% · 2024 +12% · 2025 +10% · 2026 −3%.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

@@ -12,6 +12,7 @@ from .data import attach_btc_trend, prepare
 PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras (posições seguem protegidas)
 from .risk import RiskGuard, position_size, utcnow
 from .learn import checar_desvio, ler_diario, registrar
+from .sleeve import TrendSleeve
 from .strategy import Position, entry_features, entry_signal, manage_position
 
 log = logging.getLogger("bot")
@@ -26,6 +27,8 @@ class Trader:
         self.guard = RiskGuard(cfg)
         self.guard.load(self.state.get("guard", {}))
         self.positions = {s: Position.from_dict(d) for s, d in self.state["positions"].items()}
+        sc = cfg.get("trend_sleeve") or {}
+        self.sleeve = TrendSleeve(cfg, broker, state) if sc.get("enabled") else None
 
     # ---------- persistência ----------
     def save(self) -> None:
@@ -36,13 +39,23 @@ class Trader:
         tmp.replace(self.state_path)
 
     def equity(self) -> float:
+        """Patrimônio TOTAL (bot + cofre de tendência)."""
         total = self.broker.usdt_free()
         for s, p in self.positions.items():
             try:
                 total += p.qty * self.broker.price(s)
             except Exception:
                 total += p.qty * p.entry
+        if self.sleeve:
+            total += self.sleeve.value() - float(self.sleeve.st.get("cash", 0.0))   # caixa do cofre já está no USDT livre
         return total
+
+    def bot_equity(self) -> float:
+        """Só a parte do bot: o cofre tem dinheiro próprio e não entra nas travas do bot."""
+        return self.equity() - (self.sleeve.value() if self.sleeve else 0.0)
+
+    def bot_free_usdt(self) -> float:
+        return self.broker.usdt_free() - (float(self.sleeve.st.get("cash", 0.0)) if self.sleeve else 0.0)
 
     # ---------- execução ----------
     def _close(self, sym: str, pos: Position, reason: str) -> None:
@@ -166,7 +179,7 @@ class Trader:
         if PAUSE_FILE.exists():
             log.info("%s: arquivo PAUSAR presente -> sem novas compras", sym)
             return
-        eq = self.equity()
+        eq = self.bot_equity()
         self.guard.new_bar(utcnow(), eq)
         ok, why = self.guard.can_open(utcnow(), eq)
         if not ok:
@@ -185,7 +198,7 @@ class Trader:
         if (self.state.get("alarme_desvio") or {}).get("alarme"):
             scale *= 0.5
         qty = self.broker.amount(sym, position_size(eq, px, sig.stop, self.cfg, scale))
-        if qty * px < self.broker.min_notional(sym) or qty * px * 1.002 > self.broker.usdt_free():
+        if qty * px < self.broker.min_notional(sym) or qty * px * 1.002 > self.bot_free_usdt():
             log.info("%s: sinal válido mas saldo/tamanho insuficiente", sym)
             return
         filled, avg, cost = self.broker.buy(sym, qty)
@@ -207,7 +220,19 @@ class Trader:
                 log.exception("erro conferindo stop de %s", sym)
             finally:
                 self.save()
-        # 2) filtro de mercado (BTC). Se falhar, não abre nada neste ciclo
+        # 2) cofre de tendência (decide no fechamento diário; reequilibra uma vez por mês)
+        if self.sleeve:
+            try:
+                self.sleeve.ensure_funded(self.equity())
+                daily = {s: self.broker.candles(s, "1d") for s in set(self.sleeve.sc["symbols"]) | {"BTC/USDT"}}
+                self.sleeve.on_tick(daily, paused=PAUSE_FILE.exists(), journal=registrar)
+                if not PAUSE_FILE.exists():
+                    self.sleeve.rebalance(self.equity(), self.bot_free_usdt(), utcnow())
+            except Exception:
+                log.exception("erro no cofre de tendência")
+            finally:
+                self.save()
+        # 3) filtro de mercado (BTC). Se falhar, não abre nada neste ciclo
         btc = None
         if self.cfg["strategy"].get("btc_filter"):
             try:
@@ -215,7 +240,7 @@ class Trader:
             except Exception:
                 log.exception("erro buscando BTC para o filtro de mercado")
                 return
-        # 3) análise de cada par no candle fechado
+        # 4) análise de cada par no candle fechado
         for sym in self.cfg["symbols"]:
             try:
                 df = prepare(self.broker.candles(sym, tf_e), self.broker.candles(sym, tf_t), self.cfg)
@@ -236,6 +261,8 @@ class Trader:
         for sym, pos in list(self.positions.items()):
             try:
                 bal = self.broker.base_balance(sym)
+                if bal is not None and self.sleeve:
+                    bal -= self.sleeve.qty(sym)          # parte da moeda pertence ao cofre
                 if bal is not None and bal < pos.qty * 0.98:
                     filled, px, got = self.broker.stop_filled(sym, pos.stop_order_id, pos.stop)
                     if filled:

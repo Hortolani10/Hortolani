@@ -360,3 +360,73 @@ def test_single_instance_lock(tmp_path, monkeypatch):
     with pytest.raises(SystemExit):
         single_instance("paper")
     first.close()
+
+
+# ---------------- cofre "seguir a tendência" ----------------
+D1 = tf_ms("1d")
+
+
+def _daily(synth, drift, seed, n=700):
+    return synth(n, D1, drift, seed)
+
+
+def test_sleeve_eth_needs_btc_up(synth, cfg):
+    from bot import sleeve
+    daily = {"BTC/USDT": _daily(synth, -0.004, 1), "ETH/USDT": _daily(synth, 0.004, 2)}
+    tr = sleeve.daily_trends(daily, cfg)
+    last = int(daily["BTC/USDT"]["ts"].iloc[-1]) + D1
+    w = sleeve.wanted(tr, last, ["BTC/USDT", "ETH/USDT"])
+    assert w == {"BTC/USDT": False, "ETH/USDT": False}      # ETH em alta, mas BTC em baixa: fica fora
+    daily["BTC/USDT"] = _daily(synth, 0.004, 3)
+    w = sleeve.wanted(sleeve.daily_trends(daily, cfg), last, ["BTC/USDT", "ETH/USDT"])
+    assert w == {"BTC/USDT": True, "ETH/USDT": True}
+
+
+def test_sleeve_backtest_cash_in_downtrend(synth, cfg):
+    from bot import sleeve
+    daily = {"BTC/USDT": _daily(synth, -0.004, 1), "ETH/USDT": _daily(synth, -0.004, 2)}
+    start = int(daily["BTC/USDT"]["ts"].iloc[300])
+    r = sleeve.backtest(daily, cfg, 25, start)
+    assert r["trades"] == [] and abs(r["equity"].iloc[-1] - 25) < 1e-9
+    daily = {"BTC/USDT": _daily(synth, 0.004, 3), "ETH/USDT": _daily(synth, 0.004, 4)}
+    r = sleeve.backtest(daily, cfg, 25, start)
+    assert r["trades"] and r["equity"].iloc[-1] > 25
+
+
+class SleeveBroker(LiveLikeBroker):
+    def __init__(self, price=100.0):
+        super().__init__(price); self.bought = []
+    def buy(self, sym, q): self.bought.append((sym, q)); self.cash -= q * self.px; return q, self.px, q * self.px
+    def candles(self, sym, tf, limit=500): return self.daily[sym]
+
+
+def test_buckets_are_separate_and_rebalance_monthly(cfg, tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+    from bot.sleeve import TrendSleeve
+    monkeypatch.chdir(tmp_path)
+    cfg["mode"] = "paper"
+    br = SleeveBroker()
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    tr.sleeve.ensure_funded(tr.equity())
+    assert tr.sleeve.st["cash"] == 250.0                     # 25% de 1000
+    assert abs(tr.bot_equity() - 750.0) < 1e-9 and abs(tr.bot_free_usdt() - 750.0) < 1e-9
+    sl = tr.sleeve
+    sl.rebalance(1000, 750, datetime(2026, 1, 15, tzinfo=timezone.utc))   # primeiro mês: só marca
+    sl.st["cash"] = 400.0                                    # cofre ficou grande (40%)
+    sl.rebalance(1000, 600, datetime(2026, 2, 1, tzinfo=timezone.utc))
+    assert sl.st["cash"] == 250.0                            # devolveu 150 ao bot
+    sl.st["cash"], sl.st["holdings"]["BTC/USDT"] = 0.0, 1.0  # cofre pequeno (100 de 1000) e com BTC
+    sl.rebalance(1000, 900, datetime(2026, 3, 1, tzinfo=timezone.utc))
+    assert br.bought and br.bought[-1][0] == "BTC/USDT"     # recebeu caixa do bot e comprou mais BTC
+    sl.rebalance(1000, 900, datetime(2026, 3, 20, tzinfo=timezone.utc))
+    assert len(br.bought) == 1                               # só uma vez por mês
+
+
+def test_portfolio_backtest(synth, cfg):
+    from bot import sleeve
+    from bot.data import prepare
+    up, _ = make(synth, cfg, 0.0008, n=9000, seed=3)        # ~375 dias de 1h
+    daily = {"BTC/USDT": _daily(synth, 0.003, 3), "ETH/USDT": _daily(synth, 0.003, 4)}
+    t0 = int(daily["BTC/USDT"]["ts"].iloc[230])              # após aquecer a EMA200 diária
+    r = sleeve.portfolio_backtest({"UP/USDT": up}, daily, cfg, 100, t0)
+    assert len(r["equity"]) > 10 and r["queda_max"] < 0.6
