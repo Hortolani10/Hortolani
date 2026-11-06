@@ -21,9 +21,10 @@ log = logging.getLogger("bot")
 
 
 class Trader:
-    def __init__(self, cfg: dict, broker, state: dict, state_path: str = "state.json", tg=None):
+    def __init__(self, cfg: dict, broker, state: dict, state_path: str = "state.json", tg=None, painel=None):
         self.cfg, self.broker, self.state = cfg, broker, state
         self.tg = tg                                   # Telegram (opcional)
+        self.painel = painel                           # painel ao vivo no navegador (opcional)
         self.state_path = Path(state_path)
         self.state.setdefault("positions", {})
         self.state.setdefault("last_bar", {})
@@ -265,6 +266,7 @@ class Trader:
                 df = prepare(self.broker.candles(sym, tf_e), self.broker.candles(sym, tf_t), self.cfg)
                 if btc is not None:
                     df = attach_btc_trend(df, btc)
+                self._update_radar(sym, df)
                 last_ts = int(df["ts"].iloc[-1])
                 if last_ts > int(self.state["last_bar"].get(sym, 0)):
                     self._on_closed_bar(sym, df)
@@ -301,6 +303,66 @@ class Trader:
                 log.exception("erro reconciliando %s", sym)
         self.save()
 
+    # ---------- radar: o que o bot está vendo em cada moeda ----------
+    def _update_radar(self, sym: str, df) -> None:
+        i = len(df) - 1
+        row = df.iloc[i]
+        sig = entry_signal(df, i, row["trend"], self.cfg)
+        checks = {k: bool(v[0]) for k, v in sig.checks.items()}
+        lat = None
+        if (self.cfg.get("lateral") or {}).get("enabled") or self.shadow:
+            lat = bool(lateral_signal(df, i, self.cfg).ok)
+        self.state.setdefault("radar", {})[sym] = {
+            "preco": float(row["close"]),
+            "tendencia": str(row["trend"]),
+            "btc": str(row.get("btc_trend", "")),
+            "regras_ok": sum(checks.values()),
+            "regras_total": len(checks),
+            "falhou": [k for k, ok in checks.items() if not ok],
+            "rsi": round(float(row["rsi"]), 1),
+            "adx": round(float(row["adx"]), 1),
+            "sinal_tendencia": bool(sig.ok),
+            "sinal_lateral": lat,
+            "candle": int(row["close_ts"]),
+            "atualizado": utcnow().isoformat(),
+        }
+
+    def radar_text(self) -> str:
+        rad = self.state.get("radar") or {}
+        if not rad:
+            return "Radar ainda vazio (aguarde o primeiro ciclo)."
+        icon = {"ALTA": "🟢", "BAIXA": "🔴", "LATERAL": "🟡"}
+        lines = ["📡 Radar (tendência diária da moeda · regras de entrada)"]
+        for s, r in sorted(rad.items(), key=lambda x: -x[1]["regras_ok"]):
+            extra = " · ✅ SINAL" if r["sinal_tendencia"] else (" · ↔ sinal lateral" if r.get("sinal_lateral") else "")
+            lines.append(f"{icon.get(r['tendencia'], '⚪')} {s.split('/')[0]}: {r['tendencia'].lower()} · "
+                         f"{r['regras_ok']}/{r['regras_total']} regras · RSI {r['rsi']}{extra}")
+        btc = next(iter(rad.values())).get("btc")
+        if btc:
+            lines.append(f"Filtro do BTC: {btc.lower()}")
+        return "\n".join(lines)
+
+    def snapshot(self) -> dict:
+        """Tudo o que o painel local mostra."""
+        total = self.equity()
+        sv = self.sleeve.value() if self.sleeve else 0.0
+        pos = []
+        for s, p in self.positions.items():
+            try:
+                px = self.broker.price(s)
+            except Exception:
+                px = p.entry
+            pos.append({"simbolo": s, "estrategia": p.strategy, "entrada": p.entry, "preco": px, "stop": p.stop,
+                        "qtd": p.qty, "resultado_pct": px / p.entry - 1, "aberta": p.opened_at})
+        return {
+            "modo": self.cfg.get("mode"), "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
+            "carteira": total, "bot": total - sv, "cofre": sv,
+            "cofre_moedas": {k: v for k, v in (self.sleeve.st["holdings"].items() if self.sleeve else []) if v > 0},
+            "posicoes": pos, "radar": self.state.get("radar") or {},
+            "alarme": (self.state.get("alarme_desvio") or {}).get("alarme", False),
+            "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
+        }
+
     # ---------- celular: status, comandos e resumo diário ----------
     def status_text(self) -> str:
         total = self.equity()
@@ -335,6 +397,8 @@ class Trader:
         for c in cmds:
             if c == "/status":
                 self.tg.send(self.status_text(), dedupe_s=0)
+            elif c == "/radar":
+                self.tg.send(self.radar_text(), dedupe_s=0)
             elif c == "/pausar":
                 PAUSE_FILE.write_text("pausado pelo Telegram\n")
                 self.tg.send("⏸ Pausado: sem novas compras. Posições abertas continuam protegidas. /retomar para voltar.", dedupe_s=0)
@@ -344,7 +408,7 @@ class Trader:
                 self.tg.send("▶️ Retomado: o bot volta a abrir posições quando houver sinal.", dedupe_s=0)
                 log.warning("retomado pelo Telegram")
             else:
-                self.tg.send("Comandos: /status · /pausar (sem novas compras) · /retomar", dedupe_s=0)
+                self.tg.send("Comandos: /status · /radar (o que o bot vê em cada moeda) · /pausar (sem novas compras) · /retomar", dedupe_s=0)
 
     def daily_summary(self) -> None:
         if not self.tg or not self.tg.enabled:
@@ -352,7 +416,7 @@ class Trader:
         day = utcnow().strftime("%Y-%m-%d")
         if utcnow().hour >= 1 and self.state.get("summary_day") != day:   # ~22h em Brasília, após o fechamento diário
             self.state["summary_day"] = day
-            self.tg.send("🗓 Resumo do dia\n" + self.status_text(), dedupe_s=0)
+            self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n\n" + self.radar_text(), dedupe_s=0)
 
     def run_forever(self) -> None:
         log.info("Bot iniciado | modo=%s | símbolos=%s", self.cfg["mode"], self.cfg["symbols"])
@@ -364,18 +428,31 @@ class Trader:
                 self.handle_commands()
                 self.daily_summary()
                 self.save()
+                self._refresh_painel()
             except Exception:
                 ok = False
                 log.exception("erro no ciclo principal")
             ping_health(fail=not ok)          # sinal de vida: se parar de chegar, o healthchecks avisa você
             self._sleep_listening(self.cfg["loop"]["poll_seconds"])
 
+    def _refresh_painel(self) -> None:
+        if self.painel:
+            try:
+                self.painel.update(self.snapshot())
+            except Exception:
+                log.exception("erro atualizando o painel")
+
     def _sleep_listening(self, seconds: float, step: float = 5.0) -> None:
-        """Espera até o próximo ciclo, mas confere os comandos do Telegram a cada `step` segundos."""
+        """Espera até o próximo ciclo, mas confere os comandos do Telegram a cada `step` segundos
+        e atualiza os preços do painel a cada ~15 s."""
         end = time.time() + seconds
+        k = 0
         while time.time() < end:
             time.sleep(min(step, max(0.0, end - time.time())))
+            k += 1
             try:
                 self.handle_commands()
             except Exception:
                 log.exception("erro lendo comandos do Telegram")
+            if k % 3 == 0:
+                self._refresh_painel()

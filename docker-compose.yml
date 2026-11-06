@@ -8,6 +8,10 @@ services:
     command: ["paper"]
     restart: unless-stopped          # reinicia sozinho se cair ou se o servidor reiniciar
     env_file: .env                   # chaves da Binance e do Telegram (nunca vão para a imagem)
+    environment:
+      - PAINEL_HOST=0.0.0.0          # dentro do container; fora, só o próprio servidor acessa (abaixo)
+    ports:
+      - "127.0.0.1:8765:8765"        # painel: acesse do seu PC com  ssh -L 8765:localhost:8765 bot@IP
     volumes:
       - ./runtime:/app/runtime       # estado, diário, logs, dados e o arquivo PAUSAR
     read_only: true                  # o resto do sistema de arquivos é só leitura

@@ -87,7 +87,8 @@ O container reinicia sozinho se cair ou se o servidor reiniciar.
 | Quero... | Comando (na pasta Hortolani) |
 |---|---|
 | Ver o que está acontecendo | `docker compose logs -f --tail 100` |
-| Ver o status no celular | `/status` no Telegram |
+| Ver o status no celular | `/status` ou `/radar` no Telegram |
+| Ver o painel ao vivo | no seu PC: `ssh -L 8765:localhost:8765 bot@IP` e abra http://localhost:8765 |
 | **Parar novas compras (emergência)** | `/pausar` no Telegram ou `touch runtime/PAUSAR` |
 | Voltar a comprar | `/retomar` ou `rm runtime/PAUSAR` |
 | Desligar o bot | `docker compose down` (stops na Binance continuam valendo) |

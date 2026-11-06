@@ -578,3 +578,46 @@ def test_trader_opens_lateral_position_when_enabled(synth, cfg, tmp_path, monkey
         for p in tr.positions.values():
             assert br.stops.get(p.symbol) == p.stop   # sempre protegida
     assert "lateral" in seen
+
+
+# ---------------- painel ao vivo e radar ----------------
+def test_painel_serves_status_and_is_local_only(cfg, tmp_path, monkeypatch):
+    import json as _j, urllib.request
+    from bot.painel import Painel
+    monkeypatch.chdir(tmp_path)
+    p = Painel("127.0.0.1", 0)
+    from http.server import ThreadingHTTPServer
+    p.update({"modo": "paper", "carteira": 100.0})
+    # porta 0 = livre; descobre a porta real
+    import bot.painel as P
+    srv_holder = {}
+    orig = P.ThreadingHTTPServer
+    class Cap(orig):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k); srv_holder["s"] = self
+    monkeypatch.setattr(P, "ThreadingHTTPServer", Cap)
+    p.start()
+    host, port = srv_holder["s"].server_address
+    assert host == "127.0.0.1"
+    d = _j.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5).read())
+    assert d["carteira"] == 100.0 and "log" in d and "diario" in d
+    assert b"Bot Hortolani" in urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read()
+    srv_holder["s"].shutdown()
+
+
+def test_radar_and_snapshot(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    from bot.notify import Telegram
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    br = FakeBroker(e, resample(e, 4)); br.n = 1500
+    api = FakeTelegramAPI([_upd(1, 7, "/radar")])
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
+    tr.tick()
+    r = tr.state["radar"]["UP/USDT"]
+    assert r["regras_total"] >= 10 and 0 <= r["regras_ok"] <= r["regras_total"] and r["tendencia"] in ("ALTA", "BAIXA", "LATERAL")
+    tr.handle_commands()
+    assert "Radar" in api.sent[-1] and "UP" in api.sent[-1]
+    snap = tr.snapshot()
+    assert snap["radar"] and snap["carteira"] > 0

@@ -301,6 +301,22 @@ sabendo que em 6 anos rende um pouco menos e a queda máxima sobe ~3 pontos. Lem
 seção 10: a lateralização não foi robusta a mudanças de parâmetros em 2020–2023.
 Mais operações não aumentaram o lucro em nenhuma versão: o ganho é atividade e dados, não retorno.
 
+## 13. Inteligência artificial (machine learning) para filtrar sinais (nov/2026)
+
+Modelo treinado com o "retrato do mercado" de cada entrada (ADX, volatilidade, RSI, volume,
+distância da média, hora, dia, sessão, estratégia) para prever se a operação daria lucro.
+311 operações em 6 anos; walk-forward (treina só com o passado, testa no bloco seguinte, 5 blocos).
+
+| | Operações | Acerto | Soma de R |
+|---|---|---|---|
+| Sem modelo | 187 | 45% | **+22,2R** |
+| Com modelo (mediana de 69 variações: gradient boosting, random forest, regressão logística, cortes 30/50/70%) | 106 | **50%** | +14,8R |
+
+O modelo **aumenta a taxa de acerto** (45% → ~50%) **mas corta quase metade das operações e
+reduz o lucro total**: só 16% das variações superaram o bot sem modelo. Com poucas centenas de
+operações, um modelo aprende ruído. **Não adotado.** Pode ser revisto quando o diário tiver
+centenas de operações reais.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

@@ -270,7 +270,19 @@ def cmd_run(cfg, mode):
         logging.getLogger("bot").addHandler(TelegramLogHandler(tg, tag))
     else:
         logging.getLogger("bot").info("Telegram não configurado (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID): sem avisos no celular")
-    Trader(cfg, broker, state, state_path, tg=tg).run_forever()
+    from .painel import from_config
+
+    painel = from_config(cfg)
+    if painel:
+        painel.start()
+        if (cfg.get("painel") or {}).get("abrir_navegador", True) and not os.getenv("PAINEL_HOST"):
+            try:
+                import webbrowser
+
+                webbrowser.open(f"http://localhost:{painel.port}")
+            except Exception:  # nosec B110 - sem navegador (servidor): segue sem abrir
+                pass
+    Trader(cfg, broker, state, state_path, tg=tg, painel=painel).run_forever()
 
 
 def main():

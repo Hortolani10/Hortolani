@@ -50,6 +50,12 @@ na abertura do candle seguinte ao sinal, com taxa e slippage.
 Os dados públicos de preço vêm do espelho oficial `data-api.binance.vision`
 (`market_data_url` no config), que funciona em regiões onde `api.binance.com` é bloqueado.
 
+## Painel ao vivo
+Com o bot rodando, abra **http://localhost:8765** (abre sozinho ao iniciar): carteira, cofre,
+posições com resultado ao vivo, **radar** de cada moeda (tendência própria, BTC, quantas regras
+de entrada já passam, sinais), diário e log. Atualiza a cada 5 s. Só leitura e só no seu computador.
+No Telegram: `/radar` mostra o mesmo radar no celular. No VPS: `ssh -L 8765:localhost:8765 bot@IP`.
+
 ## Começar no seu computador (sem servidor)
 Windows: dois cliques em `iniciar_paper.bat`. Mac/Linux: `bash iniciar_paper.sh`.
 Detalhes em [`docs/COMPUTADOR.md`](docs/COMPUTADOR.md). Funciona enquanto o computador estiver ligado.
@@ -64,7 +70,7 @@ mkdir -p runtime && sudo chown 10001:10001 runtime
 docker compose up -d --build            # liga e mantém ligado; reinicia sozinho
 ```
 **No celular (Telegram):** avisos de compra, venda, stop, cofre, alarmes e erros; resumo diário;
-comandos `/status`, `/pausar`, `/retomar` (só do seu chat; não há comando de compra/venda/saque).
+comandos `/status`, `/radar`, `/pausar`, `/retomar` (só do seu chat; não há comando de compra/venda/saque).
 **Bot parado:** o healthchecks.io avisa se o bot ficar 15 minutos sem dar sinal de vida.
 
 ## Instalação

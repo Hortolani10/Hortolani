@@ -85,6 +85,12 @@ lateral:
   max_bars: 12
   risk_scale: 1.0
 
+# Painel ao vivo no navegador: http://localhost:8765 (só leitura, só neste computador)
+painel:
+  enabled: true
+  port: 8765
+  abrir_navegador: true      # abre o navegador sozinho quando o bot inicia
+
 # Estratégias em OBSERVAÇÃO: o bot registra no diário o que teria acontecido, sem operar.
 # Veja os resultados com: python -m bot aprender   (origem "observacao-lateral")
 observacao:
