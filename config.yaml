@@ -75,6 +75,11 @@ trend_sleeve:
   symbols: [BTC/USDT, ETH/USDT]
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
 
+# Estratégias em OBSERVAÇÃO: o bot registra no diário o que teria acontecido, sem operar.
+# Veja os resultados com: python -m bot aprender   (origem "observacao-lateral")
+observacao:
+  lateralizacao: true         # reversão à média quando o diário está LATERAL (PESQUISA.md, seção 10)
+
 fees:
   taker: 0.001              # 0,1% (Binance spot sem desconto BNB)
   slippage: 0.0005

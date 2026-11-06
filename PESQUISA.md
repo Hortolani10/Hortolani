@@ -209,6 +209,39 @@ Sem reequilíbrio o cofre cresce nas altas e passa de 25% para ~60% da carteira,
 máxima vai a ~39% — risco que não foi o escolhido. Por ano (100 USDT, out/2020–nov/2026):
 2020 +35% · 2021 +26% · 2022 0% · 2023 +4% · 2024 +12% · 2025 +10% · 2026 −3%.
 
+## 10. Day trade e outros estilos (nov/2026)
+
+**Day trade / tempos curtos — vantagem bruta (SEM taxas) vs com taxas**, mesma regra do bot:
+
+| Entrada | Período | Sem taxas | Taxa BNB 0,075% | Taxa normal 0,1% |
+|---|---|---|---|---|
+| 15 min | nov/25–nov/26 | −1,8% | −4,9% | −3,7% |
+| 1h | abr/24–nov/26 | −6,4% | −16,4% | −16,4% |
+| 2h | abr/24–nov/26 | −4,5% | −6,8% | −7,5% |
+| **4h** | abr/24–nov/26 | **+15,8%** | +12,7% | +12,6% |
+| 6h | abr/24–nov/26 | +0,5% | −0,4% | −0,7% |
+
+Mesmo sem taxa nenhuma, 15 min, 1h e 2h perdem: em tempos curtos o preço é quase só ruído.
+Scalping (segundos/minutos, livro de ofertas) exige dados de profundidade, latência baixa e taxas
+de criador de mercado — fora do alcance de uma conta comum. **Day trade não foi adotado.**
+
+**Lateralização (reversão à média, 4h, só com o diário LATERAL)**: compra abaixo da banda de
+Bollinger inferior (20, 2) com RSI < 30; vende na média de 20, stop 2 ATR, máx. 12 velas.
+Parâmetros clássicos escolhidos antes, sem ajuste. Custo 0,3% ida e volta.
+
+| Período | Ops | Acerto | Média/op | FL |
+|---|---|---|---|---|
+| Nunca visto out/20–set/23 | 95 | 44% | +0,39% | 1,14 |
+| Treino set/23–nov/25 | 93 | 57% | +0,79% | 1,35 |
+| Validação nov/25–nov/26 | 12 | 58% | +0,88% | 1,86 |
+
+Robustez (81 variações de RSI, bandas, tempo e stop): positivas em 84% (treino) e 78%
+(validação), mas só **36% no período nunca visto** (mediana −0,33%/op). Funciona no mercado
+recente, não no de 2020–2023. Comprar a mesma "esticada" com o diário em BAIXA perdeu
+(−1,03%/op no período nunca visto), como esperado.
+**Decisão:** fica em **observação** (`bot/shadow.py`): o bot registra no diário o que teria
+acontecido, sem operar. Depois de semanas de dados reais, `python -m bot aprender` mostra o resultado.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

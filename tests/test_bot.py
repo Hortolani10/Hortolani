@@ -175,7 +175,8 @@ def test_trader_end_to_end(synth, cfg, tmp_path, monkeypatch):
     assert (tmp_path / "s.json").exists()
     from bot.learn import ler_diario
     d = ler_diario(tmp_path / "logs" / "diario.jsonl")
-    assert len(d) == closed and {"adx", "sessao", "r"} <= set(d.columns)   # cada operação ficou no diário
+    reais = d[d["origem"] == cfg["mode"]]
+    assert len(reais) == closed and {"adx", "sessao", "r"} <= set(d.columns)   # cada operação ficou no diário
 
 
 def test_prefilter_is_superset_of_entry_signal(synth, cfg):
@@ -492,3 +493,35 @@ def test_trader_telegram_commands_and_status(cfg, tmp_path, monkeypatch):
     assert "Carteira: 1000.00 USDT" in api.sent[-1] and "Cofre de tendência: 250.00" in api.sent[-1] and "PAUSADO" in api.sent[-1]
     api.updates.append(_upd(3, 7, "/retomar")); tr.handle_commands()
     assert not (tmp_path / "PAUSAR").exists()
+
+
+# ---------------- observação (sem operar) ----------------
+def test_shadow_range_records_without_trading(tmp_path, monkeypatch):
+    import numpy as np
+    from bot.shadow import ShadowRange
+    monkeypatch.chdir(tmp_path)
+    n = 60
+    close = np.r_[np.full(40, 100.0), np.linspace(99, 90, 10), np.linspace(91, 101, 10)]   # cai e volta
+    df = pd.DataFrame({"open": close, "high": close + 0.5, "low": close - 0.5, "close": close,
+                       "atr": np.full(n, 1.0), "rsi": np.r_[np.full(40, 50.0), np.full(10, 20.0), np.full(10, 55.0)],
+                       "trend": ["LATERAL"] * n, "close_ts": np.arange(n) * 14_400_000 + 1_700_000_000_000})
+    rows = []
+    sh = ShadowRange({}, rows.append)
+    for k in range(31, n + 1):
+        sh.on_bar("X/USDT", df.iloc[:k].reset_index(drop=True))
+    assert rows and rows[0]["origem"] == "observacao-lateral"
+    df["trend"] = "ALTA"                                    # fora de lateralização: não observa nada
+    rows2 = []; sh2 = ShadowRange({}, rows2.append)
+    for k in range(31, n + 1):
+        sh2.on_bar("X/USDT", df.iloc[:k].reset_index(drop=True))
+    assert rows2 == []
+
+
+def test_sleep_listening_answers_commands_quickly(cfg, tmp_path, monkeypatch):
+    from bot.notify import Telegram
+    monkeypatch.chdir(tmp_path)
+    cfg["mode"] = "paper"
+    api = FakeTelegramAPI([_upd(1, 7, "/status")])
+    tr = Trader(cfg, SleeveBroker(), {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
+    tr._sleep_listening(0.3, step=0.1)
+    assert api.sent and "Carteira" in api.sent[-1]

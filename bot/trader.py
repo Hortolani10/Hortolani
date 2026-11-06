@@ -13,6 +13,7 @@ PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras 
 from .risk import RiskGuard, position_size, utcnow
 from .learn import checar_desvio, ler_diario, registrar
 from .notify import ping_health
+from .shadow import ShadowRange
 from .sleeve import TrendSleeve
 from .strategy import Position, entry_features, entry_signal, manage_position
 
@@ -31,6 +32,7 @@ class Trader:
         self.positions = {s: Position.from_dict(d) for s, d in self.state["positions"].items()}
         sc = cfg.get("trend_sleeve") or {}
         self.sleeve = TrendSleeve(cfg, broker, state) if sc.get("enabled") else None
+        self.shadow = ShadowRange(state, registrar, cfg.get("mode", "paper")) if cfg.get("observacao", {}).get("lateralizacao", True) else None
 
     # ---------- persistência ----------
     def save(self) -> None:
@@ -152,6 +154,11 @@ class Trader:
         i = len(df) - 1
         row = df.iloc[i]
         trend = row["trend"]
+        if self.shadow:
+            try:
+                self.shadow.on_bar(sym, df)          # só observa: nunca envia ordem
+            except Exception:
+                log.exception("erro na observação de %s", sym)
 
         if sym in self.positions:
             pos = self.positions[sym]
@@ -351,4 +358,14 @@ class Trader:
                 ok = False
                 log.exception("erro no ciclo principal")
             ping_health(fail=not ok)          # sinal de vida: se parar de chegar, o healthchecks avisa você
-            time.sleep(self.cfg["loop"]["poll_seconds"])
+            self._sleep_listening(self.cfg["loop"]["poll_seconds"])
+
+    def _sleep_listening(self, seconds: float, step: float = 5.0) -> None:
+        """Espera até o próximo ciclo, mas confere os comandos do Telegram a cada `step` segundos."""
+        end = time.time() + seconds
+        while time.time() < end:
+            time.sleep(min(step, max(0.0, end - time.time())))
+            try:
+                self.handle_commands()
+            except Exception:
+                log.exception("erro lendo comandos do Telegram")

@@ -22,7 +22,7 @@ def setup_logging() -> None:
 
     try:                                    # acentos no terminal do Windows
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
+    except Exception:  # nosec B110 - terminal sem suporte: segue com a codificação padrão
         pass
 
     Path("logs").mkdir(exist_ok=True)
