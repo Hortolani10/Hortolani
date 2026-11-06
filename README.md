@@ -50,6 +50,10 @@ na abertura do candle seguinte ao sinal, com taxa e slippage.
 Os dados públicos de preço vêm do espelho oficial `data-api.binance.vision`
 (`market_data_url` no config), que funciona em regiões onde `api.binance.com` é bloqueado.
 
+## Começar no seu computador (sem servidor)
+Windows: dois cliques em `iniciar_paper.bat`. Mac/Linux: `bash iniciar_paper.sh`.
+Detalhes em [`docs/COMPUTADOR.md`](docs/COMPUTADOR.md). Funciona enquanto o computador estiver ligado.
+
 ## Rodar 24 horas num servidor
 Passo a passo completo (VPS, segurança, Telegram, alerta de bot parado, testnet e real):
 **[`docs/VPS.md`](docs/VPS.md)**. Resumo:

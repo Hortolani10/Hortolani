@@ -20,6 +20,11 @@ def load_config(path: str) -> dict:
 def setup_logging() -> None:
     from logging.handlers import RotatingFileHandler
 
+    try:                                    # acentos no terminal do Windows
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
     Path("logs").mkdir(exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
@@ -30,20 +35,27 @@ def setup_logging() -> None:
 
 
 def single_instance(mode: str):
-    """Impede duas cópias do bot no mesmo modo (ordens duplicadas)."""
-    import fcntl
-
-    f = open(f".bot_{mode}.lock", "w")
+    """Impede duas cópias do bot no mesmo modo (ordens duplicadas). Funciona em Linux, Mac e Windows."""
+    f = open(f".bot_{mode}.lock", "a+")
     try:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if os.name == "nt":
+            import msvcrt
+
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
+        f.close()
         sys.exit(f"Já existe um bot rodando em modo {mode}. Pare o outro antes de iniciar.")
     return f          # manter a referência viva mantém o bloqueio
 
 
 def check_env_file() -> None:
     p = Path(".env")
-    if p.exists() and p.stat().st_mode & 0o077:
+    if os.name != "nt" and p.exists() and p.stat().st_mode & 0o077:      # no Windows as permissões são outras
         logging.getLogger("bot").warning(
             "SEGURANÇA: .env pode ser lido por outros usuários do sistema. Rode: chmod 600 .env")
 
