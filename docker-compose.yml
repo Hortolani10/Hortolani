@@ -1,0 +1,31 @@
+# Uso:  docker compose up -d --build     (inicia e mantém ligado 24h)
+#       docker compose logs -f           (ver o que o bot está fazendo)
+# Para mudar de modo, troque "paper" por "live" em command (veja docs/VPS.md).
+services:
+  bot:
+    build: .
+    container_name: hortolani-bot
+    command: ["paper"]
+    restart: unless-stopped          # reinicia sozinho se cair ou se o servidor reiniciar
+    env_file: .env                   # chaves da Binance e do Telegram (nunca vão para a imagem)
+    volumes:
+      - ./runtime:/app/runtime       # estado, diário, logs, dados e o arquivo PAUSAR
+    read_only: true                  # o resto do sistema de arquivos é só leitura
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 768m
+    healthcheck:                     # "unhealthy" no docker ps se o bot parar de salvar o estado
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<600 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

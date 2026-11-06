@@ -12,6 +12,7 @@ from .data import attach_btc_trend, prepare
 PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras (posições seguem protegidas)
 from .risk import RiskGuard, position_size, utcnow
 from .learn import checar_desvio, ler_diario, registrar
+from .notify import ping_health
 from .sleeve import TrendSleeve
 from .strategy import Position, entry_features, entry_signal, manage_position
 
@@ -19,8 +20,9 @@ log = logging.getLogger("bot")
 
 
 class Trader:
-    def __init__(self, cfg: dict, broker, state: dict, state_path: str = "state.json"):
+    def __init__(self, cfg: dict, broker, state: dict, state_path: str = "state.json", tg=None):
         self.cfg, self.broker, self.state = cfg, broker, state
+        self.tg = tg                                   # Telegram (opcional)
         self.state_path = Path(state_path)
         self.state.setdefault("positions", {})
         self.state.setdefault("last_bar", {})
@@ -282,9 +284,71 @@ class Trader:
                 log.exception("erro reconciliando %s", sym)
         self.save()
 
+    # ---------- celular: status, comandos e resumo diário ----------
+    def status_text(self) -> str:
+        total = self.equity()
+        lines = [f"📊 Carteira: {total:.2f} USDT"]
+        if self.sleeve:
+            sv = self.sleeve.value()
+            held = [f"{s.split('/')[0]} {q:.6g}" for s, q in self.sleeve.st["holdings"].items() if q > 0]
+            lines.append(f"• Bot: {total - sv:.2f} USDT")
+            lines.append(f"• Cofre de tendência: {sv:.2f} USDT ({', '.join(held) if held else 'em USDT'})")
+        if self.positions:
+            for s, p in self.positions.items():
+                try:
+                    px = self.broker.price(s)
+                    lines.append(f"• {s}: entrada {p.entry:.6g} · agora {px:.6g} ({px / p.entry - 1:+.1%}) · stop {p.stop:.6g}")
+                except Exception:
+                    lines.append(f"• {s}: entrada {p.entry:.6g} · stop {p.stop:.6g}")
+        else:
+            lines.append("• Bot sem posições abertas (aguardando sinal)")
+        if PAUSE_FILE.exists():
+            lines.append("⏸ PAUSADO: sem novas compras")
+        if (self.state.get("alarme_desvio") or {}).get("alarme"):
+            lines.append("🚨 Alarme de desvio ativo (risco pela metade)")
+        if self.guard.paused_until:
+            lines.append(f"⏸ Pausa após stops seguidos até {self.guard.paused_until[:16]}")
+        return "\n".join(lines)
+
+    def handle_commands(self) -> None:
+        if not self.tg or not self.tg.enabled:
+            return
+        cmds, off = self.tg.commands(int(self.state.get("tg_offset", 0)))
+        self.state["tg_offset"] = off
+        for c in cmds:
+            if c == "/status":
+                self.tg.send(self.status_text(), dedupe_s=0)
+            elif c == "/pausar":
+                PAUSE_FILE.write_text("pausado pelo Telegram\n")
+                self.tg.send("⏸ Pausado: sem novas compras. Posições abertas continuam protegidas. /retomar para voltar.", dedupe_s=0)
+                log.warning("pausado pelo Telegram")
+            elif c == "/retomar":
+                PAUSE_FILE.unlink(missing_ok=True)
+                self.tg.send("▶️ Retomado: o bot volta a abrir posições quando houver sinal.", dedupe_s=0)
+                log.warning("retomado pelo Telegram")
+            else:
+                self.tg.send("Comandos: /status · /pausar (sem novas compras) · /retomar", dedupe_s=0)
+
+    def daily_summary(self) -> None:
+        if not self.tg or not self.tg.enabled:
+            return
+        day = utcnow().strftime("%Y-%m-%d")
+        if utcnow().hour >= 1 and self.state.get("summary_day") != day:   # ~22h em Brasília, após o fechamento diário
+            self.state["summary_day"] = day
+            self.tg.send("🗓 Resumo do dia\n" + self.status_text(), dedupe_s=0)
+
     def run_forever(self) -> None:
         log.info("Bot iniciado | modo=%s | símbolos=%s", self.cfg["mode"], self.cfg["symbols"])
         self.reconcile()
         while True:
-            self.tick()
+            ok = True
+            try:
+                self.tick()
+                self.handle_commands()
+                self.daily_summary()
+                self.save()
+            except Exception:
+                ok = False
+                log.exception("erro no ciclo principal")
+            ping_health(fail=not ok)          # sinal de vida: se parar de chegar, o healthchecks avisa você
             time.sleep(self.cfg["loop"]["poll_seconds"])

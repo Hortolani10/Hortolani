@@ -50,6 +50,19 @@ na abertura do candle seguinte ao sinal, com taxa e slippage.
 Os dados públicos de preço vêm do espelho oficial `data-api.binance.vision`
 (`market_data_url` no config), que funciona em regiões onde `api.binance.com` é bloqueado.
 
+## Rodar 24 horas num servidor
+Passo a passo completo (VPS, segurança, Telegram, alerta de bot parado, testnet e real):
+**[`docs/VPS.md`](docs/VPS.md)**. Resumo:
+```bash
+bash deploy/preparar_servidor.sh        # uma vez, no VPS novo (firewall, Docker, SSH só por chave)
+cp .env.example .env && chmod 600 .env  # Telegram/healthchecks (e chaves da Binance depois)
+mkdir -p runtime && sudo chown 10001:10001 runtime
+docker compose up -d --build            # liga e mantém ligado; reinicia sozinho
+```
+**No celular (Telegram):** avisos de compra, venda, stop, cofre, alarmes e erros; resumo diário;
+comandos `/status`, `/pausar`, `/retomar` (só do seu chat; não há comando de compra/venda/saque).
+**Bot parado:** o healthchecks.io avisa se o bot ficar 15 minutos sem dar sinal de vida.
+
 ## Instalação
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
@@ -138,6 +151,12 @@ bot/exchange.py     Binance (ccxt) e corretora simulada (paper)
 bot/trader.py       loop ao vivo
 bot/report.py       relatório/checklist de análise
 bot/dashboard.py    gera o painel HTML (bot/dashboard_template.html)
+bot/sleeve.py       cofre "seguir a tendência" (25%) e backtest da carteira
+bot/learn.py        diário, relatório de aprendizado, alarme de desvio, reotimização
+bot/notify.py       Telegram e sinal de vida (healthchecks.io)
+Dockerfile, docker-compose.yml   container com reinício automático e restrições de segurança
+deploy/preparar_servidor.sh      prepara e protege o VPS
+docs/VPS.md                      passo a passo do servidor
 bot/demo.py         dados simulados para demonstração e testes
 tests/              testes (dados sintéticos)
 ```

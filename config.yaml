@@ -80,7 +80,7 @@ fees:
   slippage: 0.0005
 
 paper:
-  initial_balance: 1000     # USDT fictício
+  initial_balance: 100      # USDT fictício (mesmo valor que você pretende usar de verdade)
 
 loop:
   poll_seconds: 60

@@ -250,7 +250,15 @@ def cmd_run(cfg, mode):
         broker = LiveBroker(cfg, trade_ex, trade_ex)
         broker.check_key_permissions(real_money=not cfg.get("testnet", True))
         logging.getLogger("bot").warning("MODO LIVE (%s)", "TESTNET" if cfg.get("testnet", True) else "DINHEIRO REAL")
-    Trader(cfg, broker, state, state_path).run_forever()
+    from .notify import Telegram, TelegramLogHandler
+
+    tg = Telegram()
+    if tg.enabled:
+        tag = {"paper": "[PAPER] ", "live": "[TESTNET] " if cfg.get("testnet", True) else "[REAL] "}[mode]
+        logging.getLogger("bot").addHandler(TelegramLogHandler(tg, tag))
+    else:
+        logging.getLogger("bot").info("Telegram não configurado (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID): sem avisos no celular")
+    Trader(cfg, broker, state, state_path, tg=tg).run_forever()
 
 
 def main():

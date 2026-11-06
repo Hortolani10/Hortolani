@@ -430,3 +430,65 @@ def test_portfolio_backtest(synth, cfg):
     t0 = int(daily["BTC/USDT"]["ts"].iloc[230])              # após aquecer a EMA200 diária
     r = sleeve.portfolio_backtest({"UP/USDT": up}, daily, cfg, 100, t0)
     assert len(r["equity"]) > 10 and r["queda_max"] < 0.6
+
+
+# ---------------- Telegram e sinal de vida ----------------
+class FakeTelegramAPI:
+    def __init__(self, updates=()):
+        self.sent, self.updates = [], list(updates)
+    def __call__(self, url, data):
+        if url.endswith("/sendMessage"):
+            self.sent.append(data["text"]); return {"ok": True}
+        if url.endswith("/getUpdates"):
+            r = [u for u in self.updates if u["update_id"] >= int(data["offset"])]
+            return {"ok": True, "result": r}
+        raise AssertionError(url)
+
+
+def _upd(i, chat, text):
+    return {"update_id": i, "message": {"chat": {"id": chat}, "text": text}}
+
+
+def test_telegram_only_accepts_owner_commands():
+    from bot.notify import Telegram
+    api = FakeTelegramAPI([_upd(1, 111, "/status"), _upd(2, 999, "/pausar"), _upd(3, 111, "/retomar@meubot")])
+    tg = Telegram("tok", "111", post=api)
+    cmds, off = tg.commands(0)
+    assert cmds == ["/status", "/retomar"] and off == 4      # estranho (999) ignorado
+    assert tg.commands(off) == ([], 4)
+
+
+def test_telegram_disabled_and_failures_never_crash():
+    from bot.notify import Telegram
+    Telegram("", "").send("x")                                # sem configuração: não faz nada
+    def boom(url, data): raise OSError("sem rede")
+    tg = Telegram("tok", "1", post=boom)
+    tg.send("x"); assert tg.commands(5) == ([], 5)
+
+
+def test_log_handler_forwards_only_important_events():
+    import logging as lg
+    from bot.notify import Telegram, TelegramLogHandler
+    api = FakeTelegramAPI(); h = TelegramLogHandler(Telegram("t", "1", post=api), "[PAPER] ")
+    lgr = lg.getLogger("bot.teste_handler"); lgr.addHandler(h); lgr.setLevel(lg.INFO)
+    lgr.info("BTC/USDT: sem entrada [tendência LATERAL]")     # rotina: não avisa
+    lgr.info("COMPRA BTC/USDT qty=0.001 @ 70000")
+    lgr.error("falha ao buscar candles")
+    lgr.removeHandler(h)
+    assert api.sent[0].startswith("[PAPER] COMPRA") and "ERRO" in api.sent[1] and len(api.sent) == 2
+
+
+def test_trader_telegram_commands_and_status(cfg, tmp_path, monkeypatch):
+    from bot.notify import Telegram
+    monkeypatch.chdir(tmp_path)
+    cfg["mode"] = "paper"
+    api = FakeTelegramAPI([_upd(1, 7, "/pausar")])
+    br = SleeveBroker()
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
+    tr.sleeve.ensure_funded(tr.equity())
+    tr.handle_commands()
+    assert (tmp_path / "PAUSAR").exists() and "Pausado" in api.sent[-1]
+    api.updates.append(_upd(2, 7, "/status")); tr.handle_commands()
+    assert "Carteira: 1000.00 USDT" in api.sent[-1] and "Cofre de tendência: 250.00" in api.sent[-1] and "PAUSADO" in api.sent[-1]
+    api.updates.append(_upd(3, 7, "/retomar")); tr.handle_commands()
+    assert not (tmp_path / "PAUSAR").exists()
