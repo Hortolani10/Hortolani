@@ -75,6 +75,16 @@ trend_sleeve:
   symbols: [BTC/USDT, ETH/USDT]
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
 
+# Estratégia de LATERALIZAÇÃO operando de verdade (reversão à média no 4h quando o diário está LATERAL).
+# Teste em 6 anos (carteira completa, 100 USDT): ~4 operações/mês em vez de ~2, acerto 43% vs 37%,
+# 100 -> ~220 (vs ~226), queda máx. 22% (vs 19%). Ver PESQUISA.md seção 12.
+lateral:
+  enabled: true               # ligada em nov/2026 a pedido: mais operações, validar no paper
+  rsi_max: 30
+  stop_atr: 2.0
+  max_bars: 12
+  risk_scale: 1.0
+
 # Estratégias em OBSERVAÇÃO: o bot registra no diário o que teria acontecido, sem operar.
 # Veja os resultados com: python -m bot aprender   (origem "observacao-lateral")
 observacao:

@@ -15,7 +15,7 @@ from .learn import checar_desvio, ler_diario, registrar
 from .notify import ping_health
 from .shadow import ShadowRange
 from .sleeve import TrendSleeve
-from .strategy import Position, entry_features, entry_signal, manage_position
+from .strategy import Position, entry_features, entry_signal, lateral_signal, manage_position
 
 log = logging.getLogger("bot")
 
@@ -32,7 +32,10 @@ class Trader:
         self.positions = {s: Position.from_dict(d) for s, d in self.state["positions"].items()}
         sc = cfg.get("trend_sleeve") or {}
         self.sleeve = TrendSleeve(cfg, broker, state) if sc.get("enabled") else None
-        self.shadow = ShadowRange(state, registrar, cfg.get("mode", "paper")) if cfg.get("observacao", {}).get("lateralizacao", True) else None
+        lat_on = bool((cfg.get("lateral") or {}).get("enabled"))
+        # se a lateralização opera de verdade, não precisa mais observá-la
+        self.shadow = (ShadowRange(state, registrar, cfg.get("mode", "paper"))
+                       if cfg.get("observacao", {}).get("lateralizacao", True) and not lat_on else None)
 
     # ---------- persistência ----------
     def save(self) -> None:
@@ -196,6 +199,11 @@ class Trader:
             return
 
         sig = entry_signal(df, i, trend, self.cfg)
+        strat = "tendencia"
+        if not sig.ok and (self.cfg.get("lateral") or {}).get("enabled"):
+            lsig = lateral_signal(df, i, self.cfg)
+            if lsig.ok:
+                sig, strat = lsig, "lateral"
         if not sig.ok:
             log.info("%s: sem entrada [tendência %s] falhou: %s", sym, trend, ", ".join(sig.failed))
             return
@@ -204,6 +212,8 @@ class Trader:
         if px <= sig.stop:
             return
         scale = self.guard.risk_scale(eq)
+        if strat == "lateral":
+            scale *= float((self.cfg.get("lateral") or {}).get("risk_scale", 1.0))
         if (self.state.get("alarme_desvio") or {}).get("alarme"):
             scale *= 0.5
         qty = self.broker.amount(sym, position_size(eq, px, sig.stop, self.cfg, scale))
@@ -212,12 +222,12 @@ class Trader:
             return
         filled, avg, cost = self.broker.buy(sym, qty)
         pos = Position(sym, filled, avg, sig.stop, avg - sig.stop, utcnow().isoformat(), highest=avg, cost=cost,
-                       features={**entry_features(df, i), "risco_escala": scale})
+                       strategy=strat, features={**entry_features(df, i), "risco_escala": scale, "estrategia": strat})
         self.positions[sym] = pos
         self._protect(sym, pos)
-        log.info("COMPRA %s qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s",
-                 sym, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, scale,
-                 self.cfg["risk"].get("exit_mode", "parcial"))
+        log.info("COMPRA %s [%s] qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s",
+                 sym, strat, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, scale,
+                 "volta à média ou 12 velas" if strat == "lateral" else self.cfg["risk"].get("exit_mode", "parcial"))
 
     def tick(self) -> None:
         tf_e, tf_t = self.cfg["timeframes"]["entry"], self.cfg["timeframes"]["trend"]

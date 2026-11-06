@@ -272,6 +272,35 @@ Viés de sobrevivência: moedas que quebraram (LUNA, FTT) saíram da Binance e n
 o que favorece qualquer lista "de hoje". **Decisão: manter 8 moedas** — ganho pequeno, pior no
 período nunca visto, operações de qualidade menor e quedas maiores.
 
+## 12. Mais operações: 24 combinações (nov/2026)
+
+Pedido: mais entradas por mês, aceitando mais perdas. Regra fixada antes: entre as versões com
+≥ 5 ops/mês no treino e queda ≤ 20%, vence a de maior retorno no treino. Bot sozinho, 100 USDT:
+
+| Versão (bot sozinho) | Ops/mês (6 anos) | Acerto | 6 anos | Queda | Nunca visto |
+|---|---|---|---|---|---|
+| Atual: 8 moedas, 2 posições | 2,3 | 37% | +39,0% | 12% | +8,5% |
+| Escolhida pela regra: 16 moedas, 4 posições | 3,7 | 39% | +41,2% | 12% | +9,5% |
+| 8 moedas + lateralização, 2 posições | 4,2 | 43% | +32,7% | 15% | +10,3% |
+| 16 moedas + lateralização, 4 posições | 7,4 | 44% | +17,3% | 17% | +8,5% |
+| Alvo fixo 1,5R (maior acerto) | 2,1–7,5 | 47–49% | +7% a +34% | 7–17% | +2% a +10% |
+
+Na **carteira completa** (bot 75% + cofre 25%), porém, a escolhida pela regra piorou
+(6 anos 207 vs 226; nunca visto 152 vs 163). A opção mais equilibrada foi
+**8 moedas + lateralização** (carteira, 100 USDT):
+
+| | Atual | 8 moedas + lateralização |
+|---|---|---|
+| Operações do bot por mês (6 anos) | ~2,1 | **~4,0** |
+| Último ano (mercado em queda) | 8 ops, 97,1 | **22 ops (acerto 50%), 98,2** |
+| Nunca visto out/20–set/23 | 163,4 (queda 18%) | 164,5 (queda 22%) |
+| 6 anos | 225,7 (queda 19%) | 219,5 (queda 22%) |
+
+**Decisão:** ligada (`lateral.enabled: true`) para ganhar operações e dados reais no paper,
+sabendo que em 6 anos rende um pouco menos e a queda máxima sobe ~3 pontos. Lembrete da
+seção 10: a lateralização não foi robusta a mudanças de parâmetros em 2020–2023.
+Mais operações não aumentaram o lucro em nenhuma versão: o ganho é atividade e dados, não retorno.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

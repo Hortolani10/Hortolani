@@ -554,3 +554,27 @@ def test_backtest_runs_lateral_strategy_only_in_sideways(synth, cfg):
     assert lat, "esperava operações de lateralização em mercado lateral"
     up = flat.copy(); up["trend"] = "ALTA"
     assert not lateral_prefilter(up, cfg).any()                                   # nunca em tendência de alta
+
+
+def test_trader_opens_lateral_position_when_enabled(synth, cfg, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from bot.demo import resample
+    cfg["lateral"] = {"enabled": True}
+    cfg["symbols"] = ["F/USDT"]
+    cfg["trend_sleeve"]["enabled"] = False
+    e = synth(3000, H1, 0.0, 11)
+    br = FakeBroker(e, resample(e, 4))
+    import bot.trader as T
+    real_prepare = T.prepare
+    def lateral_prepare(a, b, c):
+        df = real_prepare(a, b, c); df["trend"] = "LATERAL"; return df
+    monkeypatch.setattr(T, "prepare", lateral_prepare)
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    assert tr.shadow is None                       # operando de verdade: sem observação duplicada
+    seen = set()
+    while br.n < 2900:
+        tr.tick(); br.n += 1
+        seen |= {p.strategy for p in tr.positions.values()}
+        for p in tr.positions.values():
+            assert br.stops.get(p.symbol) == p.stop   # sempre protegida
+    assert "lateral" in seen
