@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from .risk import RiskGuard, position_size
-from .strategy import Position, entry_features, entry_signal, manage_position, prefilter
+from .strategy import (Position, entry_features, entry_signal, lateral_prefilter, lateral_signal,
+                       manage_position, prefilter)
 
 
 @dataclass
@@ -82,6 +83,9 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
     if end_ts is not None:
         timeline = [t for t in timeline if t < end_ts]
     candidates = {s: prefilter(df, cfg).to_numpy() for s, df in data.items()}
+    lat_on = bool((cfg.get("lateral") or {}).get("enabled"))
+    lat_cand = {s: lateral_prefilter(df, cfg).to_numpy() for s, df in data.items()} if lat_on else {}
+    lat_scale = float((cfg.get("lateral") or {}).get("risk_scale", 1.0))
     idx = {s: dict(zip(df["close_ts"].astype(int), range(len(df)))) for s, df in data.items()}
 
     def equity(prices: dict[str, float]) -> float:
@@ -98,16 +102,17 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
 
             # 1) executa entrada pendente na abertura deste candle
             if sym in pending:
-                stop, _, feats = pending.pop(sym)
+                stop, _, feats, strat = pending.pop(sym)
                 px = float(row["open"]) * (1 + slip)
                 if px > stop:
                     eq_now = equity(last_px)
-                    qty = position_size(eq_now, px, stop, cfg, guard.risk_scale(eq_now))
+                    qty = position_size(eq_now, px, stop, cfg,
+                                        guard.risk_scale(eq_now) * (lat_scale if strat == "lateral" else 1.0))
                     cost = qty * px * (1 + fee)
                     if qty > 0 and cost <= cash and cost >= cfg["fees"].get("min_order", 5.0):
                         cash -= cost
-                        positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost,
-                                                  features={**feats, "risco_escala": guard.risk_scale(eq_now)})
+                        positions[sym] = Position(sym, qty, px, stop, px - stop, now.isoformat(), highest=px, cost=cost, strategy=strat,
+                                                  features={**feats, "risco_escala": guard.risk_scale(eq_now), "estrategia": strat})
                         res.events.append({"symbol": sym, "ts": int(row["ts"]), "side": "buy", "price": px,
                                            "reason": f"compra · stop {stop:.6g}"})
 
@@ -146,7 +151,11 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                 if ok and candidates[sym][i]:
                     sig = entry_signal(df, i, row["trend"], cfg)
                     if sig.ok:
-                        pending[sym] = (sig.stop, sig.entry - sig.stop, entry_features(df, i))
+                        pending[sym] = (sig.stop, sig.entry - sig.stop, entry_features(df, i), "tendencia")
+                if ok and lat_on and sym not in pending and lat_cand[sym][i]:
+                    sig = lateral_signal(df, i, cfg)
+                    if sig.ok:
+                        pending[sym] = (sig.stop, sig.entry - sig.stop, entry_features(df, i), "lateral")
 
         res.equity_curve.append(equity(last_px))
         res.equity_ts.append(ts)

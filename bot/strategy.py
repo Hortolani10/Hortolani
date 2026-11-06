@@ -162,6 +162,26 @@ def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
     return Signal(ok, entry=close, stop=stop, target=target, reward_risk=rr, checks=c)
 
 
+def lateral_prefilter(df: pd.DataFrame, cfg: dict) -> pd.Series:
+    """Lateralização: diário LATERAL e o 4h fechou abaixo da banda inferior com RSI baixo."""
+    lat = cfg.get("lateral") or {}
+    m = (df["trend"] == LATERAL) & (df["close"] < df["bbl"]) & (df["rsi"] < float(lat.get("rsi_max", 30)))
+    if lat.get("btc_not_down") and "btc_trend" in df.columns:
+        m &= df["btc_trend"] != BAIXA
+    m.iloc[:30] = False
+    return m.fillna(False)
+
+
+def lateral_signal(df: pd.DataFrame, i: int, cfg: dict) -> Signal:
+    lat = cfg.get("lateral") or {}
+    row = df.iloc[i]
+    close, a = float(row["close"]), float(row["atr"])
+    stop = close - float(lat.get("stop_atr", 2.0)) * a
+    ok = bool(lateral_prefilter(df.iloc[: i + 1], cfg).iloc[-1]) and a > 0
+    return Signal(ok, entry=close, stop=stop, target=float(row["bbm"]), reward_risk=0.0,
+                  checks={"lateralizacao": (ok, f"diário {row['trend']}, fechou {close:.6g} < banda {row['bbl']:.6g}, RSI {row['rsi']:.1f}")})
+
+
 @dataclass
 class Position:
     symbol: str
@@ -177,6 +197,8 @@ class Position:
     cost: float = 0.0            # USDT gasto na compra (com taxa)
     proceeds: float = 0.0        # USDT recebido nas vendas (já líquido de taxa)
     reasons: list = field(default_factory=list)
+    strategy: str = "tendencia"  # "tendencia" (pullback) ou "lateral" (reversão à média)
+    bars: int = 0                # candles desde a entrada
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -216,7 +238,18 @@ def manage_position(pos: Position, candle: pd.Series, trend: str, cfg: dict) -> 
         pos.qty = 0.0
         return actions
 
+    pos.bars += 1
     pos.highest = max(pos.highest, h)
+
+    if pos.strategy == "lateral":          # reversão à média: sai na média ou por tempo
+        lat = cfg.get("lateral") or {}
+        if c >= float(candle["bbm"]):
+            actions.append(Action("sell", pos.qty, c, "voltou à média"))
+            pos.qty = 0.0
+        elif pos.bars >= int(lat.get("max_bars", 12)):
+            actions.append(Action("sell", pos.qty, c, "tempo esgotado"))
+            pos.qty = 0.0
+        return actions
 
     mode = r.get("exit_mode", "parcial")
 

@@ -525,3 +525,32 @@ def test_sleep_listening_answers_commands_quickly(cfg, tmp_path, monkeypatch):
     tr = Trader(cfg, SleeveBroker(), {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
     tr._sleep_listening(0.3, step=0.1)
     assert api.sent and "Carteira" in api.sent[-1]
+
+
+# ---------------- estratégia de lateralização no motor ----------------
+def test_lateral_position_exits_at_mean_or_time(cfg):
+    cfg["lateral"] = {"enabled": True, "max_bars": 3}
+    p = Position("X", 1, 100, 96, 4, "t", highest=100, strategy="lateral")
+    c = pd.Series({"open": 100, "high": 101, "low": 99.5, "close": 100.5, "atr": 1.0, "ema_mid": 0, "bbm": 102})
+    assert manage_position(p, c, "LATERAL", cfg) == [] and p.bars == 1          # ainda abaixo da média
+    c2 = c.copy(); c2["close"] = 102.5
+    acts = manage_position(p, c2, "LATERAL", cfg)
+    assert acts[0].reason == "voltou à média" and acts[0].price == 102.5
+    p = Position("X", 1, 100, 96, 4, "t", highest=100, strategy="lateral")
+    for _ in range(2): manage_position(p, c, "LATERAL", cfg)
+    assert manage_position(p, c, "LATERAL", cfg)[0].reason == "tempo esgotado"
+    p = Position("X", 1, 100, 96, 4, "t", highest=100, strategy="lateral")
+    c3 = c.copy(); c3["low"] = 95
+    assert manage_position(p, c3, "LATERAL", cfg)[0].reason == "stop"
+
+
+def test_backtest_runs_lateral_strategy_only_in_sideways(synth, cfg):
+    from bot.strategy import lateral_prefilter
+    cfg["lateral"] = {"enabled": True}
+    flat, _ = make(synth, cfg, 0.0, n=4000, seed=11)
+    flat["trend"] = "LATERAL"
+    r = run({"F/USDT": flat}, cfg, 1000)
+    lat = [t for t in r.trades if t.features.get("estrategia") == "lateral"]
+    assert lat, "esperava operações de lateralização em mercado lateral"
+    up = flat.copy(); up["trend"] = "ALTA"
+    assert not lateral_prefilter(up, cfg).any()                                   # nunca em tendência de alta

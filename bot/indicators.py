@@ -66,4 +66,8 @@ def add_all(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     out["atr"] = atr(out, s["atr_period"])
     out["adx"] = adx(out, s["adx_period"])
     out["vol_ma"] = out["volume"].rolling(s["volume_ma"]).mean()
+    lat = cfg.get("lateral") or {}
+    n, k = int(lat.get("bb_period", 20)), float(lat.get("bb_std", 2.0))
+    out["bbm"] = out["close"].rolling(n).mean()
+    out["bbl"] = out["bbm"] - k * out["close"].rolling(n).std()
     return out
