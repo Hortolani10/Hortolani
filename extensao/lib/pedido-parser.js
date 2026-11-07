@@ -85,8 +85,10 @@ export function lerPedido(linhas) {
     protocolo: limpaNum(depoisDe(linhas, 'Protocolo:') || '') || null, // "10857/2026"
     processo: limpaNum(depoisDe(linhas, 'Processo/Ano:') || '') || null,
     requisicao: depoisDe(linhas, 'Requisição Nro.:'),
-    ata: depoisDe(linhas, 'Ata:'), // nº da Ata de Registro
-    pregao: mPregao ? mPregao[1] : null, // nº do pregão (Modalidade)
+    // "Ata" = número da Modalidade ("Pregão Eletrônico Nr.: 39/2026 - Ata de Registro"),
+    // que é o número usado no sistema de acompanhamento.
+    ata: mPregao ? mPregao[1] : null,
+    ataCampo: depoisDe(linhas, 'Ata:'), // número do campo "Ata:" do cabeçalho (só referência)
     modalidade,
     diretoria: unidade ? unidade.replace(/^[\d.]+\s*/, '') : null,
     fornecedorCodigo: mFornecedor ? mFornecedor[1] : null,

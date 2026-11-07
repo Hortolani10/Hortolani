@@ -98,7 +98,7 @@
       <table>
         <tr><th>Protocolo</th><td>${esc(p.protocolo)}</td></tr>
         <tr><th>Empresa</th><td>${esc(p.empresa)}<br><small>CNPJ ${esc(p.cnpj)}</small></td></tr>
-        <tr><th>Ata / Pregão</th><td>${esc(p.ata)} / ${esc(p.pregao)}</td></tr>
+        <tr><th>Ata</th><td>${esc(p.ata)}</td></tr>
         <tr><th>Diretoria</th><td>${esc(p.diretoria)}</td></tr>
         <tr><th>Valor</th><td>${brl(p.valor)}</td></tr>
         <tr><th>Data do pedido</th><td>${dataBr(p.dataPedido)}</td></tr>

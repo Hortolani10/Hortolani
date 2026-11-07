@@ -10,7 +10,7 @@ qualquer outro botão do sistema da prefeitura, e não guarda nem envia login ou
 
 ## Campos lidos do PDF
 
-`pedido`, `protocolo`, `processo`, `requisicao`, `ata`, `pregao`, `modalidade`,
+`pedido`, `protocolo`, `processo`, `requisicao`, `ata` (número da Modalidade, ex.: 39/2026), `ataCampo`, `modalidade`,
 `diretoria`, `fornecedorCodigo`, `empresa`, `cnpj`, `objeto`, `aplicacao`,
 `valor`, `dataPedido`, `vencimento`. A tela do protocolo acrescenta
 `dataTramitacao`, `documento`, `pdfUrl` e `lidoEm`.
