@@ -670,3 +670,22 @@ def test_short_history_never_trades(synth, cfg):
     df = prepare(e, resample(e, 4), cfg)
     assert (df["trend"] == SEM_DADOS).all()           # sem EMA200 diária: não é "lateral", é "sem dados"
     assert not lateral_prefilter(df, cfg).any() and not prefilter(df, cfg).any()
+
+
+def test_config_ativo_inherits_and_separates(cfg, tmp_path, monkeypatch):
+    from pathlib import Path
+    from bot.__main__ import load_config
+    from bot.notify import Telegram
+    root = Path(__file__).resolve().parents[1]
+    a = load_config(str(root / "config_ativo.yaml"))
+    base = load_config(str(root / "config.yaml"))
+    assert a["instancia"] == "ativo" and len(a["symbols"]) == 16 and a["lateral"]["enabled"]
+    assert a["risk"]["risk_per_trade"] == base["risk"]["risk_per_trade"]      # herdado
+    assert a["fees"] == base["fees"] and a["painel"]["port"] != base["painel"]["port"]
+    monkeypatch.chdir(tmp_path)
+    a["mode"] = "paper"
+    api = FakeTelegramAPI([_upd(1, 7, "/status")])
+    tr = Trader(a, SleeveBroker(), {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
+    assert tr.origem == "paper-ativo"
+    tr.handle_commands()
+    assert api.sent == []                                                      # não disputa os comandos

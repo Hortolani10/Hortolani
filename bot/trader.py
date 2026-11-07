@@ -38,6 +38,12 @@ class Trader:
         self.shadow = (ShadowRange(state, registrar, cfg.get("mode", "paper"))
                        if cfg.get("observacao", {}).get("lateralizacao", True) and not lat_on else None)
 
+    @property
+    def origem(self) -> str:
+        """Nome desta instância no diário: 'paper', 'live' ou 'paper-ativo' etc."""
+        inst = self.cfg.get("instancia")
+        return f"{self.cfg['mode']}-{inst}" if inst else self.cfg["mode"]
+
     # ---------- persistência ----------
     def save(self) -> None:
         self.state["positions"] = {s: p.to_dict() for s, p in self.positions.items()}
@@ -74,7 +80,7 @@ class Trader:
         self.guard.register_close(pnl, utcnow())
         del self.positions[sym]
         # diário: memória do bot para aprender com a prática
-        registrar({"origem": self.cfg["mode"], "simbolo": sym, "aberta": pos.opened_at,
+        registrar({"origem": self.origem, "simbolo": sym, "aberta": pos.opened_at,
                    "fechada": utcnow().isoformat(), "entrada": pos.entry, "pnl": pnl, "r": r_mult,
                    "motivo": ", ".join(pos.reasons), "features": pos.features})
         self._check_drift()
@@ -85,7 +91,7 @@ class Trader:
             hp = Path("logs/historico_r.json")
             hist = json.loads(hp.read_text()) if hp.exists() else []
             d = ler_diario()
-            pratica = d[d["origem"] == self.cfg["mode"]]["r"].tolist() if not d.empty else []
+            pratica = d[d["origem"] == self.origem]["r"].tolist() if not d.empty else []
         except Exception:
             log.exception("erro lendo o diário")
             return
@@ -355,7 +361,7 @@ class Trader:
             pos.append({"simbolo": s, "estrategia": p.strategy, "entrada": p.entry, "preco": px, "stop": p.stop,
                         "qtd": p.qty, "resultado_pct": px / p.entry - 1, "aberta": p.opened_at})
         return {
-            "modo": self.cfg.get("mode"), "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
+            "modo": self.origem, "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
             "carteira": total, "bot": total - sv, "cofre": sv,
             "cofre_moedas": {k: v for k, v in (self.sleeve.st["holdings"].items() if self.sleeve else []) if v > 0},
             "posicoes": pos, "radar": self.state.get("radar") or {},
@@ -367,6 +373,8 @@ class Trader:
     def status_text(self) -> str:
         total = self.equity()
         modo = {"paper": "PAPER", "live": "TESTNET" if self.cfg.get("testnet", True) else "REAL"}.get(self.cfg.get("mode"), "")
+        if self.cfg.get("instancia"):
+            modo += "-" + str(self.cfg["instancia"]).upper()
         lines = [f"📊 [{modo}] Carteira: {total:.2f} USDT"]
         if self.sleeve:
             sv = self.sleeve.value()
@@ -391,7 +399,7 @@ class Trader:
         return "\n".join(lines)
 
     def handle_commands(self) -> None:
-        if not self.tg or not self.tg.enabled:
+        if not self.tg or not self.tg.enabled or not (self.cfg.get("telegram") or {}).get("comandos", True):
             return
         cmds, off = self.tg.commands(int(self.state.get("tg_offset", 0)))
         self.state["tg_offset"] = off

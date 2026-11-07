@@ -1,0 +1,42 @@
+# ============================================================
+#  Bot "ATIVO" — teste lado a lado com o bot normal (só em PAPER)
+#  Usa tudo do config.yaml e muda apenas o que está aqui.
+#  6 anos de teste (bot sozinho): ~7,5 operações/mês, acerto ~49%,
+#  mas lucro menor que o normal (+10% vs +33%). Ver PESQUISA.md seção 12.
+#  Iniciar: iniciar_paper_ativo.bat  ·  painel: http://localhost:8767
+# ============================================================
+herda: config.yaml
+instancia: ativo
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+  - BNB/USDT
+  - SOL/USDT
+  - XRP/USDT
+  - ADA/USDT
+  - LTC/USDT
+  - LINK/USDT
+  - DOGE/USDT
+  - AVAX/USDT
+  - DOT/USDT
+  - TRX/USDT
+  - ATOM/USDT
+  - UNI/USDT
+  - BCH/USDT
+  - XLM/USDT
+
+risk:
+  max_open_positions: 4     # até 4 operações ao mesmo tempo
+  exit_mode: alvo           # realiza o lucro no alvo (acerta mais vezes)
+  target_r: 1.5             # alvo = 1,5x o risco
+  trend_exit: false
+
+lateral:
+  enabled: true
+
+painel:
+  port: 8767
+
+telegram:
+  comandos: false           # só o bot normal responde /status e /radar; este só manda os avisos

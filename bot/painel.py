@@ -149,7 +149,7 @@ async function load(){
   const r=await fetch("/api/status",{cache:"no-store"});const d=await r.json();
   $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
   if(d.carregando){return}
-  $("modo").textContent=d.modo==="paper"?"PAPER (dinheiro fictício)":d.modo;
+  $("modo").textContent=String(d.modo).startsWith("paper")?String(d.modo).toUpperCase()+" (dinheiro fictício)":String(d.modo).toUpperCase();
   $("tfe").textContent=d.timeframes.entry;$("tft").textContent=d.timeframes.trend;
   $("k1").textContent=fmt(d.carteira)+" USDT";$("k2").textContent=fmt(d.bot)+" USDT";$("k3").textContent=fmt(d.cofre)+" USDT";
   const cm=Object.keys(d.cofre_moedas||{});$("k3b").textContent=cm.length?"segurando "+cm.map(s=>s.split("/")[0]).join(", "):"em USDT (aguardando tendência)";

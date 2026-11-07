@@ -137,7 +137,7 @@ class TrendSleeve:
                 self.st["holdings"][s] = 0.0
                 log.info("COFRE VENDA %s qty=%.8f @ %.6g -> %.2f USDT (resultado %+.2f)", s, q, px, got, got - cost)
                 if journal:
-                    journal({"origem": f"{self.cfg['mode']}-tendencia", "simbolo": s, "pnl": got - cost,
+                    journal({"origem": f"{self.cfg['mode']}{'-' + self.cfg['instancia'] if self.cfg.get('instancia') else ''}-tendencia", "simbolo": s, "pnl": got - cost,
                              "r": (got - cost) / cost if cost else 0.0, "motivo": "tendência diária virou",
                              "features": {}})
         value = self.value()

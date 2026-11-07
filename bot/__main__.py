@@ -12,9 +12,21 @@ import pandas as pd
 import yaml
 
 
+def _merge(base: dict, over: dict) -> dict:
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
 def load_config(path: str) -> dict:
+    """Lê o config. Com `herda: outro.yaml`, parte daquele arquivo e muda só o que estiver aqui."""
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
+    base = cfg.pop("herda", None)
+    if base:
+        cfg = _merge(load_config(str(Path(path).parent / base)), cfg)
+    return cfg
 
 
 def setup_logging() -> None:
@@ -244,10 +256,12 @@ def cmd_run(cfg, mode):
 
     load_dotenv()
     setup_logging()
-    lock = single_instance(mode)  # noqa: F841
+    inst = cfg.get("instancia") or ""
+    suf = f"_{inst}" if inst else ""
+    lock = single_instance(mode + suf)  # noqa: F841
     check_env_file()
     cfg["mode"] = mode
-    state_path = f"state_{mode}.json"
+    state_path = f"state_{mode}{suf}.json"
     state = load_state(state_path)
     market = make_ccxt({**cfg, "testnet": False}, with_keys=False) if mode == "paper" else None
 
@@ -268,7 +282,8 @@ def cmd_run(cfg, mode):
 
     tg = Telegram()
     if tg.enabled:
-        tag = {"paper": "[PAPER] ", "live": "[TESTNET] " if cfg.get("testnet", True) else "[REAL] "}[mode]
+        tag = {"paper": "[PAPER", "live": "[TESTNET" if cfg.get("testnet", True) else "[REAL"}[mode]
+        tag += (f"-{inst.upper()}] " if inst else "] ")
         logging.getLogger("bot").addHandler(TelegramLogHandler(tg, tag))
     else:
         logging.getLogger("bot").info("Telegram não configurado (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID): sem avisos no celular")
