@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Leitor de Pedidos – Configuração</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; min-width: 340px; color: #1f2933; }
+  label { display: block; margin-top: 12px; font-weight: 600; }
+  input { width: 100%; box-sizing: border-box; padding: 6px; margin-top: 4px; }
+  button { margin-top: 14px; padding: 6px 14px; }
+  small { color: #52606d; }
+</style>
+<h3>Leitor de Pedidos</h3>
+<p><small>Para onde os pedidos lidos no protocolo serão enviados.</small></p>
+<label>Endereço do sistema externo
+  <input id="endpoint" type="url" placeholder="https://xxxx.supabase.co/functions/v1/receber-pedido">
+</label>
+<label>Chave de acesso
+  <input id="chave" type="password" autocomplete="off">
+</label>
+<button id="salvar">Salvar</button>
+<span id="status"></span>
+<script src="options.js"></script>
+</html>
