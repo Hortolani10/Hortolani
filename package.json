@@ -1,0 +1,6 @@
+{
+  "name": "extensao-pedidos-prefeitura",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test extensao/test/*.test.js" }
+}
