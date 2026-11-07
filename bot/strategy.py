@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 ALTA, BAIXA, LATERAL = "ALTA", "BAIXA", "LATERAL"
+SEM_DADOS = "SEM_DADOS"     # histórico insuficiente para medir a tendência: nenhuma estratégia opera
 
 
 def trend_series(df: pd.DataFrame) -> pd.Series:
@@ -27,7 +28,7 @@ def trend_series(df: pd.DataFrame) -> pd.Series:
     out = pd.Series(LATERAL, index=df.index)
     out[up] = ALTA
     out[down] = BAIXA
-    out[df["ema_slow"].isna()] = LATERAL
+    out[df["ema_slow"].isna() | df["ema_slow"].shift(5).isna()] = SEM_DADOS
     return out
 
 

@@ -66,7 +66,7 @@ def prepare(entry_df: pd.DataFrame, trend_df: pd.DataFrame, cfg: dict) -> pd.Dat
     merged = pd.merge_asof(
         e.sort_values("close_ts"), t.sort_values("close_ts"), on="close_ts", direction="backward"
     )
-    merged["trend"] = merged["trend"].fillna("LATERAL")
+    merged["trend"] = merged["trend"].fillna("SEM_DADOS")
     return merged.reset_index(drop=True)
 
 
@@ -75,7 +75,7 @@ def attach_btc_trend(df: pd.DataFrame, btc: pd.DataFrame) -> pd.DataFrame:
     b = btc[["close_ts", "trend"]].rename(columns={"trend": "btc_trend"}).sort_values("close_ts")
     out = pd.merge_asof(df.drop(columns=["btc_trend"], errors="ignore").sort_values("close_ts"), b,
                         on="close_ts", direction="backward")
-    out["btc_trend"] = out["btc_trend"].fillna("LATERAL")
+    out["btc_trend"] = out["btc_trend"].fillna("SEM_DADOS")
     return out.reset_index(drop=True)
 
 

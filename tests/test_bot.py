@@ -660,3 +660,13 @@ def test_live_budget_limits_money_used(cfg):
     assert b.usdt_free() == 50.0                      # nunca mais do que existe de verdade
     b2 = LiveBroker({**cfg, "live": {}}, ex, ex, {})
     assert b2.usdt_free() == 50.0                     # sem orçamento: usa a conta
+
+
+def test_short_history_never_trades(synth, cfg):
+    from bot.strategy import SEM_DADOS, lateral_prefilter, prefilter
+    cfg["lateral"] = {"enabled": True}
+    e = synth(260, H1, 0.0, 5)                        # pouco histórico (como a testnet)
+    from bot.demo import resample
+    df = prepare(e, resample(e, 4), cfg)
+    assert (df["trend"] == SEM_DADOS).all()           # sem EMA200 diária: não é "lateral", é "sem dados"
+    assert not lateral_prefilter(df, cfg).any() and not prefilter(df, cfg).any()

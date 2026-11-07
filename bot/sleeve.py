@@ -37,9 +37,9 @@ def wanted(trends: dict[str, pd.Series], close_ts: int, symbols: list[str]) -> d
     def at(s):
         ser = trends.get(s)
         if ser is None:
-            return "LATERAL"
+            return "SEM_DADOS"
         ser = ser[ser.index <= close_ts]
-        return ser.iloc[-1] if len(ser) else "LATERAL"
+        return ser.iloc[-1] if len(ser) else "SEM_DADOS"
     btc_up = at("BTC/USDT") == ALTA
     return {s: (at(s) == ALTA and (btc_up or s == "BTC/USDT")) for s in symbols}
 

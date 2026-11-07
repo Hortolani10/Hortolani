@@ -108,7 +108,8 @@ class PaperBroker(Broker):
 
 
 class LiveBroker(Broker):
-    """Ordens reais. O stop fica REGISTRADO NA BINANCE (STOP_LOSS_LIMIT), então
+    """Ordens reais. Candles para a ANÁLISE vêm do mercado real (`market_ex`, histórico completo);
+    ordens e saldo vão para `trade_ex` (testnet ou conta real). O stop fica REGISTRADO NA BINANCE (STOP_LOSS_LIMIT), então
     a posição continua protegida mesmo se o bot cair ou a internet falhar."""
 
     def __init__(self, cfg: dict, market_ex, trade_ex, state: dict | None = None):
@@ -123,6 +124,10 @@ class LiveBroker(Broker):
         if self.budget is not None:
             self.state.setdefault("live_cash", self.budget)
             log.info("Orçamento do bot: %.2f USDT (caixa atual do bot: %.2f)", self.budget, self.state["live_cash"])
+
+    def price(self, symbol: str) -> float:
+        """Preço da corretora onde as ordens são executadas (testnet ou real)."""
+        return float(self.ex.fetch_ticker(symbol)["last"])
 
     def _cash(self, delta: float) -> None:
         if self.budget is not None:

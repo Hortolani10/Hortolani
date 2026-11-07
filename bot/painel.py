@@ -142,7 +142,7 @@ const $=id=>document.getElementById(id);
 const fmt=(v,d=2)=>v==null?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const px=v=>{const a=Math.abs(v);return fmt(v,a>=100?2:a>=1?4:6)};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const cls=t=>t==="ALTA"?"up":t==="BAIXA"?"down":"flat";
+const cls=t=>t==="ALTA"?"up":t==="BAIXA"?"down":t==="SEM_DADOS"?"muted":"flat";
 const NOMES={tendencia_maior:"tendência da moeda",mercado_btc:"BTC em alta",emas_alinhadas:"médias alinhadas",pullback:"pullback",gatilho:"gatilho",rsi:"RSI",macd:"MACD",adx:"força (ADX)",volume:"volume",nao_esticado:"não esticado",reward_risk:"espaço até resistência"};
 async function load(){
  try{
@@ -159,7 +159,7 @@ async function load(){
    const pct=100*x.regras_ok/x.regras_total;
    const sig=x.sinal_tendencia?'<span class="sig up">COMPRA (tendência)</span>':x.sinal_lateral?'<span class="sig flat">'+(d.lateral_ligada?"COMPRA (lateral)":"lateral (observando)")+'</span>':'<span class="muted">aguardando</span>';
    const falta=(x.falhou||[]).slice(0,3).map(k=>NOMES[k]||k).join(", ")+((x.falhou||[]).length>3?"…":"");
-   return `<tr><td><b>${esc(s.split("/")[0])}</b></td><td class="num">${px(x.preco)}</td><td class="${cls(x.tendencia)}">${esc(x.tendencia.toLowerCase())}</td><td class="${cls(x.btc)}">${esc((x.btc||"").toLowerCase())}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pct}%"></i></div><span class="num">${x.regras_ok}/${x.regras_total}</span></div></td><td class="num">${fmt(x.rsi,1)}</td><td class="num">${fmt(x.adx,1)}</td><td>${sig}</td><td class="muted">${esc(falta)}</td></tr>`}).join(""):'<tr><td colspan="9" class="muted">Aguardando o primeiro ciclo…</td></tr>';
+   return `<tr><td><b>${esc(s.split("/")[0])}</b></td><td class="num">${px(x.preco)}</td><td class="${cls(x.tendencia)}">${esc(x.tendencia==="SEM_DADOS"?"sem dados (histórico curto)":x.tendencia.toLowerCase())}</td><td class="${cls(x.btc)}">${esc((x.btc||"").toLowerCase())}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pct}%"></i></div><span class="num">${x.regras_ok}/${x.regras_total}</span></div></td><td class="num">${fmt(x.rsi,1)}</td><td class="num">${fmt(x.adx,1)}</td><td>${sig}</td><td class="muted">${esc(falta)}</td></tr>`}).join(""):'<tr><td colspan="9" class="muted">Aguardando o primeiro ciclo…</td></tr>';
   $("pos").innerHTML=(d.posicoes||[]).length?d.posicoes.map(p=>`<tr><td><b>${esc(p.simbolo)}</b></td><td>${esc(p.estrategia)}</td><td class="num">${px(p.entrada)}</td><td class="num">${px(p.preco)}</td><td class="num ${p.resultado_pct>=0?"up":"down"}">${p.resultado_pct>=0?"+":""}${fmt(p.resultado_pct*100)}%</td><td class="num">${px(p.stop)}</td><td class="muted">${esc(String(p.aberta).slice(0,16).replace("T"," "))}</td></tr>`).join(""):'<tr><td colspan="7" class="muted">Nenhuma posição aberta — o bot está esperando um sinal.</td></tr>';
   $("diario").innerHTML=(d.diario||[]).length?d.diario.map(j=>`<tr><td class="muted">${esc(j.origem)}</td><td>${esc(j.simbolo)}</td><td class="num ${j.r>=0?"up":"down"}">${j.r>=0?"+":""}${fmt(j.r)}R</td><td class="muted">${esc(j.motivo)}</td></tr>`).join(""):'<tr><td colspan="4" class="muted">Ainda sem operações registradas.</td></tr>';
   const lg=$("log"),atBottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-20;lg.textContent=(d.log||[]).join("\n");if(atBottom)lg.scrollTop=lg.scrollHeight;
