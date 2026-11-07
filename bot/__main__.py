@@ -259,7 +259,7 @@ def cmd_run(cfg, mode):
         if not cfg.get("testnet", True) and os.getenv("CONFIRMO_OPERAR_DINHEIRO_REAL") != "SIM":
             sys.exit("Modo live com dinheiro real bloqueado. Defina CONFIRMO_OPERAR_DINHEIRO_REAL=SIM no .env")
         trade_ex = make_ccxt(cfg, with_keys=True)
-        broker = LiveBroker(cfg, trade_ex, trade_ex)
+        broker = LiveBroker(cfg, trade_ex, trade_ex, state)
         broker.check_key_permissions(real_money=not cfg.get("testnet", True))
         logging.getLogger("bot").warning("MODO LIVE (%s)", "TESTNET" if cfg.get("testnet", True) else "DINHEIRO REAL")
     from .notify import Telegram, TelegramLogHandler

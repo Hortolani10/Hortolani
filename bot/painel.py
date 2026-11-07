@@ -85,7 +85,8 @@ def from_config(cfg: dict) -> Painel | None:
     if not pc.get("enabled", True):
         return None
     host = os.getenv("PAINEL_HOST", pc.get("host", "127.0.0.1"))
-    return Painel(host, int(pc.get("port", 8765)))
+    port = int(pc.get("port", 8765)) + (1 if cfg.get("mode") == "live" else 0)   # paper 8765, testnet/real 8766
+    return Painel(host, port)
 
 
 HTML = r"""<!doctype html>

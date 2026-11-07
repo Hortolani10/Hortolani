@@ -366,7 +366,8 @@ class Trader:
     # ---------- celular: status, comandos e resumo diário ----------
     def status_text(self) -> str:
         total = self.equity()
-        lines = [f"📊 Carteira: {total:.2f} USDT"]
+        modo = {"paper": "PAPER", "live": "TESTNET" if self.cfg.get("testnet", True) else "REAL"}.get(self.cfg.get("mode"), "")
+        lines = [f"📊 [{modo}] Carteira: {total:.2f} USDT"]
         if self.sleeve:
             sv = self.sleeve.value()
             held = [f"{s.split('/')[0]} {q:.6g}" for s, q in self.sleeve.st["holdings"].items() if q > 0]

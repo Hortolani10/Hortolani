@@ -101,6 +101,9 @@ fees:
   taker: 0.001              # 0,1% (Binance spot sem desconto BNB)
   slippage: 0.0005
 
+live:                       # modo live (testnet ou dinheiro real)
+  budget_usdt: 100          # o bot usa NO MÁXIMO isto, mesmo que a conta tenha mais (vazio = conta inteira)
+
 paper:
   initial_balance: 100      # USDT fictício (mesmo valor que você pretende usar de verdade)
 

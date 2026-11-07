@@ -111,13 +111,28 @@ class LiveBroker(Broker):
     """Ordens reais. O stop fica REGISTRADO NA BINANCE (STOP_LOSS_LIMIT), então
     a posição continua protegida mesmo se o bot cair ou a internet falhar."""
 
-    def __init__(self, cfg: dict, market_ex, trade_ex):
+    def __init__(self, cfg: dict, market_ex, trade_ex, state: dict | None = None):
         super().__init__(cfg, market_ex)
         self.ex = trade_ex
         self.ex.load_markets()
+        # Orçamento: o bot só usa até `budget_usdt`, mesmo que a conta tenha mais.
+        # Funciona como um caixa próprio: compras tiram, vendas devolvem (com o resultado).
+        self.state = state if state is not None else {}
+        budget = (cfg.get("live") or {}).get("budget_usdt")
+        self.budget = float(budget) if budget else None
+        if self.budget is not None:
+            self.state.setdefault("live_cash", self.budget)
+            log.info("Orçamento do bot: %.2f USDT (caixa atual do bot: %.2f)", self.budget, self.state["live_cash"])
+
+    def _cash(self, delta: float) -> None:
+        if self.budget is not None:
+            self.state["live_cash"] = float(self.state.get("live_cash", self.budget)) + delta
 
     def usdt_free(self) -> float:
-        return float(self.ex.fetch_balance()["free"].get("USDT", 0.0))
+        real = float(self.ex.fetch_balance()["free"].get("USDT", 0.0))
+        if self.budget is None:
+            return real
+        return max(0.0, min(real, float(self.state.get("live_cash", self.budget))))
 
     def buy(self, symbol, qty):
         o = self.ex.create_order(symbol, "market", "buy", self.amount(symbol, qty))
@@ -125,12 +140,14 @@ class LiveBroker(Broker):
         filled = float(o["filled"])
         avg = float(o["average"] or o["price"])
         fee_base = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == symbol.split("/")[0])
+        self._cash(-float(o["cost"]))
         return filled - fee_base, avg, float(o["cost"])
 
     def sell(self, symbol, qty, px: float | None = None):
         o = self.ex.create_order(symbol, "market", "sell", self.amount(symbol, qty))
         o = self.ex.fetch_order(o["id"], symbol)
         fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
+        self._cash(float(o["cost"]) - fee_q)
         return float(o["average"] or o["price"]), float(o["cost"]) - fee_q
 
     def place_stop(self, symbol, qty, stop):
@@ -154,7 +171,10 @@ class LiveBroker(Broker):
             o = self.ex.fetch_order(order_id, symbol)
             filled = float(o.get("filled") or 0)
             fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
-            return filled, float(o.get("cost") or 0) - fee_q
+            got = float(o.get("cost") or 0) - fee_q
+            if filled > 0:
+                self._cash(got)
+            return filled, got
         except Exception as e:
             log.warning("conferir stop cancelado %s %s: %s", symbol, order_id, e)
             return 0.0, 0.0
@@ -190,5 +210,8 @@ class LiveBroker(Broker):
             return False, 0.0, 0.0
         o = self.ex.fetch_order(order_id, symbol)
         if o["status"] == "closed":
-            return True, float(o["average"] or o["price"]), float(o["cost"])
+            fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
+            got = float(o["cost"]) - fee_q
+            self._cash(got)
+            return True, float(o["average"] or o["price"]), got
         return False, 0.0, 0.0

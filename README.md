@@ -60,6 +60,11 @@ No Telegram: `/radar` mostra o mesmo radar no celular. No VPS: `ssh -L 8765:loca
 Windows: dois cliques em `iniciar_paper.bat`. Mac/Linux: `bash iniciar_paper.sh`.
 Detalhes em [`docs/COMPUTADOR.md`](docs/COMPUTADOR.md). Funciona enquanto o computador estiver ligado.
 
+## Testar na Binance TESTNET (ordens de verdade, dinheiro de mentira)
+Passo a passo em [`docs/TESTNET.md`](docs/TESTNET.md): criar as chaves em testnet.binance.vision,
+colocar no `.env` e dar dois cliques em `iniciar_testnet.bat`. Painel em http://localhost:8766.
+O bot usa no máximo `live.budget_usdt` (100 USDT), mesmo que a conta tenha mais.
+
 ## Rodar 24 horas num servidor
 Passo a passo completo (VPS, segurança, Telegram, alerta de bot parado, testnet e real):
 **[`docs/VPS.md`](docs/VPS.md)**. Resumo:

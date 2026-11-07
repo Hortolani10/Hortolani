@@ -621,3 +621,42 @@ def test_radar_and_snapshot(synth, cfg, tmp_path, monkeypatch):
     assert "Radar" in api.sent[-1] and "UP" in api.sent[-1]
     snap = tr.snapshot()
     assert snap["radar"] and snap["carteira"] > 0
+
+
+# ---------------- orçamento no modo live ----------------
+class FakeCCXT:
+    def __init__(self, free=10_000.0):
+        self.free, self.orders, self.n = free, {}, 0
+    def load_markets(self): pass
+    def market(self, s): return {"limits": {"cost": {"min": 5}}}
+    def amount_to_precision(self, s, q): return q
+    def price_to_precision(self, s, p): return p
+    def fetch_balance(self): return {"free": {"USDT": self.free}, "total": {}}
+    def create_order(self, sym, typ, side, qty, price=None, params=None):
+        self.n += 1; oid = str(self.n); cost = qty * 100.0
+        st = "open" if typ == "STOP_LOSS_LIMIT" else "closed"
+        self.orders[oid] = {"id": oid, "status": st, "filled": qty if st == "closed" else 0, "average": 100.0,
+                            "price": 100.0, "cost": cost if st == "closed" else 0, "fees": []}
+        return {"id": oid}
+    def fetch_order(self, oid, sym): return self.orders[oid]
+    def cancel_order(self, oid, sym): self.orders[oid]["status"] = "canceled"
+
+
+def test_live_budget_limits_money_used(cfg):
+    from bot.exchange import LiveBroker
+    cfg["live"] = {"budget_usdt": 100}
+    st = {}
+    ex = FakeCCXT(free=10_000)
+    b = LiveBroker(cfg, ex, ex, st)
+    assert b.usdt_free() == 100.0                     # conta tem 10 mil, bot enxerga só 100
+    b.buy("BTC/USDT", 0.3)                            # gasta 30
+    assert abs(b.usdt_free() - 70.0) < 1e-9
+    b.sell("BTC/USDT", 0.1)                           # recebe 10
+    assert abs(b.usdt_free() - 80.0) < 1e-9
+    oid = b.place_stop("BTC/USDT", 0.2, 95.0)
+    ex.orders[oid].update(status="closed", filled=0.2, cost=19.0)   # stop executou na corretora
+    assert b.stop_filled("BTC/USDT", oid, 95.0)[0] and abs(b.usdt_free() - 99.0) < 1e-9
+    ex.free = 50.0
+    assert b.usdt_free() == 50.0                      # nunca mais do que existe de verdade
+    b2 = LiveBroker({**cfg, "live": {}}, ex, ex, {})
+    assert b2.usdt_free() == 50.0                     # sem orçamento: usa a conta
