@@ -273,6 +273,7 @@ class Trader:
                 if btc is not None:
                     df = attach_btc_trend(df, btc)
                 self._update_radar(sym, df)
+                self._cache_chart(sym, df)
                 last_ts = int(df["ts"].iloc[-1])
                 if last_ts > int(self.state["last_bar"].get(sym, 0)):
                     self._on_closed_bar(sym, df)
@@ -333,6 +334,17 @@ class Trader:
             "atualizado": utcnow().isoformat(),
         }
 
+    def _cache_chart(self, sym: str, df) -> None:
+        """Últimos 300 candles de 4h com as médias e a banda que o bot usa (para o painel)."""
+        t = df.tail(300)
+        cols = {"t": (t["ts"] // 1000).astype(int).tolist()}
+        for k in ("open", "high", "low", "close", "ema_fast", "ema_mid", "ema_slow", "bbl", "bbm"):
+            cols[k] = [None if v != v else round(float(v), 8) for v in t[k].tolist()]
+        cols["trend"] = t["trend"].astype(str).tolist()
+        if not hasattr(self, "charts"):
+            self.charts = {}
+        self.charts[sym] = cols
+
     def radar_text(self) -> str:
         rad = self.state.get("radar") or {}
         if not rad:
@@ -351,6 +363,17 @@ class Trader:
     def snapshot(self) -> dict:
         """Tudo o que o painel local mostra."""
         total = self.equity()
+        hist = self.state.setdefault("equity_hist", [])
+        now_s = int(time.time())
+        if not hist or now_s - hist[-1][0] >= 300:            # um ponto a cada 5 minutos
+            hist.append([now_s, round(total, 4)])
+            del hist[:-3000]
+        precos = {}
+        try:
+            tk = self.broker.market.fetch_tickers(list(self.cfg["symbols"]))
+            precos = {s: float(v["last"]) for s, v in tk.items() if v.get("last")}
+        except Exception:
+            pass
         sv = self.sleeve.value() if self.sleeve else 0.0
         pos = []
         for s, p in self.positions.items():
@@ -364,7 +387,7 @@ class Trader:
             "modo": self.origem, "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
             "carteira": total, "bot": total - sv, "cofre": sv,
             "cofre_moedas": {k: v for k, v in (self.sleeve.st["holdings"].items() if self.sleeve else []) if v > 0},
-            "posicoes": pos, "radar": self.state.get("radar") or {},
+            "posicoes": pos, "radar": self.state.get("radar") or {}, "precos": precos, "equity_hist": hist,
             "alarme": (self.state.get("alarme_desvio") or {}).get("alarme", False),
             "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
         }
@@ -447,7 +470,7 @@ class Trader:
     def _refresh_painel(self) -> None:
         if self.painel:
             try:
-                self.painel.update(self.snapshot())
+                self.painel.update(self.snapshot(), getattr(self, "charts", {}))
             except Exception:
                 log.exception("erro atualizando o painel")
 

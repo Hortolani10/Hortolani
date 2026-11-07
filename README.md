@@ -52,8 +52,9 @@ Os dados públicos de preço vêm do espelho oficial `data-api.binance.vision`
 
 ## Painel ao vivo
 Com o bot rodando, abra **http://localhost:8765** (abre sozinho ao iniciar): carteira, cofre,
-posições com resultado ao vivo, **radar** de cada moeda (tendência própria, BTC, quantas regras
-de entrada já passam, sinais), diário e log. Atualiza a cada 5 s. Só leitura e só no seu computador.
+**gráfico de candles ao vivo** da moeda escolhida (médias, banda de Bollinger, compras/vendas do bot,
+linhas de entrada e stop), **radar** de cada moeda, evolução da carteira, posições, diário e log.
+Atualiza a cada 5 s. Só leitura e só no seu computador.
 No Telegram: `/radar` mostra o mesmo radar no celular. No VPS: `ssh -L 8765:localhost:8765 bot@IP`.
 
 ## Começar no seu computador (sem servidor)

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot Hortolani · ao vivo</title>
+<style>
+/* Layout: mesa de operação — números no topo, gráfico grande da moeda escolhida + radar ao lado, carteira, posições e log embaixo */
+:root{--bg:#eef1f4;--panel:#fff;--fg:#142029;--muted:#5a6875;--line:#d9e0e6;--soft:#f5f7f9;--up:#0b8f63;--down:#cf3f3f;--flat:#b07a00;--accent:#2457d6;--ema21:#2457d6;--ema50:#8a55e6;--ema200:#7a8794;--band:#b07a00}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1218;--panel:#121b23;--fg:#e3eaf0;--muted:#8b9aa7;--line:#223140;--soft:#172230;--up:#2cc38a;--down:#f06b6b;--flat:#f2b84b;--accent:#6b9bff;--ema21:#6b9bff;--ema50:#b38cff;--ema200:#8695a3;--band:#f2b84b;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1320px;margin:0 auto;padding:18px 16px 36px;display:grid;gap:14px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px}
+h1{margin:0;font-size:24px}h2{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.muted{color:var(--muted)}.num{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--up);animation:p 2s infinite}.dot.off{background:var(--down);animation:none}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(44,195,138,.6)}100%{box-shadow:0 0 0 10px rgba(44,195,138,0)}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.pad{padding:14px 16px}
+.kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.kpi b{display:block;font-size:21px;font-weight:600}
+.kpi small{color:var(--muted);font-size:12px}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid var(--line);vertical-align:middle}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.chead{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:space-between;align-items:center;padding:12px 16px 0}
+.cname{font-size:20px;font-weight:700}.cprice{font-size:20px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 16px 0;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px}
+#chart{height:430px}#equity{height:170px}
+.coins{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 14px;border-top:1px solid var(--line)}
+.coins button{font:600 12px system-ui,sans-serif;color:var(--muted);background:transparent;border:1px solid var(--line);padding:5px 10px;border-radius:999px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.coins button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.coins button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cd{width:7px;height:7px;border-radius:50%;background:var(--muted)}.cd.up{background:var(--up)}.cd.down{background:var(--down)}.cd.flat{background:var(--flat)}
+.radar{list-style:none;margin:0;padding:6px 0}.radar li{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 16px;cursor:pointer;border-left:3px solid transparent}
+.radar li:hover,.radar li.sel{background:var(--soft)}.radar li.sel{border-left-color:var(--accent)}
+.radar b{font-size:13px}.bar{height:7px;background:var(--soft);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.rsub{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.pill.buy{background:var(--up);color:var(--bg)}.pill.lat{background:var(--flat);color:var(--bg)}.pill.wait{color:var(--muted);border:1px solid var(--line)}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{padding:7px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}tr:last-child td{border-bottom:0}
+pre{margin:0;max-height:260px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;padding:0 16px 14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.sec-h{padding:12px 16px 6px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+footer{color:var(--muted);font-size:12px}footer a{color:var(--muted)}
+@media(max-width:1000px){.main{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}#chart{height:340px}}
+</style></head><body><div class="wrap">
+<header><div><h1>Bot Hortolani <span class="tag" id="modo">—</span></h1>
+<div class="muted">Entrada no <span id="tfe">4h</span> · tendência no <span id="tft">1d</span> · tudo atualiza sozinho</div></div>
+<div class="live"><i class="dot" id="dot"></i><span id="hora">conectando…</span></div></header>
+
+<section class="kpis">
+<div class="card pad kpi"><span>Carteira</span><b class="num" id="k1">—</b><small id="k1b"></small></div>
+<div class="card pad kpi"><span>Bot</span><b class="num" id="k2">—</b><small id="k2b"></small></div>
+<div class="card pad kpi"><span>Cofre de tendência</span><b class="num" id="k3">—</b><small id="k3b"></small></div>
+<div class="card pad kpi"><span>Mais perto de um sinal</span><b id="k5">—</b><small id="k5b"></small></div>
+<div class="card pad kpi"><span>Situação</span><b id="k4">—</b><small id="k4b"></small></div>
+</section>
+
+<div class="main">
+<section class="card">
+  <div class="chead"><div><span class="cname" id="cname">—</span> <span class="muted" id="ctrend"></span></div>
+  <div><span class="num cprice" id="cprice">—</span> <span class="muted" style="font-size:12px">preço ao vivo</span></div></div>
+  <div class="legend"><span><i style="background:var(--ema21)"></i>EMA21</span><span><i style="background:var(--ema50)"></i>EMA50</span>
+  <span><i style="background:var(--ema200);height:3px"></i>EMA200</span><span><i style="background:var(--band)"></i>banda inferior (gatilho da lateralização)</span>
+  <span>▲ compra · ▼ venda do bot</span></div>
+  <div id="chart"></div>
+  <div class="coins" id="coins" aria-label="Escolher moeda"></div>
+</section>
+<aside class="card"><div class="sec-h"><h2>Radar das moedas</h2><span class="muted" style="font-size:12px">clique para ver o gráfico</span></div>
+<ul class="radar" id="radar"><li class="muted">Aguardando o primeiro ciclo…</li></ul></aside>
+</div>
+
+<section class="card"><div class="sec-h"><h2>Evolução da carteira</h2><span class="muted num" id="eqinfo"></span></div><div id="equity"></div></section>
+
+<section class="card"><div class="sec-h"><h2>Posições abertas</h2></div><div class="tw"><table>
+<thead><tr><th>Moeda</th><th>Estratégia</th><th>Entrada</th><th>Agora</th><th>Resultado</th><th>Stop</th><th>Aberta em</th></tr></thead>
+<tbody id="pos"></tbody></table></div></section>
+
+<div class="grid2">
+<section class="card"><div class="sec-h"><h2>Diário (últimas operações)</h2></div><div class="tw"><table>
+<thead><tr><th>Origem</th><th>Moeda</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody id="diario"></tbody></table></div></section>
+<section class="card"><div class="sec-h"><h2>Log ao vivo</h2></div><pre id="log"></pre></section>
+</div>
+<footer>Somente leitura: este painel não compra, não vende e não muda nada. Visível só neste computador.
+Gráficos: <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.</footer>
+</div>
+<script src="/static/lw.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const px=v=>{if(v==null)return"—";const a=Math.abs(v);return fmt(v,a>=100?2:a>=1?4:6)};
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cls=t=>t==="ALTA"?"up":t==="BAIXA"?"down":t==="LATERAL"?"flat":"";
+const tname=t=>t==="SEM_DADOS"?"sem dados":String(t||"").toLowerCase();
+const NOMES={tendencia_maior:"tendência da moeda",mercado_btc:"BTC em alta",emas_alinhadas:"médias alinhadas",pullback:"pullback",gatilho:"gatilho",rsi:"RSI",macd:"MACD",adx:"força (ADX)",volume:"volume",nao_esticado:"não esticado",reward_risk:"espaço até resistência"};
+let sel=null; try{sel=localStorage.getItem("painel-moeda")}catch(e){}
+let last=null, priceLines=[];
+const LW=window.LightweightCharts;
+const base=()=>({autoSize:true,layout:{background:{type:"solid",color:css("--panel")},textColor:css("--muted"),fontSize:11},
+ grid:{vertLines:{color:"rgba(0,0,0,0)"},horzLines:{color:css("--line")}},rightPriceScale:{borderColor:css("--line")},
+ timeScale:{borderColor:css("--line"),timeVisible:true,secondsVisible:false},localization:{locale:"pt-BR",priceFormatter:p=>px(p)}});
+const chart=LW.createChart($("chart"),base());
+const cs=chart.addCandlestickSeries({priceLineVisible:true,lastValueVisible:true});
+const L=(w,c,st)=>chart.addLineSeries({lineWidth:w,color:c,lineStyle:st||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+const e21=L(1,css("--ema21")),e50=L(1,css("--ema50")),e200=L(2,css("--ema200")),band=L(1,css("--band"),LW.LineStyle.Dashed);
+const eqc=LW.createChart($("equity"),{...base(),timeScale:{...base().timeScale,timeVisible:true}});
+const eqs=eqc.addAreaSeries({lineWidth:2,lineColor:css("--accent"),topColor:css("--accent")+"40",bottomColor:css("--accent")+"00",priceLineVisible:false});
+function theme(){const up=css("--up"),dn=css("--down");
+ for(const c of [chart,eqc])c.applyOptions({layout:{background:{type:"solid",color:css("--panel")},textColor:css("--muted")},grid:{horzLines:{color:css("--line")}},rightPriceScale:{borderColor:css("--line")},timeScale:{borderColor:css("--line")}});
+ cs.applyOptions({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
+ e21.applyOptions({color:css("--ema21")});e50.applyOptions({color:css("--ema50")});e200.applyOptions({color:css("--ema200")});band.applyOptions({color:css("--band")});
+ eqs.applyOptions({lineColor:css("--accent"),topColor:css("--accent")+"40",bottomColor:css("--accent")+"00"})}
+theme();matchMedia("(prefers-color-scheme: dark)").addEventListener("change",theme);
+const TZ=-new Date().getTimezoneOffset()*60;   // gráfico no horário do seu computador (ex.: Brasília)
+const ser=(t,v)=>t.map((x,i)=>v[i]==null?null:{time:x+TZ,value:v[i]}).filter(Boolean);
+async function loadChart(fit){
+ if(!sel)return;
+ const r=await fetch("/api/candles?s="+encodeURIComponent(sel),{cache:"no-store"});const d=await r.json();const c=d.candles;
+ if(!c){$("cname").textContent=sel.split("/")[0];return}
+ cs.setData(c.t.map((t,i)=>({time:t+TZ,open:c.open[i],high:c.high[i],low:c.low[i],close:c.close[i]})));
+ e21.setData(ser(c.t,c.ema_fast));e50.setData(ser(c.t,c.ema_mid));e200.setData(ser(c.t,c.ema_slow));band.setData(ser(c.t,c.bbl));
+ const t0=c.t[0],up=css("--up"),dn=css("--down"),mk=[];
+ for(const o of d.operacoes||[]){const a=Date.parse(o.aberta)/1000,f=Date.parse(o.fechada)/1000;
+  if(a>=t0)mk.push({time:c.t.reduce((b,x)=>x<=a?x:b,c.t[0])+TZ,position:"belowBar",shape:"arrowUp",color:up,text:"compra"});
+  if(f>=t0)mk.push({time:c.t.reduce((b,x)=>x<=f?x:b,c.t[0])+TZ,position:"aboveBar",shape:"arrowDown",color:dn,text:(o.r>=0?"+":"")+fmt(o.r,1)+"R"});}
+ mk.sort((x,y)=>x.time-y.time);cs.setMarkers(mk);
+ if(fit)chart.timeScale().setVisibleLogicalRange({from:c.t.length-120,to:c.t.length+3});
+}
+function drawSelected(){
+ const d=last;if(!d||!sel)return;const x=(d.radar||{})[sel]||{};
+ $("cname").textContent=sel.split("/")[0]+"/USDT";
+ $("ctrend").innerHTML=`diário <b class="${cls(x.tendencia)}">${esc(tname(x.tendencia))}</b> · BTC <b class="${cls(x.btc)}">${esc(tname(x.btc))}</b> · ${x.regras_ok??"—"}/${x.regras_total??"—"} regras`;
+ const lp=(d.precos||{})[sel];$("cprice").textContent=px(lp??x.preco);
+ priceLines.forEach(p=>cs.removePriceLine(p));priceLines=[];
+ for(const p of d.posicoes||[])if(p.simbolo===sel){
+  priceLines.push(cs.createPriceLine({price:p.entrada,color:css("--accent"),lineWidth:1,lineStyle:LW.LineStyle.Dotted,axisLabelVisible:true,title:"entrada"}));
+  priceLines.push(cs.createPriceLine({price:p.stop,color:css("--down"),lineWidth:2,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"stop"}));}
+ document.querySelectorAll("#coins button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===sel));
+ document.querySelectorAll("#radar li[data-s]").forEach(li=>li.classList.toggle("sel",li.dataset.s===sel));
+}
+function pick(s){sel=s;try{localStorage.setItem("painel-moeda",s)}catch(e){}drawSelected();loadChart(true)}
+async function load(){
+ try{
+  const r=await fetch("/api/status",{cache:"no-store"});const d=await r.json();
+  $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
+  if(d.carregando)return; last=d;
+  const modo=String(d.modo||"");$("modo").textContent=modo.startsWith("paper")?modo.toUpperCase()+" · dinheiro fictício":modo.toUpperCase();
+  $("tfe").textContent=d.timeframes.entry;$("tft").textContent=d.timeframes.trend;
+  const eh=d.equity_hist||[],ini=eh.length?eh[0][1]:d.carteira,ch=d.carteira/ini-1;
+  $("k1").textContent=fmt(d.carteira)+" USDT";$("k1b").innerHTML=`<span class="${ch>=0?"up":"down"}">${ch>=0?"+":""}${fmt(ch*100)}%</span> desde que ligou`;
+  $("k2").textContent=fmt(d.bot)+" USDT";$("k2b").textContent=(d.posicoes||[]).length+" posição(ões) aberta(s)";
+  $("k3").textContent=fmt(d.cofre)+" USDT";const cm=Object.keys(d.cofre_moedas||{});$("k3b").textContent=cm.length?"segurando "+cm.map(s=>s.split("/")[0]).join(", "):"em USDT (aguardando tendência)";
+  $("k4").innerHTML=d.pausado?'<span class="flat">Pausado</span>':d.alarme?'<span class="down">Alarme de desvio</span>':'<span class="up">Operando</span>';
+  $("k4b").textContent=d.lateral_ligada?"tendência + lateralização":"tendência";
+  const rad=Object.entries(d.radar||{}).sort((a,b)=>(b[1].sinal_tendencia+b[1].sinal_lateral*1)-(a[1].sinal_tendencia+a[1].sinal_lateral*1)||b[1].regras_ok-a[1].regras_ok);
+  if(rad.length){const [bs,bx]=rad[0];$("k5").textContent=bs.split("/")[0]+" "+bx.regras_ok+"/"+bx.regras_total;
+   $("k5b").textContent=bx.sinal_tendencia?"SINAL de compra":bx.sinal_lateral?"sinal de lateralização":"faltam: "+(bx.falhou||[]).slice(0,2).map(k=>NOMES[k]||k).join(", ")}
+  if(!sel||!(d.radar||{})[sel])sel=rad.length?(rad.find(r=>r[0]==="BTC/USDT")||rad[0])[0]:null;
+  $("coins").innerHTML=Object.keys(d.radar||{}).map(s=>`<button type="button" data-s="${esc(s)}"><i class="cd ${cls(d.radar[s].tendencia)}"></i>${esc(s.split("/")[0])}</button>`).join("");
+  $("coins").querySelectorAll("button").forEach(b=>b.onclick=()=>pick(b.dataset.s));
+  $("radar").innerHTML=rad.length?rad.map(([s,x])=>{const pct=100*x.regras_ok/x.regras_total;
+   const pill=x.sinal_tendencia?'<span class="pill buy">compra</span>':x.sinal_lateral?`<span class="pill lat">${d.lateral_ligada?"lateral":"observando"}</span>`:'<span class="pill wait">aguardando</span>';
+   const lp=(d.precos||{})[s];
+   return `<li data-s="${esc(s)}" tabindex="0"><b>${esc(s.split("/")[0])}</b><div><div class="bar"><i style="width:${pct}%"></i></div>
+   <div class="rsub"><span class="${cls(x.tendencia)}">${esc(tname(x.tendencia))}</span> · ${x.regras_ok}/${x.regras_total} regras · RSI ${fmt(x.rsi,0)} · <span class="num">${px(lp??x.preco)}</span></div></div>${pill}</li>`}).join(""):'<li class="muted">Aguardando o primeiro ciclo…</li>';
+  $("radar").querySelectorAll("li[data-s]").forEach(li=>{li.onclick=()=>pick(li.dataset.s);li.onkeydown=e=>{if(e.key==="Enter")pick(li.dataset.s)}});
+  eqs.setData(eh.map(([t,v])=>({time:t+TZ,value:v})));
+  $("eqinfo").textContent=eh.length>1?`${fmt(eh[0][1])} → ${fmt(d.carteira)} USDT`:"o gráfico cresce com o tempo (1 ponto a cada 5 min)";
+  $("pos").innerHTML=(d.posicoes||[]).length?d.posicoes.map(p=>`<tr><td><b>${esc(p.simbolo)}</b></td><td>${esc(p.estrategia)}</td><td class="num">${px(p.entrada)}</td><td class="num">${px(p.preco)}</td><td class="num ${p.resultado_pct>=0?"up":"down"}">${p.resultado_pct>=0?"+":""}${fmt(p.resultado_pct*100)}%</td><td class="num">${px(p.stop)}</td><td class="muted">${esc(String(p.aberta).slice(0,16).replace("T"," "))}</td></tr>`).join(""):'<tr><td colspan="7" class="muted">Nenhuma posição aberta — o bot está esperando um sinal.</td></tr>';
+  $("diario").innerHTML=(d.diario||[]).length?d.diario.map(j=>`<tr><td class="muted">${esc(j.origem)}</td><td>${esc(j.simbolo)}</td><td class="num ${j.r>=0?"up":"down"}">${j.r>=0?"+":""}${fmt(j.r)}R</td><td class="muted">${esc(j.motivo)}</td></tr>`).join(""):'<tr><td colspan="4" class="muted">Ainda sem operações registradas.</td></tr>';
+  const lg=$("log"),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-20;lg.textContent=(d.log||[]).join("\n");if(bottom)lg.scrollTop=lg.scrollHeight;
+  drawSelected();
+ }catch(e){$("dot").className="dot off";$("hora").textContent="sem conexão com o bot (ele está rodando?)"}
+}
+(async()=>{await load();await loadChart(true);setInterval(load,5000);setInterval(()=>loadChart(false),30000)})();
+</script></body></html>
