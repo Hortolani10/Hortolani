@@ -326,6 +326,7 @@ class Trader:
             "regras_ok": sum(checks.values()),
             "regras_total": len(checks),
             "falhou": [k for k, ok in checks.items() if not ok],
+            "regras": checks,
             "rsi": round(float(row["rsi"]), 1),
             "adx": round(float(row["adx"]), 1),
             "sinal_tendencia": bool(sig.ok),
@@ -368,10 +369,11 @@ class Trader:
         if not hist or now_s - hist[-1][0] >= 300:            # um ponto a cada 5 minutos
             hist.append([now_s, round(total, 4)])
             del hist[:-3000]
-        precos = {}
+        precos, var24 = {}, {}
         try:
             tk = self.broker.market.fetch_tickers(list(self.cfg["symbols"]))
             precos = {s: float(v["last"]) for s, v in tk.items() if v.get("last")}
+            var24 = {s: float(v["percentage"]) for s, v in tk.items() if v.get("percentage") is not None}
         except Exception:
             pass
         sv = self.sleeve.value() if self.sleeve else 0.0
@@ -387,7 +389,7 @@ class Trader:
             "modo": self.origem, "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
             "carteira": total, "bot": total - sv, "cofre": sv,
             "cofre_moedas": {k: v for k, v in (self.sleeve.st["holdings"].items() if self.sleeve else []) if v > 0},
-            "posicoes": pos, "radar": self.state.get("radar") or {}, "precos": precos, "equity_hist": hist,
+            "posicoes": pos, "radar": self.state.get("radar") or {}, "precos": precos, "var24": var24, "equity_hist": hist,
             "alarme": (self.state.get("alarme_desvio") or {}).get("alarme", False),
             "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
         }
