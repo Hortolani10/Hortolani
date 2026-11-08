@@ -119,7 +119,7 @@ footer{color:var(--faint);font-size:12px}
   <div id="sit"><b>—</b></div>
   <div class="muted" id="estr"></div>
   <div class="muted">Somente leitura · só neste computador</div>
-  <button type="button" class="themebtn" id="themebtn">◐ Tema: automático</button>
+  <button type="button" class="themebtn" id="themebtn">◐ Tema: escuro</button>
  </div>
 </aside>
 
@@ -180,7 +180,7 @@ const COR={BTC:"#f7931a",ETH:"#627eea",BNB:"#f0b90b",SOL:"#9945ff",XRP:"#23292f"
 const base=s=>s.split("/")[0];
 const ava=(el,s)=>{const b=base(s);el.textContent=b.slice(0,3);el.style.background=COR[b]||"var(--accent)"};
 const TZ=-new Date().getTimezoneOffset()*60;
-let tema="auto";try{tema=localStorage.getItem("painel-tema")||"auto"}catch(e){}
+let tema="dark";try{tema=localStorage.getItem("painel-tema")||"dark"}catch(e){}   // abre no modo escuro
 function aplicaTema(){if(tema==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",tema);
  $("themebtn").textContent="◐ Tema: "+({auto:"automático",light:"claro",dark:"escuro"}[tema]);if(window.chartsReady)theme()}
 let tf="4h";try{tf=localStorage.getItem("painel-tf")||"4h"}catch(e){}
@@ -192,7 +192,7 @@ const opts=()=>({autoSize:true,layout:{background:{type:"solid",color:css("--pan
  timeScale:{borderColor:css("--line"),timeVisible:true,secondsVisible:false},crosshair:{mode:LW.CrosshairMode.Normal},
  localization:{locale:"pt-BR",priceFormatter:p=>px(p)}});
 aplicaTema();
-$("themebtn").onclick=()=>{tema={auto:"dark",dark:"light",light:"auto"}[tema];try{localStorage.setItem("painel-tema",tema)}catch(e){}aplicaTema()};
+$("themebtn").onclick=()=>{tema={dark:"light",light:"auto",auto:"dark"}[tema];try{localStorage.setItem("painel-tema",tema)}catch(e){}aplicaTema()};
 const chart=LW.createChart($("chart"),opts());
 const cs=chart.addCandlestickSeries({priceLineVisible:true,lastValueVisible:true});
 const L=(w,c,st)=>chart.addLineSeries({lineWidth:w,color:c,lineStyle:st||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
