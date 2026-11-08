@@ -27,10 +27,10 @@ _EX = None
 
 
 def load(sym: str, tf: str) -> pd.DataFrame:
-    """Candles da Binance (cache em data/, renovado a cada 24 h)."""
+    """Candles da Binance (cache em data/, renovado a cada 4 h, um candle)."""
     global _EX
     p = Path("data") / f"{sym.replace('/', '')}_{tf}_{DAYS}d.csv"
-    if p.exists() and time.time() - p.stat().st_mtime < 24 * 3600:
+    if p.exists() and time.time() - p.stat().st_mtime < 4 * 3600:
         return pd.read_csv(p)
     _EX = _EX or make_ccxt(CFG, with_keys=False)
     df = fetch_history(_EX, sym, tf, int(time.time() * 1000) - DAYS * 86_400_000)
