@@ -10,10 +10,12 @@
  --accent:#5b8cff;--accent2:#8f6bff;--up:#2fd39d;--down:#ff6f6f;--flat:#f3b54a;
  --ema21:#5b8cff;--ema50:#a88bff;--ema200:#8c99a6;--band:#f3b54a;
  --glow:rgba(91,140,255,.18);color-scheme:dark}
-@media (prefers-color-scheme:light){:root{
- --bg:#f2f5f8;--panel:#ffffff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f2f5f8;--panel:#ffffff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
  --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;
  --ema21:#2f63e0;--ema50:#7f5ae6;--ema200:#7d8994;--band:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}}
+:root[data-theme="light"]{--bg:#f2f5f8;--panel:#ffffff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+ --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;
+ --ema21:#2f63e0;--ema50:#7f5ae6;--ema200:#7d8994;--band:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif}
 .num{font-family:"Cascadia Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
@@ -82,6 +84,14 @@ main{padding:22px 24px 40px;display:grid;gap:16px;min-width:0;max-width:1400px}
 th,td{padding:9px 18px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}tr:last-child td{border-bottom:0}
 .empty{padding:18px;color:var(--muted)}
+.themebtn{font:600 12px inherit;font-family:inherit;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;text-align:left}
+.themebtn:hover{color:var(--fg)}
+.seg-tf{display:inline-flex;gap:2px;padding:3px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;margin-left:8px;vertical-align:middle}
+.seg-tf button{font:700 11px inherit;font-family:inherit;color:var(--muted);background:transparent;border:0;padding:4px 9px;border-radius:6px;cursor:pointer}
+.seg-tf button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.toast{position:fixed;right:20px;bottom:20px;z-index:50;max-width:360px;padding:14px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--accent);box-shadow:0 12px 40px rgba(0,0,0,.35);font-weight:600;transform:translateY(20px);opacity:0;transition:all .3s}
+.toast.show{transform:none;opacity:1}
+.gat{font-size:11px;color:var(--muted)}
 .term{margin:12px 18px 18px;border-radius:10px;background:#070b10;border:1px solid var(--line);padding:12px 14px;max-height:280px;overflow:auto;font:12px/1.55 "Cascadia Mono",ui-monospace,Consolas,monospace;color:#b9c6d2;white-space:pre-wrap;word-break:break-word}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 #equity{height:180px;margin:6px 6px 8px}
@@ -109,6 +119,7 @@ footer{color:var(--faint);font-size:12px}
   <div id="sit"><b>—</b></div>
   <div class="muted" id="estr"></div>
   <div class="muted">Somente leitura · só neste computador</div>
+  <button type="button" class="themebtn" id="themebtn">◐ Tema: automático</button>
  </div>
 </aside>
 
@@ -128,9 +139,10 @@ footer{color:var(--faint);font-size:12px}
   <section class="card">
    <div class="coinhead"><div class="coinname"><div class="ava" id="cava">—</div><div><b id="cname">—</b><div id="ctags" style="display:flex;gap:6px;flex-wrap:wrap"></div></div></div>
    <div style="text-align:right"><div class="price num" id="cprice">—</div><div id="cvar" class="muted" style="font-size:12px"></div></div></div>
-   <div class="tabs" id="coins" role="group" aria-label="Escolher moeda"></div>
+   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px"><div class="tabs" id="coins" role="group" aria-label="Escolher moeda"></div>
+   <span class="seg-tf" role="group" aria-label="Tempo gráfico"><button type="button" data-tf="4h" aria-pressed="true">4h</button><button type="button" data-tf="1d" aria-pressed="false">1d</button></span></div>
    <div class="legend"><span><i style="background:var(--ema21)"></i>EMA21</span><span><i style="background:var(--ema50)"></i>EMA50</span><span><i style="background:var(--ema200);height:3px"></i>EMA200</span>
-   <span><i style="background:var(--band)"></i>banda inferior (gatilho da lateralização)</span><span>▲ compra · ▼ venda do bot</span></div>
+   <span><i style="background:var(--band)"></i>banda inferior / gatilho da lateralização (4h)</span><span><i style="background:var(--faint);height:6px"></i>volume</span><span>▲ compra · ▼ venda do bot</span></div>
    <div id="chart"></div>
   </section>
   <section class="card"><div class="ch"><h2 id="cktitle">Checklist</h2></div>
@@ -150,6 +162,7 @@ footer{color:var(--faint);font-size:12px}
    <thead><tr><th>Origem</th><th>Moeda</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody id="diario"></tbody></table></div></section>
   <section class="card" id="log"><div class="ch"><h2>Log ao vivo</h2></div><pre class="term" id="logbox"></pre></section>
  </div>
+ <div class="toast" id="toast" role="status" aria-live="polite"></div>
  <footer>Este painel só mostra informações: não compra, não vende e não muda configurações. Gráficos: <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.</footer>
 </main></div>
 
@@ -167,6 +180,10 @@ const COR={BTC:"#f7931a",ETH:"#627eea",BNB:"#f0b90b",SOL:"#9945ff",XRP:"#23292f"
 const base=s=>s.split("/")[0];
 const ava=(el,s)=>{const b=base(s);el.textContent=b.slice(0,3);el.style.background=COR[b]||"var(--accent)"};
 const TZ=-new Date().getTimezoneOffset()*60;
+let tema="auto";try{tema=localStorage.getItem("painel-tema")||"auto"}catch(e){}
+function aplicaTema(){if(tema==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",tema);
+ $("themebtn").textContent="◐ Tema: "+({auto:"automático",light:"claro",dark:"escuro"}[tema]);if(window.chartsReady)theme()}
+let tf="4h";try{tf=localStorage.getItem("painel-tf")||"4h"}catch(e){}
 let sel=null;try{sel=localStorage.getItem("painel-moeda")}catch(e){}
 let last=null,priceLines=[];
 const LW=window.LightweightCharts;
@@ -174,10 +191,14 @@ const opts=()=>({autoSize:true,layout:{background:{type:"solid",color:css("--pan
  grid:{vertLines:{color:"rgba(0,0,0,0)"},horzLines:{color:css("--line")}},rightPriceScale:{borderColor:css("--line")},
  timeScale:{borderColor:css("--line"),timeVisible:true,secondsVisible:false},crosshair:{mode:LW.CrosshairMode.Normal},
  localization:{locale:"pt-BR",priceFormatter:p=>px(p)}});
+aplicaTema();
+$("themebtn").onclick=()=>{tema={auto:"dark",dark:"light",light:"auto"}[tema];try{localStorage.setItem("painel-tema",tema)}catch(e){}aplicaTema()};
 const chart=LW.createChart($("chart"),opts());
 const cs=chart.addCandlestickSeries({priceLineVisible:true,lastValueVisible:true});
 const L=(w,c,st)=>chart.addLineSeries({lineWidth:w,color:c,lineStyle:st||0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
 const e21=L(1,css("--ema21")),e50=L(1,css("--ema50")),e200=L(2,css("--ema200")),band=L(1,css("--band"),LW.LineStyle.Dashed);
+const vol=chart.addHistogramSeries({priceScaleId:"vol",priceFormat:{type:"volume"},priceLineVisible:false,lastValueVisible:false});
+chart.priceScale("vol").applyOptions({scaleMargins:{top:0.82,bottom:0},visible:false});
 const eqc=LW.createChart($("equity"),opts());
 const eqs=eqc.addAreaSeries({lineWidth:2,priceLineVisible:false});
 function theme(){const up=css("--up"),dn=css("--down");
@@ -185,13 +206,16 @@ function theme(){const up=css("--up"),dn=css("--down");
  cs.applyOptions({upColor:up,downColor:dn,borderUpColor:up,borderDownColor:dn,wickUpColor:up,wickDownColor:dn});
  e21.applyOptions({color:css("--ema21")});e50.applyOptions({color:css("--ema50")});e200.applyOptions({color:css("--ema200")});band.applyOptions({color:css("--band")});
  eqs.applyOptions({lineColor:css("--accent"),topColor:css("--accent")+"55",bottomColor:css("--accent")+"00"})}
-theme();matchMedia("(prefers-color-scheme: light)").addEventListener("change",theme);
+window.chartsReady=true;theme();matchMedia("(prefers-color-scheme: light)").addEventListener("change",theme);
 const ser=(t,v)=>t.map((x,i)=>v[i]==null?null:{time:x+TZ,value:v[i]}).filter(Boolean);
 async function loadChart(fit){
  if(!sel)return;
- const d=await (await fetch("/api/candles?s="+encodeURIComponent(sel),{cache:"no-store"})).json();const c=d.candles;if(!c)return;
+ const d=await (await fetch("/api/candles?s="+encodeURIComponent(sel),{cache:"no-store"})).json();
+ const c=tf==="1d"?(d.candles||{}).diario:d.candles;if(!c)return;
  cs.setData(c.t.map((t,i)=>({time:t+TZ,open:c.open[i],high:c.high[i],low:c.low[i],close:c.close[i]})));
- e21.setData(ser(c.t,c.ema_fast));e50.setData(ser(c.t,c.ema_mid));e200.setData(ser(c.t,c.ema_slow));band.setData(ser(c.t,c.bbl));
+ e21.setData(ser(c.t,c.ema_fast));e50.setData(ser(c.t,c.ema_mid));e200.setData(ser(c.t,c.ema_slow));band.setData(c.bbl?ser(c.t,c.bbl):[]);
+ const upv=css("--up")+"55",dnv=css("--down")+"55";
+ vol.setData(c.t.map((t,i)=>({time:t+TZ,value:c.volume?c.volume[i]:0,color:c.close[i]>=c.open[i]?upv:dnv})));
  const near=x=>c.t.reduce((b,y)=>y<=x?y:b,c.t[0])+TZ,mk=[];
  for(const o of d.operacoes||[]){const a=Date.parse(o.aberta)/1000,f=Date.parse(o.fechada)/1000;
   if(a>=c.t[0])mk.push({time:near(a),position:"belowBar",shape:"arrowUp",color:css("--up"),text:"compra"});
@@ -199,6 +223,7 @@ async function loadChart(fit){
  mk.sort((x,y)=>x.time-y.time);cs.setMarkers(mk);
  if(fit)chart.timeScale().setVisibleLogicalRange({from:c.t.length-120,to:c.t.length+3});
 }
+function dist(s,x){const lp=(last.precos||{})[s]??x.preco;if(!x.gatilho_lateral||!lp)return"";const d=x.gatilho_lateral/lp-1;return ` (<b>${fmt(d*100,1)}%</b> do preço atual)`}
 function spark(eh){const v=eh.map(x=>x[1]);if(v.length<2){$("spark").innerHTML="";return}
  const mn=Math.min(...v),mx=Math.max(...v),r=mx-mn||1,pts=v.map((y,i)=>[i/(v.length-1)*110,34-(y-mn)/r*30]);
  const d="M"+pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" L");const col=v[v.length-1]>=v[0]?css("--up"):css("--down");
@@ -213,15 +238,18 @@ function drawSelected(){
  for(const p of d.posicoes||[])if(p.simbolo===sel){
   priceLines.push(cs.createPriceLine({price:p.entrada,color:css("--accent"),lineWidth:1,lineStyle:LW.LineStyle.Dotted,axisLabelVisible:true,title:"entrada"}));
   priceLines.push(cs.createPriceLine({price:p.stop,color:css("--down"),lineWidth:2,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"stop"}));}
+ if(tf==="4h"&&x.tendencia==="LATERAL"&&x.gatilho_lateral)priceLines.push(cs.createPriceLine({price:x.gatilho_lateral,color:css("--band"),lineWidth:1,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"gatilho lateral"}));
  $("cktitle").textContent="Checklist · "+base(sel);
  const rg=x.regras||{};$("checks").innerHTML=Object.keys(rg).length?Object.entries(rg).map(([k,ok])=>`<li><span class="${ok?"ok":"no"}">${ok?"✓":"✕"}</span><span>${esc(NOMES[k]||k)}</span></li>`).join(""):'<li class="muted">Aguardando…</li>';
  $("verdict").innerHTML=x.sinal_tendencia?'<b class="up">Sinal de compra (tendência)</b> — todas as regras passaram.':
   x.sinal_lateral?`<b class="flat">Sinal de lateralização</b> — ${d.lateral_ligada?"o bot compra":"só observando"}: preço abaixo da banda inferior com RSI baixo.`:
-  x.tendencia==="LATERAL"?`Mercado lateral: a lateralização compra se o preço cair abaixo da banda inferior com RSI < 30 (RSI agora ${fmt(x.rsi,0)}).`:
+  x.tendencia==="LATERAL"?`Mercado lateral: a lateralização compra se o preço fechar abaixo de <b class="num">${px(x.gatilho_lateral)}</b>${dist(sel,x)} com RSI < 30 (agora ${fmt(x.rsi,0)}).`:
   x.tendencia==="BAIXA"?"Tendência de baixa: o bot fica de fora desta moeda.":`Faltam ${(x.falhou||[]).length} regra(s) para a estratégia de tendência.`;
  document.querySelectorAll("#coins button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===sel));
  document.querySelectorAll(".tile").forEach(t=>t.classList.toggle("sel",t.dataset.s===sel));
 }
+document.querySelectorAll(".seg-tf button").forEach(b=>{b.setAttribute("aria-pressed",b.dataset.tf===tf);b.onclick=()=>{tf=b.dataset.tf;try{localStorage.setItem("painel-tf",tf)}catch(e){}
+ document.querySelectorAll(".seg-tf button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.tf===tf));drawSelected();loadChart(true)}});
 function pick(s){sel=s;try{localStorage.setItem("painel-moeda",s)}catch(e){}drawSelected();loadChart(true)}
 async function load(){
  try{
@@ -251,13 +279,20 @@ async function load(){
    return `<div class="tile" tabindex="0" data-s="${esc(s)}"><div class="row"><div style="display:flex;gap:8px;align-items:center"><div class="ava" style="width:26px;height:26px;font-size:9px;background:${COR[base(s)]||"var(--accent)"}">${esc(base(s).slice(0,3))}</div><b>${esc(base(s))}</b></div>${pill}</div>
    <div class="row"><span class="num">${px(lp??x.preco)}</span><span class="num ${vv>=0?"up":"down"}" style="font-size:12px">${vv==null?"":(vv>=0?"+":"")+fmt(vv)+"%"}</span></div>
    <div class="seg" title="${x.regras_ok} de ${x.regras_total} regras">${seg}</div>
-   <div class="row" style="font-size:12px"><span class="${cls(x.tendencia)}">${esc(tname(x.tendencia))}</span><span class="muted">${x.regras_ok}/${x.regras_total} · RSI ${fmt(x.rsi,0)}</span></div></div>`}).join(""):'<div class="empty">Aguardando o primeiro ciclo…</div>';
+   <div class="row" style="font-size:12px"><span class="${cls(x.tendencia)}">${esc(tname(x.tendencia))}</span><span class="muted">${x.regras_ok}/${x.regras_total} · RSI ${fmt(x.rsi,0)}</span></div>
+   ${x.tendencia==="LATERAL"&&x.gatilho_lateral&&lp?`<div class="gat">gatilho lateral a <b class="flat">${fmt((x.gatilho_lateral/lp-1)*100,1)}%</b></div>`:""}</div>`}).join(""):'<div class="empty">Aguardando o primeiro ciclo…</div>';
   document.querySelectorAll(".tile").forEach(t=>{t.onclick=()=>pick(t.dataset.s);t.onkeydown=e=>{if(e.key==="Enter")pick(t.dataset.s)}});
   eqs.setData(eh.map(([t,v])=>({time:t+TZ,value:v})));
   $("eqinfo").textContent=eh.length>1?`${fmt(eh[0][1])} → ${fmt(d.carteira)} USDT`:"cresce com o tempo · 1 ponto a cada 5 min";
   $("pos").innerHTML=np?d.posicoes.map(p=>`<tr><td><b>${esc(p.simbolo)}</b></td><td>${esc(p.estrategia)}</td><td class="num">${px(p.entrada)}</td><td class="num">${px(p.preco)}</td><td class="num ${p.resultado_pct>=0?"up":"down"}">${p.resultado_pct>=0?"+":""}${fmt(p.resultado_pct*100)}%</td><td class="num">${px(p.stop)}</td><td class="muted">${esc(String(p.aberta).slice(0,16).replace("T"," "))}</td></tr>`).join(""):'<tr><td colspan="7" class="empty">Nenhuma posição aberta — o bot está esperando um sinal.</td></tr>';
   $("diario").innerHTML=(d.diario||[]).length?d.diario.map(j=>`<tr><td class="muted">${esc(j.origem)}</td><td>${esc(j.simbolo)}</td><td class="num ${j.r>=0?"up":"down"}">${j.r>=0?"+":""}${fmt(j.r)}R</td><td class="muted">${esc(j.motivo)}</td></tr>`).join(""):'<tr><td colspan="4" class="empty">Ainda sem operações registradas.</td></tr>';
   const lg=$("logbox"),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-20;lg.textContent=(d.log||[]).join("\n");if(bottom)lg.scrollTop=lg.scrollHeight;
+  const sig=(d.diario||[]).length+"|"+(d.posicoes||[]).map(p=>p.simbolo).join(",");
+  if(window._sig!==undefined&&window._sig!==sig){const p=(d.posicoes||[])[0],j=(d.diario||[])[0];
+   const msg=(d.posicoes||[]).length>(window._npos||0)&&p?`🟢 COMPRA ${base(p.simbolo)} a ${px(p.entrada)} (${p.estrategia})`:j?`🔴 VENDA ${j.simbolo}: ${j.r>=0?"+":""}${fmt(j.r)}R (${j.motivo})`:"Nova operação";
+   const t=$("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),12000);
+   let k=0;const tt=document.title,iv=setInterval(()=>{document.title=k++%2?tt:msg;if(k>12){clearInterval(iv);document.title=tt}},1000)}
+  window._sig=sig;window._npos=(d.posicoes||[]).length;
   drawSelected();
  }catch(e){$("dot").className="dot off";$("hora").textContent="sem conexão com o bot";}
 }

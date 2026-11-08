@@ -269,11 +269,12 @@ class Trader:
         # 4) análise de cada par no candle fechado
         for sym in self.cfg["symbols"]:
             try:
-                df = prepare(self.broker.candles(sym, tf_e), self.broker.candles(sym, tf_t), self.cfg)
+                d_raw = self.broker.candles(sym, tf_t)
+                df = prepare(self.broker.candles(sym, tf_e), d_raw, self.cfg)
                 if btc is not None:
                     df = attach_btc_trend(df, btc)
                 self._update_radar(sym, df)
-                self._cache_chart(sym, df)
+                self._cache_chart(sym, df, d_raw)
                 last_ts = int(df["ts"].iloc[-1])
                 if last_ts > int(self.state["last_bar"].get(sym, 0)):
                     self._on_closed_bar(sym, df)
@@ -328,6 +329,7 @@ class Trader:
             "falhou": [k for k, ok in checks.items() if not ok],
             "regras": checks,
             "rsi": round(float(row["rsi"]), 1),
+            "gatilho_lateral": None if row["bbl"] != row["bbl"] else float(row["bbl"]),
             "adx": round(float(row["adx"]), 1),
             "sinal_tendencia": bool(sig.ok),
             "sinal_lateral": lat,
@@ -335,13 +337,19 @@ class Trader:
             "atualizado": utcnow().isoformat(),
         }
 
-    def _cache_chart(self, sym: str, df) -> None:
-        """Últimos 300 candles de 4h com as médias e a banda que o bot usa (para o painel)."""
+    def _cache_chart(self, sym: str, df, d_raw=None) -> None:
+        """Candles para o painel: 300 de 4h (médias, banda, volume) e 300 diários (médias)."""
+        def pack(t, keys):
+            out = {"t": (t["ts"] // 1000).astype(int).tolist()}
+            for k in keys:
+                out[k] = [None if v != v else round(float(v), 8) for v in t[k].tolist()]
+            return out
         t = df.tail(300)
-        cols = {"t": (t["ts"] // 1000).astype(int).tolist()}
-        for k in ("open", "high", "low", "close", "ema_fast", "ema_mid", "ema_slow", "bbl", "bbm"):
-            cols[k] = [None if v != v else round(float(v), 8) for v in t[k].tolist()]
+        cols = pack(t, ("open", "high", "low", "close", "volume", "ema_fast", "ema_mid", "ema_slow", "bbl", "bbm"))
         cols["trend"] = t["trend"].astype(str).tolist()
+        if d_raw is not None and len(d_raw):
+            from .indicators import add_all
+            cols["diario"] = pack(add_all(d_raw, self.cfg).tail(300), ("open", "high", "low", "close", "volume", "ema_fast", "ema_mid", "ema_slow"))
         if not hasattr(self, "charts"):
             self.charts = {}
         self.charts[sym] = cols
