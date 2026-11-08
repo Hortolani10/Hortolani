@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bot Hortolani · ao vivo</title>
+<title>Painel · ao vivo</title>
 <style>
 /* Layout: terminal de operação — menu lateral fixo com status; à direita, números com mini-gráficos,
    gráfico grande + checklist da moeda escolhida, grade de moedas com "termômetro" de 11 regras, e
@@ -27,6 +27,8 @@ aside.side{position:sticky;top:0;height:100vh;padding:20px 16px;border-right:1px
 .brand{display:flex;gap:10px;align-items:center}
 .logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 6px 20px var(--glow)}
 .brand b{display:block;font-size:15px}.brand small{color:var(--muted);font-size:12px}
+[hidden]{display:none!important}
+.mode.real{background:var(--down);color:#fff;border-color:var(--down)}
 .mode{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:6px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);text-align:center}
 nav.menu{display:grid;gap:2px}
 nav.menu a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;text-decoration:none;color:var(--muted);font-weight:500}
@@ -105,8 +107,8 @@ footer{color:var(--faint);font-size:12px}
 </style></head><body><div class="app">
 
 <aside class="side">
- <div class="brand"><div class="logo">H</div><div><b>Bot Hortolani</b><small>Binance Spot</small></div></div>
- <div class="mode" id="modo">—</div>
+ <div class="brand"><div class="logo" id="logo">H</div><div><b id="nome">Bot Hortolani</b><small>Binance Spot</small></div></div>
+ <div class="mode" id="modo" hidden></div>
  <nav class="menu" aria-label="Seções">
   <a href="#visao"><span class="ic">◧</span>Visão geral</a>
   <a href="#grafico"><span class="ic">▤</span>Gráfico</a>
@@ -160,7 +162,8 @@ footer{color:var(--faint);font-size:12px}
  <div class="grid2">
   <section class="card"><div class="ch"><h2>Diário (últimas operações)</h2></div><div class="tw"><table>
    <thead><tr><th>Origem</th><th>Moeda</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody id="diario"></tbody></table></div></section>
-  <section class="card" id="log"><div class="ch"><h2>Log ao vivo</h2></div><pre class="term" id="logbox"></pre></section>
+  <section class="card" id="log"><div class="ch"><h2>Log ao vivo</h2><button type="button" class="themebtn" id="logbtn" aria-expanded="false" aria-controls="logbox">Mostrar log</button></div>
+   <pre class="term" id="logbox" hidden></pre><div class="empty" id="loghint">O log técnico está oculto. Clique em "Mostrar log" para ver.</div></section>
  </div>
  <div class="toast" id="toast" role="status" aria-live="polite"></div>
  <footer>Este painel só mostra informações: não compra, não vende e não muda configurações. Gráficos: <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.</footer>
@@ -250,13 +253,18 @@ function drawSelected(){
 }
 document.querySelectorAll(".seg-tf button").forEach(b=>{b.setAttribute("aria-pressed",b.dataset.tf===tf);b.onclick=()=>{tf=b.dataset.tf;try{localStorage.setItem("painel-tf",tf)}catch(e){}
  document.querySelectorAll(".seg-tf button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.tf===tf));drawSelected();loadChart(true)}});
+let logAberto=false;try{logAberto=localStorage.getItem("painel-log")==="1"}catch(e){}
+function aplicaLog(){$("logbox").hidden=!logAberto;$("loghint").hidden=logAberto;$("logbtn").textContent=logAberto?"Ocultar log":"Mostrar log";$("logbtn").setAttribute("aria-expanded",logAberto)}
+$("logbtn").onclick=()=>{logAberto=!logAberto;try{localStorage.setItem("painel-log",logAberto?"1":"0")}catch(e){}aplicaLog();if(logAberto){const l=$("logbox");l.scrollTop=l.scrollHeight}};aplicaLog();
 function pick(s){sel=s;try{localStorage.setItem("painel-moeda",s)}catch(e){}drawSelected();loadChart(true)}
 async function load(){
  try{
   const d=await (await fetch("/api/status",{cache:"no-store"})).json();
   $("dot").className="dot";const now=new Date().toLocaleTimeString("pt-BR");$("hora").textContent="ao vivo · "+now;$("upd").textContent="atualizado às "+now;
   if(d.carregando)return;last=d;
-  const modo=String(d.modo||"");$("modo").textContent=modo.startsWith("paper")?modo.toUpperCase()+" · dinheiro fictício":modo.toUpperCase();
+  const nm=d.nome||"Bot Hortolani";$("nome").textContent=nm;$("logo").textContent=nm.replace(/^bot\s+/i,"").charAt(0).toUpperCase()||"B";document.title=nm+" · ao vivo";
+  const modo=String(d.modo||""),mo=$("modo");   // etiqueta só fora do paper; vermelha com dinheiro real
+  if(modo.startsWith("paper")){mo.hidden=true}else{mo.hidden=false;mo.className="mode"+(d.real?" real":"");mo.textContent=d.real?"⚠ DINHEIRO REAL":"TESTNET · dinheiro de teste"}
   $("tfe").textContent=d.timeframes.entry;$("tft").textContent=d.timeframes.trend;
   $("sit").innerHTML=d.pausado?'<b class="flat">⏸ Pausado</b>':d.alarme?'<b class="down">Alarme de desvio</b>':'<b class="up">● Operando</b>';
   $("estr").textContent="Estratégias: tendência"+(d.lateral_ligada?" + lateralização":"")+" + cofre";

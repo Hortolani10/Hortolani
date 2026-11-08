@@ -87,6 +87,7 @@ lateral:
 
 # Painel ao vivo no navegador: http://localhost:8765 (só leitura, só neste computador)
 painel:
+  nome: Bot Hortolani        # nome que aparece no painel (troque à vontade)
   enabled: true
   port: 8765
   abrir_navegador: true      # abre o navegador sozinho quando o bot inicia

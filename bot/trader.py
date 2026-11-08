@@ -394,7 +394,9 @@ class Trader:
             pos.append({"simbolo": s, "estrategia": p.strategy, "entrada": p.entry, "preco": px, "stop": p.stop,
                         "qtd": p.qty, "resultado_pct": px / p.entry - 1, "aberta": p.opened_at})
         return {
-            "modo": self.origem, "agora": utcnow().isoformat(), "pausado": PAUSE_FILE.exists(),
+            "modo": self.origem, "agora": utcnow().isoformat(),
+            "nome": (self.cfg.get("painel") or {}).get("nome", "Bot Hortolani"),
+            "real": self.cfg.get("mode") == "live" and not self.cfg.get("testnet", True), "pausado": PAUSE_FILE.exists(),
             "carteira": total, "bot": total - sv, "cofre": sv,
             "cofre_moedas": {k: v for k, v in (self.sleeve.st["holdings"].items() if self.sleeve else []) if v > 0},
             "posicoes": pos, "radar": self.state.get("radar") or {}, "precos": precos, "var24": var24, "equity_hist": hist,
