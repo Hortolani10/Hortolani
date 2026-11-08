@@ -42,7 +42,9 @@ class Broker:
         self.market.load_markets()
 
     # ---- dados de mercado ----
-    def candles(self, symbol: str, tf: str, limit: int = 500) -> pd.DataFrame:
+    def candles(self, symbol: str, tf: str, limit: int = 1000) -> pd.DataFrame:
+        # 1000 = máximo da Binance numa só chamada. Com 500 candles diários a EMA200 ainda não
+        # estabilizou (diferença de 0,1% no BTC, que chegou a mudar a tendência de um dia).
         return drop_open_candle(to_df(self.market.fetch_ohlcv(symbol, tf, limit=limit)), tf)
 
     def price(self, symbol: str) -> float:

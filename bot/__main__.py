@@ -122,8 +122,8 @@ def cmd_analyze(cfg, args):
     tf_e, tf_t = cfg["timeframes"]["entry"], cfg["timeframes"]["trend"]
 
     def get(sym):
-        e = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_e, limit=500)), tf_e)
-        t = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_t, limit=500)), tf_t)
+        e = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_e, limit=1000)), tf_e)
+        t = drop_open_candle(to_df(ex.fetch_ohlcv(sym, tf_t, limit=1000)), tf_t)
         return e, t
 
     out = []
