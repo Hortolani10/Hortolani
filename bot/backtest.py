@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+from . import regime
 from .risk import RiskGuard, position_size
 from .strategy import (Position, entry_features, entry_signal, lateral_prefilter, lateral_signal,
                        manage_position, prefilter)
@@ -56,6 +57,11 @@ class Result:
         }
 
 
+def _bar_ms(df: pd.DataFrame) -> int:
+    """Duração de um candle (ms): a nota usada na entrada é a do candle do SINAL (anterior)."""
+    return int(df["close_ts"].iat[1] - df["close_ts"].iat[0]) if len(df) > 1 else 0
+
+
 def _ts(ms: int) -> datetime:
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc)
 
@@ -87,6 +93,7 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
     lat_cand = {s: lateral_prefilter(df, cfg).to_numpy() for s, df in data.items()} if lat_on else {}
     lat_scale = float((cfg.get("lateral") or {}).get("risk_scale", 1.0))
     idx = {s: dict(zip(df["close_ts"].astype(int), range(len(df)))) for s, df in data.items()}
+    termo = regime.serie(data).to_dict() if (cfg.get("termometro") or {}).get("enabled") else {}
 
     def equity(prices: dict[str, float]) -> float:
         return cash + sum(p.qty * prices.get(s, p.entry) for s, p in positions.items())
@@ -107,7 +114,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                 if px > stop:
                     eq_now = equity(last_px)
                     qty = position_size(eq_now, px, stop, cfg,
-                                        guard.risk_scale(eq_now) * (lat_scale if strat == "lateral" else 1.0))
+                                        guard.risk_scale(eq_now) * (lat_scale if strat == "lateral" else 1.0)
+                                        * regime.escala(cfg, termo.get(int(row["close_ts"]) - _bar_ms(df))))
                     cost = qty * px * (1 + fee)
                     if qty > 0 and cost <= cash and cost >= cfg["fees"].get("min_order", 5.0):
                         cash -= cost

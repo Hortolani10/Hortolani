@@ -317,6 +317,54 @@ reduz o lucro total**: só 16% das variações superaram o bot sem modelo. Com p
 operações, um modelo aprende ruído. **Não adotado.** Pode ser revisto quando o diário tiver
 centenas de operações reais.
 
+## 14. Opcionais testados: memecoins, operação vendida e termômetro do mercado (nov/2026)
+
+Ideias tiradas da varredura de skills no GitHub (Binance Skills Hub, agiprolabs, tradermonty,
+crypto-trader-skill e outras). Script reproduzível: `python -m pesquisa.opcionais`.
+Dados reais da Binance, fev/2020–nov/2026, 4h/1d, mesmas taxas do bot.
+
+| Variante (só o bot, 100 USDT) | Ops/mês | Acerto | 6 anos | Queda máx. | 2022 | Últimos 12 meses |
+|---|---|---|---|---|---|---|
+| Bot sem termômetro | 4,0 | 42% | 124 | 16,2% | −0,3% | −0,4% |
+| **Bot com termômetro (adotado)** | 4,0 | 42% | **127** | **14,4%** | −0,1% | −0,0% |
+| Só memecoins (DOGE, SHIB, PEPE, FLOKI, BONK, WIF) | 1,5 | 41% | 120 | 12,3% | −1,4% | −0,7% |
+| 8 moedas + memecoins | 4,7 | 42% | 126 | 14,5% | −2,0% | −2,2% |
+| Só vendido (short em futuros, sem alavancagem) | 1,5 | 33% | 92 | 17,2% | −11,1% | +2,7% |
+| Compra 75% + vendido 25% | 5,6 | 39% | 118 | 13,3% | −2,9% | +0,7% |
+| "Cofre vendido" (short no BTC com diário em baixa) | — | 33% | 85 | 42% | +60% | — |
+
+Carteira completa (bot 75% + cofre 25%): 214 → **218** com o termômetro, queda 22,1% → **20,9%**.
+
+**Termômetro (adotado, `termometro.enabled`).** Nota 0–100: 50% amplitude (% das moedas com
+diário em alta), 30% BTC em alta no diário, 20% BTC acima da EMA50 do 4h. Abaixo de 40 o bot
+arrisca metade por operação; não bloqueia entradas. Melhorou um pouco em todos os períodos e
+não mexe na quantidade de operações. Aparece no painel e no `/status` / `/radar` do Telegram.
+
+**Rejeitados:**
+- **Operação vendida (short):** perdeu em 6 anos e **até em 2022**, o ano de baixa
+  (−11%, mesmo sem cobrar funding: −10%). Os repiques em tendência de baixa são violentos e
+  batem nos stops. Só ganhou nos últimos 12 meses (+2,7%), o que é pouco e recente demais.
+  Exigiria também chave de futuros, o que aumenta o risco da conta.
+- **"Cofre vendido":** +60% em 2022, mas 85 em 6 anos com queda de 42%: depende de acertar um ano.
+- **Memecoins:** sozinhas rendem menos que as 8 moedas, e juntas pioraram 2022 e os últimos 12
+  meses. Ainda têm risco de deslistagem e golpes. Ficam de fora.
+- **Day trade (1h/15m):** já testado na seção 10, perde mesmo sem taxas.
+- **Solana/DeFi on-chain:** fora da Binance spot; exige carteira com chave privada. Não se aplica.
+
+**Revisão de segurança das skills (código lido, nada executado):**
+- Binance Skills Hub (crypto-market-rank, query-token-info, query-token-audit, academy): só leitura,
+  sem chave, falam com web3.binance.com / www.binance.com (o query-token-info também usa
+  dquery.sintral.io para candles). Sem eval, sem ofuscação.
+- Skill `binance` (binance-cli): opera spot/futuros com a sua chave e instala um programa por script
+  (`curl … | sh`). Não usar junto com o bot.
+- agiprolabs (walk-forward, regime, volatilidade, saídas, métricas, correlação): só cálculo local
+  (algumas baixam preços da Birdeye/CoinGecko). Limpas. O pacote também tem skills que assinam
+  transações Solana com chave privada (dex-execution, raptor-dex): não usar.
+- daviddme/claude-skills: **envia API key e secret da corretora para um servidor de terceiros**
+  (fastcloud.daviddtech.com/encryptor). Não usar.
+- roman-rr/trading-skills: depende de serviço pago (signals.x70.ai) com sua chave. Dispensável.
+- crypto-trader-skill: futuros alavancados e day trade (Bybit/Hyperliquid/Binance). Não usar.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

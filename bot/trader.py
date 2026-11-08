@@ -7,6 +7,7 @@ import logging
 import time
 from pathlib import Path
 
+from . import regime
 from .data import attach_btc_trend, prepare
 
 PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras (posições seguem protegidas)
@@ -223,6 +224,7 @@ class Trader:
             scale *= float((self.cfg.get("lateral") or {}).get("risk_scale", 1.0))
         if (self.state.get("alarme_desvio") or {}).get("alarme"):
             scale *= 0.5
+        scale *= regime.escala(self.cfg, (self.state.get("termometro") or {}).get("nota"))
         qty = self.broker.amount(sym, position_size(eq, px, sig.stop, self.cfg, scale))
         if qty * px < self.broker.min_notional(sym) or qty * px * 1.002 > self.bot_free_usdt():
             log.info("%s: sinal válido mas saldo/tamanho insuficiente", sym)
@@ -266,13 +268,27 @@ class Trader:
             except Exception:
                 log.exception("erro buscando BTC para o filtro de mercado")
                 return
-        # 4) análise de cada par no candle fechado
+        # 4) prepara todos os pares (indicadores + tendência) e mede o termômetro do mercado
+        prontos = {}
         for sym in self.cfg["symbols"]:
             try:
                 d_raw = self.broker.candles(sym, tf_t)
                 df = prepare(self.broker.candles(sym, tf_e), d_raw, self.cfg)
                 if btc is not None:
                     df = attach_btc_trend(df, btc)
+                prontos[sym] = (df, d_raw)
+            except Exception:
+                log.exception("erro processando %s", sym)
+        try:
+            termo = regime.nota_atual({s: d for s, (d, _) in prontos.items()}, btc)
+            if termo:
+                termo["atualizado"] = utcnow().isoformat()
+                self.state["termometro"] = termo
+        except Exception:
+            log.exception("erro calculando o termômetro do mercado")
+        # 5) análise de cada par no candle fechado
+        for sym, (df, d_raw) in prontos.items():
+            try:
                 self._update_radar(sym, df)
                 self._cache_chart(sym, df, d_raw)
                 last_ts = int(df["ts"].iloc[-1])
@@ -367,6 +383,9 @@ class Trader:
         btc = next(iter(rad.values())).get("btc")
         if btc:
             lines.append(f"Filtro do BTC: {btc.lower()}")
+        tt = self.termo_text()
+        if tt:
+            lines.append(tt)
         return "\n".join(lines)
 
     def snapshot(self) -> dict:
@@ -402,7 +421,26 @@ class Trader:
             "posicoes": pos, "radar": self.state.get("radar") or {}, "precos": precos, "var24": var24, "equity_hist": hist,
             "alarme": (self.state.get("alarme_desvio") or {}).get("alarme", False),
             "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
+            "termometro": self._termo_info(),
         }
+
+    def _termo_info(self) -> dict | None:
+        t = self.state.get("termometro")
+        if not t:
+            return None
+        tc = self.cfg.get("termometro") or {}
+        return {**t, "ligado": bool(tc.get("enabled")), "limite": float(tc.get("limite", 40)),
+                "risco": regime.escala(self.cfg, t.get("nota"))}
+
+    def termo_text(self) -> str | None:
+        t = self._termo_info()
+        if not t:
+            return None
+        txt = (f"🌡 Termômetro do mercado: {t['nota']}/100 · {t['rotulo']} "
+               f"({t['moedas_em_alta']}/{t['moedas']} moedas em alta, BTC {'em alta' if t['btc_alta'] else 'sem alta'})")
+        if t["ligado"] and t["risco"] < 1:
+            txt += f"\n   ↳ risco por operação reduzido para {t['risco']:.0%} do normal"
+        return txt
 
     # ---------- celular: status, comandos e resumo diário ----------
     def status_text(self) -> str:
@@ -425,6 +463,9 @@ class Trader:
                     lines.append(f"• {s}: entrada {p.entry:.6g} · stop {p.stop:.6g}")
         else:
             lines.append("• Bot sem posições abertas (aguardando sinal)")
+        tt = self.termo_text()
+        if tt:
+            lines.append(tt)
         if PAUSE_FILE.exists():
             lines.append("⏸ PAUSADO: sem novas compras")
         if (self.state.get("alarme_desvio") or {}).get("alarme"):

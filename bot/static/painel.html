@@ -120,6 +120,7 @@ footer{color:var(--faint);font-size:12px}
   <div class="live"><i class="dot" id="dot"></i><span id="hora">conectando…</span></div>
   <div id="sit"><b>—</b></div>
   <div class="muted" id="estr"></div>
+  <div id="termo" class="muted"></div>
   <div class="muted">Somente leitura · só neste computador</div>
   <button type="button" class="themebtn" id="themebtn">◐ Tema: escuro</button>
  </div>
@@ -268,6 +269,7 @@ async function load(){
   $("tfe").textContent=d.timeframes.entry;$("tft").textContent=d.timeframes.trend;
   $("sit").innerHTML=d.pausado?'<b class="flat">⏸ Pausado</b>':d.alarme?'<b class="down">Alarme de desvio</b>':'<b class="up">● Operando</b>';
   $("estr").textContent="Estratégias: tendência"+(d.lateral_ligada?" + lateralização":"")+" + cofre";
+  const tm=d.termometro;$("termo").innerHTML=tm?`Termômetro do mercado: <b class="${tm.nota>=60?"up":tm.nota>=40?"flat":"down"}">${esc(tm.nota)}/100</b> · ${esc(tm.rotulo)}<br>${esc(tm.moedas_em_alta)}/${esc(tm.moedas)} moedas em alta${tm.ligado&&tm.risco<1?` · risco ${fmt(tm.risco*100,0)}%`:""}`:"";
   const eh=d.equity_hist||[],ini=eh.length?eh[0][1]:d.carteira,ch=d.carteira/ini-1;
   $("k1").textContent=fmt(d.carteira)+" USDT";$("k1b").innerHTML=`<span class="${ch>=0?"up":"down"}">${ch>=0?"+":""}${fmt(ch*100)}%</span> desde que ligou`;spark(eh);
   $("k2").textContent=fmt(d.bot)+" USDT";const np=(d.posicoes||[]).length;$("k2b").textContent=np?np+" posição(ões) aberta(s)":"sem posições · esperando sinal";

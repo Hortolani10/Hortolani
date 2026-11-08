@@ -689,3 +689,61 @@ def test_config_ativo_inherits_and_separates(cfg, tmp_path, monkeypatch):
     assert tr.origem == "paper-ativo"
     tr.handle_commands()
     assert api.sent == []                                                      # não disputa os comandos
+
+
+# ---------------- termômetro do mercado ----------------
+def _tdf(trends, close=100.0, ema_mid=90.0):
+    import pandas as pd
+    n = len(trends)
+    return pd.DataFrame({"trend": trends, "close": [close] * n, "ema_mid": [ema_mid] * n,
+                         "close_ts": [1000 * (i + 1) for i in range(n)]})
+
+
+def test_termometro_nota_e_escala(cfg):
+    from bot import regime
+    dfs = {"BTC/USDT": _tdf(["ALTA"]), "ETH/USDT": _tdf(["BAIXA"]), "SOL/USDT": _tdf(["SEM_DADOS"])}
+    t = regime.nota_atual(dfs, None)
+    # amplitude 1/2 (SEM_DADOS não conta) -> 25 + BTC em alta 30 + BTC > EMA50 20 = 75
+    assert t["nota"] == 75 and t["moedas"] == 2 and t["rotulo"].startswith("favorável")
+    low = regime.nota_atual({"BTC/USDT": _tdf(["BAIXA"], 80), "ETH/USDT": _tdf(["BAIXA"])}, None)
+    assert low["nota"] == 0 and "risk-off" in low["rotulo"]
+    cfg["termometro"] = {"enabled": True, "limite": 40, "fator": 0.5}
+    assert regime.escala(cfg, 10) == 0.5 and regime.escala(cfg, 40) == 1.0 and regime.escala(cfg, None) == 1.0
+    cfg["termometro"]["enabled"] = False
+    assert regime.escala(cfg, 10) == 1.0
+
+
+def test_termometro_serie_igual_a_nota_atual():
+    from bot import regime
+    dfs = {"BTC/USDT": _tdf(["BAIXA", "ALTA"]), "ETH/USDT": _tdf(["ALTA", "ALTA"])}
+    s = regime.serie(dfs)
+    assert round(s.iloc[-1]) == regime.nota_atual(dfs, None)["nota"] == 100
+    assert round(s.iloc[0]) == 45      # 50%*0,5 + 0 + 20
+
+
+def test_termometro_reduz_risco_no_backtest(synth, cfg):
+    from bot.backtest import run
+    from bot.data import prepare
+    from bot.demo import resample
+    e = synth(3000, H1, 0.0008, 3)
+    data = {"UP/USDT": prepare(e, resample(e, 4), cfg)}
+    cfg["termometro"] = {"enabled": False}
+    a = run(data, cfg, 1000.0)
+    cfg["termometro"] = {"enabled": True, "limite": 101, "fator": 0.5}     # sempre "defensivo"
+    b = run(data, cfg, 1000.0)
+    assert a.trades and len(a.trades) == len(b.trades)
+    assert sum(t.qty for t in b.trades) < sum(t.qty for t in a.trades)
+
+
+def test_termometro_no_status_e_painel(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    cfg["termometro"] = {"enabled": True, "limite": 101, "fator": 0.5}
+    e = synth(2500, H1, 0.0008, 3)
+    br = FakeBroker(e, resample(e, 4)); br.n = 1500
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    tr.tick()
+    assert 0 <= tr.state["termometro"]["nota"] <= 100
+    assert "Termômetro" in tr.status_text() and "50%" in tr.status_text()
+    assert tr.snapshot()["termometro"]["risco"] == 0.5

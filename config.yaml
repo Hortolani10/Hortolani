@@ -75,6 +75,15 @@ trend_sleeve:
   symbols: [BTC/USDT, ETH/USDT]
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
 
+# Termômetro do mercado (0-100), ideia da skill crypto-regime-analyzer calculada com os
+# candles que o bot já baixa: 50% % das moedas em alta no diário, 30% BTC em alta, 20% BTC > EMA50.
+# Nota abaixo do limite -> arrisca metade por operação (não bloqueia entradas).
+# Teste de 6 anos: 100 -> 126 (vs 124) e queda máx. 14,4% (vs 16,2%). Ver PESQUISA.md seção 14.
+termometro:
+  enabled: true
+  limite: 40          # abaixo disso = mercado defensivo (risk-off)
+  fator: 0.5          # arrisca 50% do normal enquanto estiver abaixo do limite
+
 # Estratégia de LATERALIZAÇÃO operando de verdade (reversão à média no 4h quando o diário está LATERAL).
 # Teste em 6 anos (carteira completa, 100 USDT): ~4 operações/mês em vez de ~2, acerto 43% vs 37%,
 # 100 -> ~220 (vs ~226), queda máx. 22% (vs 19%). Ver PESQUISA.md seção 12.

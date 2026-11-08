@@ -11,6 +11,11 @@ Reequilíbrio para 75/25 todo mês. Teste em 6 anos (out/2020–nov/2026, 100 US
 **100 → ~227 USDT, queda máxima 19%** (só o bot: 100 → 139, queda 12%;
 segurar BTC: 100 → 717, queda 77%). Detalhes em [`PESQUISA.md`](PESQUISA.md).
 
+**Termômetro do mercado (0–100):** mede quantas moedas estão em alta e a força do BTC. Abaixo de 40
+(mercado defensivo) o bot arrisca metade por operação. Aparece no painel e no `/status`.
+Ligar/desligar em `config.yaml` → `termometro`. Memecoins, operação vendida (short) e day trade
+foram testados e **não** compensaram (PESQUISA.md, seção 14).
+
 Bot em Python para **Binance Spot (somente compra)** que segue regras objetivas:
 só compra **a favor da tendência**, no **pullback que já mostrou retomada**, com **stop
 loss registrado na corretora**, **tamanho de posição pelo risco** e **saída em etapas**
@@ -167,6 +172,7 @@ bot/exchange.py     Binance (ccxt) e corretora simulada (paper)
 bot/trader.py       loop ao vivo
 bot/report.py       relatório/checklist de análise
 bot/dashboard.py    gera o painel HTML (bot/dashboard_template.html)
+bot/regime.py       termômetro do mercado (0-100) que reduz o risco em mercado defensivo
 bot/sleeve.py       cofre "seguir a tendência" (25%) e backtest da carteira
 bot/learn.py        diário, relatório de aprendizado, alarme de desvio, reotimização
 bot/notify.py       Telegram e sinal de vida (healthchecks.io)
