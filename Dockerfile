@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade "pip>=26.2.2" certifi \
  && pip install --no-cache-dir -r requirements.txt
 COPY bot ./bot
-COPY config.yaml PROMPT_ANALISE.md ./
+COPY config.yaml config_ativo.yaml config_aprendiz*.yaml PROMPT_ANALISE.md ./
 
 USER bot
 WORKDIR /app/runtime

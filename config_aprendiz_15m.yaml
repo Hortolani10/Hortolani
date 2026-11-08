@@ -1,0 +1,14 @@
+# Bot aprendiz no gráfico de 15m (tendência no 1h). Só em PAPER.
+# Herda tudo do config_aprendiz.yaml (setups, 0,5% de risco, alvo 2R, saída por tempo).
+# max_bars conta candles deste gráfico: 18 candles de 15m.
+# Painel: http://localhost:8771
+herda: config_aprendiz.yaml
+instancia: aprendiz-15m
+
+timeframes:
+  trend: 1h
+  entry: 15m
+
+painel:
+  nome: Bot Aprendiz 15m
+  port: 8771

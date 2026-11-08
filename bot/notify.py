@@ -85,9 +85,9 @@ class Telegram:
 class TelegramLogHandler(logging.Handler):
     """Encaminha para o Telegram os eventos importantes do log e todos os erros."""
 
-    def __init__(self, tg: Telegram, prefix: str = ""):
+    def __init__(self, tg: Telegram, prefix: str = "", so_erros: bool = False):
         super().__init__(level=logging.INFO)
-        self.tg, self.prefix = tg, prefix
+        self.tg, self.prefix, self.so_erros = tg, prefix, so_erros
 
     def emit(self, record: logging.LogRecord) -> None:
         if record.name.startswith("bot.notify"):
@@ -98,6 +98,8 @@ class TelegramLogHandler(logging.Handler):
             return
         if record.levelno >= logging.ERROR:
             self.tg.send(f"{self.prefix}⚠️ ERRO: {msg[:500]}", dedupe_s=900)
+        elif self.so_erros:
+            return
         elif record.levelno >= logging.WARNING or any(k in msg for k in AVISAR):
             self.tg.send(f"{self.prefix}{msg}")
 

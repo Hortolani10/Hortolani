@@ -1,9 +1,28 @@
 # Uso:  docker compose up -d --build     (inicia e mantém ligado 24h)
 #       docker compose logs -f           (ver o que o bot está fazendo)
 # Para mudar de modo, troque "paper" por "live" em command (veja docs/VPS.md).
+x-seguro: &seguro                    # mesmas travas de segurança em todos os bots
+  build: .
+  image: hortolani-bot
+  restart: unless-stopped
+  env_file: .env
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   bot:
     build: .
+    image: hortolani-bot
     container_name: hortolani-bot
     command: ["paper"]
     restart: unless-stopped          # reinicia sozinho se cair ou se o servidor reiniciar
@@ -33,3 +52,67 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # ---------------- BOTS APRENDIZES (só PAPER, dinheiro fictício) ----------------
+  # Operam quase todo dia em 4 tempos gráficos para coletar dados (setups + padrões de gráfico).
+  # Cada um usa a sua pasta dentro de runtime/ (estado, diário e log separados).
+  # Painéis: ssh -L 8768:localhost:8768 -L 8769:localhost:8769 -L 8770:localhost:8770 -L 8771:localhost:8771 bot@IP
+  aprendiz-4h:
+    <<: *seguro
+    container_name: aprendiz-4h
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-4h && cd /app/runtime/aprendiz-4h && exec python -m bot --config /app/config_aprendiz.yaml paper"]
+    environment: [PAINEL_HOST=0.0.0.0]
+    ports: ["127.0.0.1:8768:8768"]
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-4h/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m
+
+  aprendiz-2h:
+    <<: *seguro
+    container_name: aprendiz-2h
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-2h && cd /app/runtime/aprendiz-2h && exec python -m bot --config /app/config_aprendiz_2h.yaml paper"]
+    environment: [PAINEL_HOST=0.0.0.0]
+    ports: ["127.0.0.1:8769:8769"]
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-2h/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m
+
+  aprendiz-1h:
+    <<: *seguro
+    container_name: aprendiz-1h
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-1h && cd /app/runtime/aprendiz-1h && exec python -m bot --config /app/config_aprendiz_1h.yaml paper"]
+    environment: [PAINEL_HOST=0.0.0.0]
+    ports: ["127.0.0.1:8770:8770"]
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-1h/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m
+
+  aprendiz-15m:
+    <<: *seguro
+    container_name: aprendiz-15m
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-15m && cd /app/runtime/aprendiz-15m && exec python -m bot --config /app/config_aprendiz_15m.yaml paper"]
+    environment: [PAINEL_HOST=0.0.0.0]
+    ports: ["127.0.0.1:8771:8771"]
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-15m/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m

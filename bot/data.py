@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from .indicators import add_all
+from .padroes import add_padroes
 from .strategy import trend_series
 
 COLS = ["ts", "open", "high", "low", "close", "volume"]
@@ -67,7 +68,7 @@ def prepare(entry_df: pd.DataFrame, trend_df: pd.DataFrame, cfg: dict) -> pd.Dat
         e.sort_values("close_ts"), t.sort_values("close_ts"), on="close_ts", direction="backward"
     )
     merged["trend"] = merged["trend"].fillna("SEM_DADOS")
-    return merged.reset_index(drop=True)
+    return add_padroes(merged.reset_index(drop=True))
 
 
 def attach_btc_trend(df: pd.DataFrame, btc: pd.DataFrame) -> pd.DataFrame:

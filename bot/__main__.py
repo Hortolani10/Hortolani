@@ -200,6 +200,22 @@ def cmd_carteira(cfg, args):
         prev = v
 
 
+def cmd_diario():
+    """Relatório só da PRÁTICA (rápido): junta o diário deste bot e o dos bots aprendizes."""
+    from .learn import ler_diario, relatorio
+
+    arquivos = [Path("logs/diario.jsonl")] + sorted(Path(".").glob("*/logs/diario.jsonl"))
+    partes = [ler_diario(p) for p in arquivos if p.exists()]
+    partes = [p for p in partes if not p.empty]
+    if not partes:
+        print("Ainda não há operações no diário. Volte depois que os bots operarem.")
+        return
+    df = pd.concat(partes, ignore_index=True)
+    print(f"=== O QUE A PRÁTICA ENSINOU ({len(arquivos)} diário(s)) ===")
+    print(relatorio(df, min_ops=20))
+    print("\nRegra: só conclua algo com 20+ operações; com menos, pode ser sorte.")
+
+
 def cmd_aprender(cfg, args):
     """Relatório de aprendizado: histórico + prática, alarme de desvio e proposta de ajuste."""
     import time as _t
@@ -261,6 +277,8 @@ def cmd_run(cfg, mode):
     lock = single_instance(mode + suf)  # noqa: F841
     check_env_file()
     cfg["mode"] = mode
+    if mode != "paper" and (cfg.get("exploracao") or {}).get("enabled"):
+        sys.exit("O modo exploração (bot aprendiz) só roda em PAPER: ele erra de propósito para aprender.")
     state_path = f"state_{mode}{suf}.json"
     state = load_state(state_path)
     market = make_ccxt({**cfg, "testnet": False}, with_keys=False) if mode == "paper" else None
@@ -284,7 +302,8 @@ def cmd_run(cfg, mode):
     if tg.enabled:
         tag = {"paper": "[PAPER", "live": "[TESTNET" if cfg.get("testnet", True) else "[REAL"}[mode]
         tag += (f"-{inst.upper()}] " if inst else "] ")
-        logging.getLogger("bot").addHandler(TelegramLogHandler(tg, tag))
+        avisos = (cfg.get("telegram") or {}).get("avisos", True)
+        logging.getLogger("bot").addHandler(TelegramLogHandler(tg, tag, so_erros=not avisos))
     else:
         logging.getLogger("bot").info("Telegram não configurado (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID): sem avisos no celular")
     from .painel import from_config
@@ -324,6 +343,7 @@ def main():
     c_.add_argument("--balance", type=float, default=100)
     ap_ = sub.add_parser("aprender", help="relatório do que funcionou, alarme de desvio e proposta de ajuste")
     ap_.add_argument("--days", type=int, default=1150)
+    sub.add_parser("diario", help="o que a prática ensinou: todas as operações de todos os bots (setups e padrões)")
     sub.add_parser("paper", help="opera com dinheiro fictício e preços reais")
     sub.add_parser("live", help="opera de verdade (testnet ou real, conforme config)")
     args = ap.parse_args()
@@ -334,6 +354,8 @@ def main():
         cmd_carteira(cfg, args)
     elif args.cmd == "aprender":
         cmd_aprender(cfg, args)
+    elif args.cmd == "diario":
+        cmd_diario()
     elif args.cmd == "dashboard":
         cmd_dashboard(cfg, args)
     elif args.cmd == "analyze":

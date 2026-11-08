@@ -1,3 +1,6 @@
+import pytest
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
 import pandas as pd
 
 from bot.backtest import run
@@ -747,3 +750,92 @@ def test_termometro_no_status_e_painel(synth, cfg, tmp_path, monkeypatch):
     assert 0 <= tr.state["termometro"]["nota"] <= 100
     assert "Termômetro" in tr.status_text() and "50%" in tr.status_text()
     assert tr.snapshot()["termometro"]["risco"] == 0.5
+
+
+# ---------------- padrões de gráfico e bot aprendiz ----------------
+def _velas(rows):
+    import pandas as pd
+    df = pd.DataFrame(rows, columns=["open", "high", "low", "close"])
+    df["volume"] = 1.0; df["vol_ma"] = 1.0; df["atr"] = 1.0; df["rsi"] = 50.0; df["ema_slow"] = 0.0
+    return df
+
+
+def test_padroes_de_candle():
+    from bot.padroes import add_padroes, presentes
+    df = add_padroes(_velas([[10, 10.2, 8.8, 9.0], [8.9, 10.6, 8.8, 10.5]]))      # vermelho e verde que engole
+    assert "engolfo_alta" in presentes(df, 1)
+    df = add_padroes(_velas([[10, 10.1, 7.0, 9.9]]))                                # sombra inferior longa
+    assert "martelo" in presentes(df, 0) and "estrela_cadente" not in presentes(df, 0)
+    df = add_padroes(_velas([[10, 11, 9, 10.01]]))
+    assert "doji" in presentes(df, 0)
+
+
+def test_padroes_sem_olhar_o_futuro(synth, cfg):
+    from bot.data import prepare
+    from bot.demo import resample
+    e = synth(1500, H1, 0.0005, 5)
+    full = prepare(e, resample(e, 4), cfg)
+    cut = prepare(e.iloc[:1000].reset_index(drop=True), resample(e.iloc[:1000].reset_index(drop=True), 4), cfg)
+    cols = [c for c in full.columns if c.startswith("pad_")]
+    assert len(cols) == 17
+    assert (full[cols].iloc[:990].to_numpy() == cut[cols].iloc[:990].to_numpy()).all()
+
+
+def test_aprendiz_opera_mais_e_grava_setup_padroes_e_tf(synth, cfg):
+    from bot.backtest import run
+    from bot.data import prepare
+    from bot.demo import resample
+    e = synth(3000, H1, 0.0003, 7)
+    data = {"UP/USDT": prepare(e, resample(e, 4), cfg)}
+    base = run(data, cfg, 1000.0)
+    cfg["exploracao"] = {"enabled": True}
+    cfg["risk"].update({"exit_mode": "alvo", "target_r": 2.0, "max_bars": 18, "trend_exit": False})
+    ap = run(data, cfg, 1000.0)
+    assert len(ap.trades) > len(base.trades) * 3
+    setups = {t.features.get("estrategia") for t in ap.trades}
+    assert setups & {"rompimento", "reversao_rsi", "padrao_suporte", "divergencia", "pullback_livre"}
+    t = next(t for t in ap.trades if t.features.get("estrategia") not in ("tendencia", "lateral"))
+    assert isinstance(t.features["padroes"], list) and t.features["tf"] == "1h"
+    assert all(("tempo" in x.reasons) or ("alvo" in x.reasons) or ("stop" in x.reasons) or ("média" in x.reasons)
+               or ("fim" in x.reasons) for x in ap.trades)
+
+
+def test_aprendiz_nunca_roda_em_live(cfg, monkeypatch, tmp_path):
+    import bot.__main__ as m
+    monkeypatch.chdir(tmp_path)
+    cfg["exploracao"] = {"enabled": True}
+    monkeypatch.setattr(m, "single_instance", lambda *_: None)
+    monkeypatch.setattr(m, "check_env_file", lambda: None)
+    with pytest.raises(SystemExit) as e:
+        m.cmd_run(cfg, "live")
+    assert "PAPER" in str(e.value)
+
+
+def test_configs_aprendiz_herdam_e_separam():
+    from bot.__main__ import load_config
+    vistos = set()
+    for f, tf in (("config_aprendiz.yaml", "4h"), ("config_aprendiz_2h.yaml", "2h"),
+                  ("config_aprendiz_1h.yaml", "1h"), ("config_aprendiz_15m.yaml", "15m")):
+        c = load_config(str(ROOT / f))
+        assert c["timeframes"]["entry"] == tf and c["exploracao"]["enabled"] and not c["trend_sleeve"]["enabled"]
+        assert c["risk"]["risk_per_trade"] == 0.005 and c["telegram"]["comandos"] is False
+        vistos.add((c["instancia"], c["painel"]["port"]))
+    assert len({i for i, _ in vistos}) == 4 and len({p for _, p in vistos}) == 4
+
+
+def test_telegram_so_erros():
+    import logging
+    from bot.notify import Telegram, TelegramLogHandler
+    api = FakeTelegramAPI([])
+    h = TelegramLogHandler(Telegram("t", "7", post=api), "[X] ", so_erros=True)
+    h.emit(logging.LogRecord("bot", logging.INFO, "", 0, "COMPRA BTC/USDT", None, None))
+    assert not [m for m in api.sent if "COMPRA" in m]
+    h.emit(logging.LogRecord("bot", logging.ERROR, "", 0, "falhou", None, None))
+    assert any("ERRO" in m for m in api.sent)
+
+
+def test_capital_fixo_nao_encolhe(cfg):
+    cfg["risk"]["capital_fixo"] = 1000
+    a = position_size(500, 100, 95, cfg)
+    b = position_size(5000, 100, 95, cfg)
+    assert a == b > 0

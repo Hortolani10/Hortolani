@@ -12,8 +12,9 @@ def position_size(equity: float, entry: float, stop: float, cfg: dict, scale: fl
     per_unit_loss = (entry - stop) + entry * (f["taker"] * 2 + f["slippage"])
     if per_unit_loss <= 0 or entry <= 0:
         return 0.0
-    qty_risk = equity * r["risk_per_trade"] * scale / per_unit_loss
-    qty_cap = equity * r["max_position_pct"] / entry
+    base = float(r.get("capital_fixo") or equity)   # aprendiz: risco sobre capital fixo (não encolhe)
+    qty_risk = base * r["risk_per_trade"] * scale / per_unit_loss
+    qty_cap = base * r["max_position_pct"] / entry
     return max(0.0, min(qty_risk, qty_cap))
 
 

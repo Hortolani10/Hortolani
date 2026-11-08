@@ -77,6 +77,27 @@ def relatorio(df: pd.DataFrame, min_ops: int = 8) -> str:
         for lab, g in df.groupby(cut, observed=True):
             aviso = "" if len(g) >= min_ops else "  (poucas operações: não conclua nada)"
             out.append(f"  {str(lab):<10} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {g.r.mean():+.2f}R{aviso}")
+    if "tf" in df and df["tf"].notna().any():
+        out.append("\nPor tempo gráfico:")
+        for lab, g in df.groupby("tf"):
+            aviso = "" if len(g) >= min_ops else "  (poucas operações)"
+            out.append(f"  {str(lab):<15} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {g.r.mean():+.2f}R{aviso}")
+    if "estrategia" in df and df["estrategia"].notna().any():
+        out.append("\nPor setup (tipo de entrada):")
+        for lab, g in df.groupby("estrategia"):
+            aviso = "" if len(g) >= min_ops else "  (poucas operações)"
+            out.append(f"  {str(lab):<15} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {g.r.mean():+.2f}R{aviso}")
+    if "padroes" in df and df["padroes"].notna().any():
+        from .padroes import NOMES
+        ex = df[["r", "padroes"]].dropna().explode("padroes").dropna()
+        if not ex.empty:
+            out.append("\nPadrões de gráfico no candle da entrada (com o padrão × média geral):")
+            linhas = []
+            for lab, g in ex.groupby("padroes"):
+                linhas.append((g.r.mean(), lab, g))
+            for media, lab, g in sorted(linhas, key=lambda x: -x[0]):
+                aviso = "" if len(g) >= min_ops else "  (poucas operações)"
+                out.append(f"  {NOMES.get(lab, lab):<44} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {media:+.2f}R{aviso}")
     for col, nome in (("sessao", "Sessão do sinal"), ("simbolo", "Moeda")):
         if col in df:
             out.append(f"\n{nome}:")

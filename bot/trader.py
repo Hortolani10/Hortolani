@@ -5,9 +5,11 @@ import copy
 import json
 import logging
 import time
+from datetime import timedelta
 from pathlib import Path
 
-from . import regime
+from . import exploracao, regime
+from .padroes import NOMES as PAD_NOMES
 from .data import attach_btc_trend, prepare
 
 PAUSE_FILE = Path("PAUSAR")      # crie este arquivo para impedir NOVAS compras (posições seguem protegidas)
@@ -177,6 +179,7 @@ class Trader:
             acts = manage_position(shadow, row, trend, self.cfg)
             old_stop = pos.stop
             pos.stop, pos.highest, pos.partial_done = shadow.stop, shadow.highest, shadow.partial_done
+            pos.bars = shadow.bars                 # conta os candles (saída por tempo)
             sold = False
             for act in acts:
                 if act.kind == "sell" and act.qty > 0:
@@ -212,6 +215,10 @@ class Trader:
             lsig = lateral_signal(df, i, self.cfg)
             if lsig.ok:
                 sig, strat = lsig, "lateral"
+        if not sig.ok and exploracao.ativos(self.cfg):
+            esig, nome = exploracao.sinal(df, i, self.cfg)
+            if esig.ok:
+                sig, strat = esig, nome
         if not sig.ok:
             log.info("%s: sem entrada [tendência %s] falhou: %s", sym, trend, ", ".join(sig.failed))
             return
@@ -231,12 +238,15 @@ class Trader:
             return
         filled, avg, cost = self.broker.buy(sym, qty)
         pos = Position(sym, filled, avg, sig.stop, avg - sig.stop, utcnow().isoformat(), highest=avg, cost=cost,
-                       strategy=strat, features={**entry_features(df, i), "risco_escala": scale, "estrategia": strat})
+                       strategy=strat, features={**entry_features(df, i), "risco_escala": scale, "estrategia": strat,
+                                                 "termometro": (self.state.get("termometro") or {}).get("nota"),
+                                                 "tf": self.cfg["timeframes"]["entry"]})
         self.positions[sym] = pos
         self._protect(sym, pos)
-        log.info("COMPRA %s [%s] qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s",
+        pads = ", ".join(PAD_NOMES.get(p, p) for p in pos.features.get("padroes", [])) or "nenhum"
+        log.info("COMPRA %s [%s] qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s | padrões: %s",
                  sym, strat, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, scale,
-                 "volta à média ou 12 velas" if strat == "lateral" else self.cfg["risk"].get("exit_mode", "parcial"))
+                 "volta à média ou 12 velas" if strat == "lateral" else self.cfg["risk"].get("exit_mode", "parcial"), pads)
 
     def tick(self) -> None:
         tf_e, tf_t = self.cfg["timeframes"]["entry"], self.cfg["timeframes"]["trend"]
@@ -501,7 +511,28 @@ class Trader:
         day = utcnow().strftime("%Y-%m-%d")
         if utcnow().hour >= 1 and self.state.get("summary_day") != day:   # ~22h em Brasília, após o fechamento diário
             self.state["summary_day"] = day
-            self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n\n" + self.radar_text(), dedupe_s=0)
+            if exploracao.ativos(self.cfg):           # aprendiz: resumo curto do que aprendeu no dia
+                self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n" + self._resumo_aprendiz(), dedupe_s=0)
+            else:
+                self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n\n" + self.radar_text(), dedupe_s=0)
+
+    def _resumo_aprendiz(self) -> str:
+        from .learn import DIARIO, ler_diario
+        df = ler_diario(DIARIO)
+        if df.empty:
+            return "📚 Ainda sem operações fechadas."
+        df = df[df["origem"] == self.origem]
+        corte = (utcnow() - timedelta(days=1)).isoformat()
+        hoje = df[df["fechada"] >= corte]
+        txt = f"📚 Últimas 24 h: {len(hoje)} operações"
+        if len(hoje):
+            txt += f" · acerto {(hoje.r > 0).mean():.0%} · média {hoje.r.mean():+.2f}R"
+        if len(df):
+            txt += f"\n📚 Total: {len(df)} operações · acerto {(df.r > 0).mean():.0%} · média {df.r.mean():+.2f}R"
+            if "estrategia" in df:
+                m = df.groupby("estrategia")["r"].agg(["count", "mean"]).sort_values("mean", ascending=False)
+                txt += "\n" + "\n".join(f"  {k}: {int(v['count'])} ops · {v['mean']:+.2f}R" for k, v in m.iterrows())
+        return txt
 
     def run_forever(self) -> None:
         log.info("Bot iniciado | modo=%s | símbolos=%s", self.cfg["mode"], self.cfg["symbols"])

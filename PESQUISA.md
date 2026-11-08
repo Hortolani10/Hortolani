@@ -365,6 +365,52 @@ não mexe na quantidade de operações. Aparece no painel e no `/status` / `/rad
 - roman-rr/trading-skills: depende de serviço pago (signals.x70.ai) com sua chave. Dispensável.
 - crypto-trader-skill: futuros alavancados e day trade (Bybit/Hyperliquid/Binance). Não usar.
 
+## 15. Bot aprendiz: 7 setups × 4 tempos gráficos e 17 padrões de gráfico (nov/2026)
+
+Objetivo: **processo antes do resultado**. Os aprendizes operam quase todo dia em paper,
+erram de propósito e gravam setup, padrões e tempo gráfico de cada operação no diário.
+Backtest com dados reais da Binance, 16 moedas, 0,5% de risco, alvo 2R ou saída após 18 candles,
+taxas e slippage incluídos. Script: `python -m pesquisa.aprendiz`.
+
+| Aprendiz | Histórico | Operações/dia | Acerto | Média por operação |
+|---|---|---|---|---|
+| 4h (tendência 1d) | 6,1 anos | 2,8 | 40% | −0,08R |
+| 2h (tendência 1d) | 2,6 anos | 5,2 | 38% | −0,17R |
+| 1h (tendência 4h) | 3,1 anos | 5,1 | 38% | −0,21R |
+| 15 min (tendência 1h) | 1,1 ano | 11,0 | 30% | −0,52R |
+
+**Setups (média por operação em R):**
+
+| Setup | 4h | 2h | 1h | 15 min |
+|---|---|---|---|---|
+| Rompimento (máxima de 20 + volume) | **+0,02** | −0,01 | −0,08 | −0,20 |
+| Tendência (regras do bot principal) | **+0,10** | −0,01 | −0,20 | −0,62 |
+| Lateral (banda inferior) | 0,00 | −0,07 | −0,15 | −0,53 |
+| Pullback livre (sem filtro de tendência) | −0,03 | −0,12 | −0,15 | −0,48 |
+| Reversão do RSI (sai da sobrevenda) | −0,10 | −0,31 | −0,36 | −0,64 |
+| Divergência de alta no RSI | −0,15 | −0,16 | −0,24 | −0,60 |
+| Engolfo/martelo no suporte | −0,23 | −0,31 | −0,37 | −0,69 |
+
+**Padrões de gráfico (os mesmos nos 4 tempos gráficos):**
+- **Funcionam melhor = força:** RSI acima de 70, três soldados, perto da resistência,
+  rompimento da máxima de 20. No 4h: +0,12R, +0,08R, +0,05R e +0,02R.
+- **Funcionam pior = fraqueza:** martelo, doji, fundo duplo, perto do suporte, squeeze,
+  sobrevenda e divergência de alta (de −0,10R a −0,25R no 4h, pior nos gráficos menores).
+
+**O que isso ensina:**
+1. Em cripto, **comprar força** (rompimento, momentum) é melhor que **comprar fraqueza**
+   (fundo, suporte, sobrevenda). Os padrões "clássicos" de reversão (martelo, fundo duplo,
+   divergência) perderam em todos os tempos gráficos.
+2. **Quanto menor o gráfico, pior:** no 15 min a taxa + slippage (~0,15% por ida e volta) é
+   grande perto do stop, e o acerto cai para 30%.
+3. Só o 4h com setups de força ficou perto do zero ou positivo. Bate com as seções 2, 7 e 10.
+
+**Como os aprendizes rodam:** 4 contêineres em paper (4h, 2h, 1h, 15 min), saldo fictício de
+10.000 com risco fixo de 5 USDT por operação (o saldo encolher não os faz parar). O backtest é
+o ponto de partida; o diário real vai confirmar ou derrubar estes números. Candidato a testar
+no bot principal quando houver 100+ operações reais: rompimento no 4h com RSI > 62.
+Relatório da prática: `python -m bot diario`.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

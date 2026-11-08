@@ -1,20 +1,17 @@
 # Bot de Trading Binance — Tendência + Pullback com gestão de risco
 
-**A carteira tem duas partes, com dinheiro separado:**
+**Dois tipos de bot rodando juntos no servidor (todos em paper por enquanto):**
 
-| Parte | Quanto | O que faz | Por quê |
-|---|---|---|---|
-| **Bot** | 75% | Operações de poucos dias (4h) com stop, só a favor da tendência | Protege o capital: queda máx. ~12% em 6 anos, ficou de fora em 2022 |
-| **Cofre de tendência** | 25% | Segura BTC/ETH enquanto a tendência diária está em alta; senão USDT | Aproveita as grandes altas que o bot perde |
+| Bot | O que faz | Para quê |
+|---|---|---|
+| **Principal** (75% bot + 25% cofre) | Swing no 4h só a favor da tendência, lateralização e cofre BTC/ETH; termômetro reduz o risco em mercado defensivo | É o candidato a dinheiro real: poucas operações, risco controlado |
+| **Aprendizes** (4h, 2h, 1h e 15 min) | Operam quase todo dia com 7 setups (tendência, lateral, rompimento, reversão do RSI, padrão no suporte, divergência, pullback livre), 0,5% de risco cada | **Coletar dados**: cada operação grava setup, padrões de gráfico e tempo gráfico. O que funcionar na prática é testado em 6 anos e só então vai para o principal |
 
-Reequilíbrio para 75/25 todo mês. Teste em 6 anos (out/2020–nov/2026, 100 USDT):
-**100 → ~227 USDT, queda máxima 19%** (só o bot: 100 → 139, queda 12%;
-segurar BTC: 100 → 717, queda 77%). Detalhes em [`PESQUISA.md`](PESQUISA.md).
+Principal, teste de 6 anos (fev/2020–nov/2026, 100 USDT, reequilíbrio mensal 75/25):
+**carteira 100 → ~218 USDT, queda máxima 21%**; só o bot: 100 → 127, queda 14%;
+segurar BTC: muito mais retorno, mas queda de 77%. Ver [`PESQUISA.md`](PESQUISA.md) (seções 14 e 15).
 
-**Termômetro do mercado (0–100):** mede quantas moedas estão em alta e a força do BTC. Abaixo de 40
-(mercado defensivo) o bot arrisca metade por operação. Aparece no painel e no `/status`.
-Ligar/desligar em `config.yaml` → `termometro`. Memecoins, operação vendida (short) e day trade
-foram testados e **não** compensaram (PESQUISA.md, seção 14).
+Ver o que a prática ensinou (todos os bots): `docker compose exec bot python -m bot --config /app/config.yaml diario`
 
 Bot em Python para **Binance Spot (somente compra)** que segue regras objetivas:
 só compra **a favor da tendência**, no **pullback que já mostrou retomada**, com **stop
@@ -172,6 +169,8 @@ bot/exchange.py     Binance (ccxt) e corretora simulada (paper)
 bot/trader.py       loop ao vivo
 bot/report.py       relatório/checklist de análise
 bot/dashboard.py    gera o painel HTML (bot/dashboard_template.html)
+bot/padroes.py      17 padrões de gráfico (engolfo, martelo, rompimento, fundo duplo, divergência...)
+bot/exploracao.py   setups do bot aprendiz (só paper)
 bot/regime.py       termômetro do mercado (0-100) que reduz o risco em mercado defensivo
 bot/sleeve.py       cofre "seguir a tendência" (25%) e backtest da carteira
 bot/learn.py        diário, relatório de aprendizado, alarme de desvio, reotimização

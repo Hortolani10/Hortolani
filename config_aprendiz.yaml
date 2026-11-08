@@ -1,0 +1,75 @@
+# ============================================================
+#  BOT APRENDIZ — opera quase todo dia para APRENDER (só em PAPER)
+#  Usa tudo do config.yaml e muda apenas o que está aqui.
+#  Ele erra de propósito: testa várias hipóteses (setups) e grava no diário
+#  o setup e os padrões de gráfico de cada operação. Com o tempo, o comando
+#  `aprender` mostra o que funciona; o que for bom é testado em 6 anos e só
+#  então pode ir para o bot principal. Ver PESQUISA.md seção 15.
+#  Painel: http://localhost:8768 (no servidor: ssh -L 8768:localhost:8768 bot@IP)
+# ============================================================
+herda: config.yaml
+instancia: aprendiz-4h
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+  - BNB/USDT
+  - SOL/USDT
+  - XRP/USDT
+  - ADA/USDT
+  - LTC/USDT
+  - LINK/USDT
+  - DOGE/USDT
+  - AVAX/USDT
+  - DOT/USDT
+  - TRX/USDT
+  - ATOM/USDT
+  - UNI/USDT
+  - BCH/USDT
+  - XLM/USDT
+
+exploracao:
+  enabled: true             # só funciona em paper (o bot se recusa a rodar em live com isso ligado)
+  setups:                   # ordem de prioridade quando mais de um aparece no mesmo candle
+    - rompimento            # fechou acima da máxima de 20 candles com volume forte
+    - reversao_rsi          # RSI saiu da sobrevenda com candle de alta
+    - padrao_suporte        # engolfo de alta ou martelo perto do suporte
+    - divergencia           # divergência de alta no RSI
+    - pullback_livre        # pullback na EMA21 sem exigir tendência/BTC
+
+risk:
+  risk_per_trade: 0.005     # 0,5% por operação: muitas operações pequenas
+  capital_fixo: 1000        # o risco é calculado sobre 1000 fixos (5 USDT por operação), mesmo se o saldo cair:
+                            # assim o aprendiz não para de operar por falta de tamanho mínimo de ordem
+  max_open_positions: 6
+  exit_mode: alvo           # saída igual para todos os setups (comparação justa)
+  target_r: 2.0             # alvo = 2x o risco
+  max_bars: 18              # ou sai após 18 candles de 4h (3 dias)
+  trend_exit: false
+  adaptive_risk:
+    enabled: false          # risco constante: deixa as estatísticas limpas
+  max_daily_loss: 0.05
+  max_consecutive_losses: 99   # não pausa: o objetivo é coletar dados
+
+paper:
+  initial_balance: 10000    # dinheiro FICTÍCIO: folga para meses de coleta de dados (o que importa é o resultado em R)
+
+termometro:
+  enabled: false            # não reduz o risco, mas a nota é gravada em cada operação
+
+lateral:
+  enabled: true
+
+trend_sleeve:
+  enabled: false            # sem cofre: este bot existe só para operar e aprender
+
+observacao:
+  lateralizacao: false
+
+painel:
+  nome: Bot Aprendiz 4h
+  port: 8768
+
+telegram:
+  comandos: false           # só o bot principal responde /status e /radar
+  avisos: false             # no celular: só erros e o resumo diário (são muitas operações por dia)

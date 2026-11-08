@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from . import regime
+from . import exploracao, regime
 from .risk import RiskGuard, position_size
 from .strategy import (Position, entry_features, entry_signal, lateral_prefilter, lateral_signal,
                        manage_position, prefilter)
@@ -94,6 +94,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
     lat_scale = float((cfg.get("lateral") or {}).get("risk_scale", 1.0))
     idx = {s: dict(zip(df["close_ts"].astype(int), range(len(df)))) for s, df in data.items()}
     termo = regime.serie(data).to_dict() if (cfg.get("termometro") or {}).get("enabled") else {}
+    exp_masks = {s: exploracao.mascaras(df, cfg) for s, df in data.items()}
+    termo_all = termo or (regime.serie(data).to_dict() if any(exp_masks.values()) else {})
 
     def equity(prices: dict[str, float]) -> float:
         return cash + sum(p.qty * prices.get(s, p.entry) for s, p in positions.items())
@@ -164,6 +166,12 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
                     sig = lateral_signal(df, i, cfg)
                     if sig.ok:
                         pending[sym] = (sig.stop, sig.entry - sig.stop, entry_features(df, i), "lateral")
+                if ok and sym not in pending and exp_masks[sym]:
+                    sig, nome = exploracao.sinal(df, i, cfg, exp_masks[sym])
+                    if sig.ok:
+                        feats = {**entry_features(df, i), "tf": cfg["timeframes"]["entry"],
+                                 "termometro": round(termo_all.get(int(row["close_ts"]), 50))}
+                        pending[sym] = (sig.stop, sig.entry - sig.stop, feats, nome)
 
         res.equity_curve.append(equity(last_px))
         res.equity_ts.append(ts)

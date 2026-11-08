@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from .padroes import presentes
+
 ALTA, BAIXA, LATERAL = "ALTA", "BAIXA", "LATERAL"
 SEM_DADOS = "SEM_DADOS"     # histórico insuficiente para medir a tendência: nenhuma estratégia opera
 
@@ -98,6 +100,7 @@ def entry_features(df: pd.DataFrame, i: int) -> dict:
         "dia_semana": int(ts.dayofweek),
         "tendencia": str(row["trend"]),
         "btc_tendencia": str(row["btc_trend"]) if "btc_trend" in row else None,
+        "padroes": presentes(df, i),
     }
 
 
@@ -285,6 +288,11 @@ def manage_position(pos: Position, candle: pd.Series, trend: str, cfg: dict) -> 
             if trail > pos.stop:
                 pos.stop = trail
                 actions.append(Action("move_stop", price=pos.stop, reason="trailing"))
+
+    if pos.qty > 0 and r.get("max_bars") and pos.bars >= int(r["max_bars"]):
+        actions.append(Action("sell", pos.qty, c, "tempo esgotado"))
+        pos.qty = 0.0
+        return actions
 
     if not r.get("trend_exit", True):
         return actions
