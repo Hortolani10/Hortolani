@@ -69,6 +69,7 @@ observacao:
 painel:
   nome: Bot Aprendiz 4h
   port: 8768
+  outros: null              # a Central fica só no bot principal
 
 telegram:
   comandos: false           # só o bot principal responde /status e /radar

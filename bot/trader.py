@@ -432,7 +432,59 @@ class Trader:
             "alarme": (self.state.get("alarme_desvio") or {}).get("alarme", False),
             "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
             "termometro": self._termo_info(),
+            "inicial": self._inicial(), "aprendiz": bool(exploracao.ativos(self.cfg)),
+            "desempenho": self._desempenho(),
         }
+
+    def _inicial(self) -> float:
+        """Capital de partida, para medir lucro ou prejuízo."""
+        if self.cfg.get("mode") == "live":
+            return float((self.cfg.get("live") or {}).get("budget_usdt") or 0) or self.equity()
+        return float((self.cfg.get("paper") or {}).get("initial_balance") or 0) or self.equity()
+
+    def _desempenho(self) -> dict:
+        """Resultado das operações FECHADAS deste bot (lido do diário, refeito só quando ele muda)."""
+        from .learn import DIARIO
+        try:
+            mt = DIARIO.stat().st_mtime
+        except OSError:
+            return {"ops": 0}
+        cache = getattr(self, "_desemp_cache", None)
+        if cache and cache[0] == mt:
+            return cache[1]
+        ops, cofre_pnl = [], 0.0
+        for linha in DIARIO.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                j = json.loads(linha)
+            except ValueError:
+                continue
+            if j.get("origem") == self.origem:
+                ops.append(j)
+            elif j.get("origem") == self.origem + "-tendencia":        # vendas do cofre: entram só no realizado
+                cofre_pnl += float(j.get("pnl") or 0)
+
+        def soma(lista):
+            g = [o for o in lista if float(o.get("r") or 0) > 0]
+            return {"ops": len(lista), "ganhos": len(g), "soma_r": sum(float(o.get("r") or 0) for o in lista),
+                    "pnl": sum(float(o.get("pnl") or 0) for o in lista)}
+
+        corte = (utcnow() - timedelta(days=1)).isoformat()
+        hoje = [o for o in ops if str(o.get("fechada", "")) >= corte]
+        por_setup, por_padrao = {}, {}
+        for o in ops:
+            f = o.get("features") or {}
+            por_setup.setdefault(f.get("estrategia") or "tendencia", []).append(o)
+            for pd_ in f.get("padroes") or []:
+                por_padrao.setdefault(pd_, []).append(o)
+        tot = soma(ops)
+        out = {"ops": tot["ops"], "realizado": round(tot["pnl"] + cofre_pnl, 4), "cofre_realizado": round(cofre_pnl, 4),
+               "acerto": tot["ganhos"] / tot["ops"] if tot["ops"] else None,
+               "media_r": tot["soma_r"] / tot["ops"] if tot["ops"] else None,
+               "hoje_ops": len(hoje), "hoje_pnl": round(soma(hoje)["pnl"], 4),
+               "por_setup": {k: soma(v) for k, v in por_setup.items()},
+               "por_padrao": {k: soma(v) for k, v in por_padrao.items()}}
+        self._desemp_cache = (mt, out)
+        return out
 
     def _termo_info(self) -> dict | None:
         t = self.state.get("termometro")

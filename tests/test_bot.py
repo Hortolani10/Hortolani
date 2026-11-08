@@ -604,7 +604,8 @@ def test_painel_serves_status_and_is_local_only(cfg, tmp_path, monkeypatch):
     assert host == "127.0.0.1"
     d = _j.loads(urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5).read())
     assert d["carteira"] == 100.0 and "log" in d and "diario" in d
-    assert b"Bot Hortolani" in urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read()
+    assert "Central dos bots".encode() in urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5).read()
+    assert b"Bot Hortolani" in urllib.request.urlopen(f"http://127.0.0.1:{port}/bot", timeout=5).read()
     srv_holder["s"].shutdown()
 
 
@@ -839,3 +840,77 @@ def test_capital_fixo_nao_encolhe(cfg):
     a = position_size(500, 100, 95, cfg)
     b = position_size(5000, 100, 95, cfg)
     assert a == b > 0
+
+
+
+# ---------------- Central (todos os bots numa tela) ----------------
+def _servir(monkeypatch, painel):
+    import bot.painel as P
+    holder = {}
+    orig = P.ThreadingHTTPServer
+    class Cap(orig):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k); holder["s"] = self
+    monkeypatch.setattr(P, "ThreadingHTTPServer", Cap)
+    painel.start()
+    monkeypatch.setattr(P, "ThreadingHTTPServer", orig)
+    return holder["s"]
+
+
+def _snap(carteira, inicial, ops, setups, aprendiz=False):
+    return {"modo": "paper", "carteira": carteira, "inicial": inicial, "aprendiz": aprendiz, "posicoes": [],
+            "timeframes": {"entry": "4h", "trend": "1d"}, "equity_hist": [[1, inicial], [2, carteira]],
+            "desempenho": {"ops": ops, "realizado": carteira - inicial - 1, "acerto": 0.5, "media_r": 0.1,
+                           "hoje_ops": 1, "hoje_pnl": 0.5, "por_setup": setups, "por_padrao": {}}}
+
+
+def test_central_junta_bots_lucro_e_ranking(monkeypatch, tmp_path):
+    import json as _j, urllib.request, urllib.error
+    from bot.painel import Painel
+    monkeypatch.chdir(tmp_path)
+    ap = Painel("127.0.0.1", 0, "aprendiz-4h")
+    ap.update(_snap(9950.0, 10000.0, 40, {"rompimento": {"ops": 30, "ganhos": 15, "soma_r": 6.0, "pnl": 30.0},
+                                           "padrao_suporte": {"ops": 10, "ganhos": 2, "soma_r": -5.0, "pnl": -25.0}}, True))
+    s_ap = _servir(monkeypatch, ap)
+    url_ap = "http://127.0.0.1:%d" % s_ap.server_address[1]
+    main = Painel("127.0.0.1", 0, "principal", {"aprendiz-4h": url_ap, "aprendiz-1h": "http://127.0.0.1:9"})
+    main.update(_snap(112.0, 100.0, 5, {"tendencia": {"ops": 5, "ganhos": 3, "soma_r": 2.0, "pnl": 12.0}}))
+    s_m = _servir(monkeypatch, main)
+    base = "http://127.0.0.1:%d" % s_m.server_address[1]
+    c = _j.loads(urllib.request.urlopen(base + "/api/central", timeout=15).read())
+    bots = {b["id"]: b for b in c["bots"]}
+    assert bots["principal"]["lucro"] == 12.0 and abs(bots["principal"]["lucro_pct"] - 0.12) < 1e-9
+    assert bots["principal"]["aberto"] == 1.0 and bots["aprendiz-4h"]["lucro"] == -50.0
+    assert bots["aprendiz-1h"]["online"] is False                      # fora do ar não derruba a Central
+    assert [x["nome"] for x in c["setups"]][:2] == ["tendencia", "rompimento"]
+    assert c["setups"][-1]["nome"] == "padrao_suporte"
+    # detalhes de outro bot passam pelo principal (um túnel só)
+    d = _j.loads(urllib.request.urlopen(base + "/api/status?b=aprendiz-4h", timeout=10).read())
+    assert d["carteira"] == 9950.0
+    # só bots da lista: nada de buscar endereços vindos do navegador
+    try:
+        urllib.request.urlopen(base + "/api/status?b=http://exemplo.com", timeout=5)
+        assert False
+    except urllib.error.HTTPError as e:
+        assert e.code == 404
+    s_ap.shutdown(); s_m.shutdown()
+
+
+def test_snapshot_tem_lucro_e_desempenho(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    from bot.learn import registrar
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    br = FakeBroker(e, resample(e, 4)); br.n = 1500
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"))
+    registrar({"origem": "paper", "simbolo": "UP/USDT", "fechada": "2099-01-01T00:00:00", "pnl": 2.0, "r": 1.0,
+               "features": {"estrategia": "rompimento", "padroes": ["rompimento_20"]}})
+    registrar({"origem": "paper", "simbolo": "UP/USDT", "fechada": "2099-01-01T00:00:00", "pnl": -1.0, "r": -0.5,
+               "features": {"estrategia": "rompimento", "padroes": []}})
+    registrar({"origem": "outro-bot", "simbolo": "UP/USDT", "pnl": 99.0, "r": 9.0, "features": {}})
+    snap = tr.snapshot()
+    dz = snap["desempenho"]
+    assert snap["inicial"] == cfg["paper"]["initial_balance"]
+    assert dz["ops"] == 2 and dz["realizado"] == 1.0 and dz["acerto"] == 0.5 and dz["media_r"] == 0.25
+    assert dz["por_setup"]["rompimento"]["ops"] == 2 and dz["por_padrao"]["rompimento_20"]["ganhos"] == 1

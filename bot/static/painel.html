@@ -51,7 +51,7 @@ main{padding:22px 24px 40px;display:grid;gap:16px;min-width:0;max-width:1400px}
 .kpi .lbl{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
 .kpi .val{font-size:24px;font-weight:650;letter-spacing:-.01em}
 .kpi .sub{font-size:12px;color:var(--muted)}
-.kpi svg.spark{position:absolute;right:12px;bottom:12px;width:110px;height:36px;opacity:.9}
+.kpi svg.spark{display:block;width:100%;height:30px;margin-top:6px;opacity:.9}
 .chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
 .chip.up{color:var(--up);border-color:color-mix(in srgb,var(--up) 35%,var(--line))}.chip.down{color:var(--down);border-color:color-mix(in srgb,var(--down) 35%,var(--line))}
 .chip.flat{color:var(--flat);border-color:color-mix(in srgb,var(--flat) 35%,var(--line))}
@@ -102,7 +102,7 @@ footer{color:var(--faint);font-size:12px}
 @media(max-width:980px){.app{grid-template-columns:minmax(0,1fr)}aside.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-right:0;border-bottom:1px solid var(--line)}
  nav.menu{display:none}.side .box{margin:0;padding:8px 10px;grid-auto-flow:column;align-items:center}.grid-main{grid-template-columns:minmax(0,1fr)}main{padding:16px}}
 .tile{min-width:0;overflow:hidden}
-@media(max-width:620px){.kpis{grid-template-columns:minmax(0,1fr)}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}#chart{height:340px}.kpi svg.spark{width:80px}}
+@media(max-width:620px){.kpis{grid-template-columns:minmax(0,1fr)}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}#chart{height:340px}}
 @media(max-width:480px){.tiles{grid-template-columns:minmax(0,1fr)}.ch{flex-wrap:wrap}}
 </style></head><body><div class="app">
 
@@ -110,6 +110,7 @@ footer{color:var(--faint);font-size:12px}
  <div class="brand"><div class="logo" id="logo">H</div><div><b id="nome">Bot Hortolani</b><small>Binance Spot</small></div></div>
  <div class="mode" id="modo" hidden></div>
  <nav class="menu" aria-label="Seções">
+  <a href="/"><span class="ic">⌂</span>Central (todos os bots)</a>
   <a href="#visao"><span class="ic">◧</span>Visão geral</a>
   <a href="#grafico"><span class="ic">▤</span>Gráfico</a>
   <a href="#radar"><span class="ic">◎</span>Radar</a>
@@ -121,7 +122,7 @@ footer{color:var(--faint);font-size:12px}
   <div id="sit"><b>—</b></div>
   <div class="muted" id="estr"></div>
   <div id="termo" class="muted"></div>
-  <div class="muted">Somente leitura · só neste computador</div>
+  <div class="muted">Somente leitura · <a href="/">voltar à Central</a></div>
   <button type="button" class="themebtn" id="themebtn">◐ Tema: escuro</button>
  </div>
 </aside>
@@ -132,8 +133,8 @@ footer{color:var(--faint);font-size:12px}
 
  <section class="kpis">
   <div class="card kpi"><div class="lbl">Carteira</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div><svg class="spark" id="spark" viewBox="0 0 110 36" preserveAspectRatio="none" aria-hidden="true"></svg></div>
-  <div class="card kpi"><div class="lbl">Bot (75%)</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
-  <div class="card kpi"><div class="lbl">Cofre de tendência (25%)</div><div class="val num" id="k3">—</div><div class="sub" id="k3b"></div></div>
+  <div class="card kpi"><div class="lbl">Lucro / prejuízo</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
+  <div class="card kpi"><div class="lbl">Operações fechadas</div><div class="val num" id="k3">—</div><div class="sub" id="k3b"></div></div>
   <div class="card kpi has-ring"><div class="lbl">Mais perto de um sinal</div><div class="val" id="k5">—</div><div class="sub" id="k5b"></div>
    <svg class="ring" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="ringv" cx="23" cy="23" r="19" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 120" transform="rotate(-90 23 23)"/></svg></div>
  </section>
@@ -173,6 +174,8 @@ footer{color:var(--faint);font-size:12px}
 <script src="/static/lw.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+const BOT=new URLSearchParams(location.search).get("b")||"";      // bot escolhido na Central
+const QB=BOT?"b="+encodeURIComponent(BOT):"";
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const px=v=>{if(v==null)return"—";const a=Math.abs(v);return fmt(v,a>=100?2:a>=1?4:6)};
@@ -214,7 +217,7 @@ window.chartsReady=true;theme();matchMedia("(prefers-color-scheme: light)").addE
 const ser=(t,v)=>t.map((x,i)=>v[i]==null?null:{time:x+TZ,value:v[i]}).filter(Boolean);
 async function loadChart(fit){
  if(!sel)return;
- const d=await (await fetch("/api/candles?s="+encodeURIComponent(sel),{cache:"no-store"})).json();
+ const d=await (await fetch("/api/candles?s="+encodeURIComponent(sel)+(QB?"&"+QB:""),{cache:"no-store"})).json();
  const c=tf==="1d"?(d.candles||{}).diario:d.candles;if(!c)return;
  cs.setData(c.t.map((t,i)=>({time:t+TZ,open:c.open[i],high:c.high[i],low:c.low[i],close:c.close[i]})));
  e21.setData(ser(c.t,c.ema_fast));e50.setData(ser(c.t,c.ema_mid));e200.setData(ser(c.t,c.ema_slow));band.setData(c.bbl?ser(c.t,c.bbl):[]);
@@ -257,10 +260,11 @@ document.querySelectorAll(".seg-tf button").forEach(b=>{b.setAttribute("aria-pre
 let logAberto=false;try{logAberto=localStorage.getItem("painel-log")==="1"}catch(e){}
 function aplicaLog(){$("logbox").hidden=!logAberto;$("loghint").hidden=logAberto;$("logbtn").textContent=logAberto?"Ocultar log":"Mostrar log";$("logbtn").setAttribute("aria-expanded",logAberto)}
 $("logbtn").onclick=()=>{logAberto=!logAberto;try{localStorage.setItem("painel-log",logAberto?"1":"0")}catch(e){}aplicaLog();if(logAberto){const l=$("logbox");l.scrollTop=l.scrollHeight}};aplicaLog();
+function ini0(eh,d){return eh.length?eh[0][1]:d.carteira}
 function pick(s){sel=s;try{localStorage.setItem("painel-moeda",s)}catch(e){}drawSelected();loadChart(true)}
 async function load(){
  try{
-  const d=await (await fetch("/api/status",{cache:"no-store"})).json();
+  const d=await (await fetch("/api/status"+(QB?"?"+QB:""),{cache:"no-store"})).json();
   $("dot").className="dot";const now=new Date().toLocaleTimeString("pt-BR");$("hora").textContent="ao vivo · "+now;$("upd").textContent="atualizado às "+now;
   if(d.carregando)return;last=d;
   const nm=d.nome||"Bot Hortolani";$("nome").textContent=nm;$("logo").textContent=nm.replace(/^bot\s+/i,"").charAt(0).toUpperCase()||"B";document.title=nm+" · ao vivo";
@@ -268,12 +272,20 @@ async function load(){
   if(modo.startsWith("paper")){mo.hidden=true}else{mo.hidden=false;mo.className="mode"+(d.real?" real":"");mo.textContent=d.real?"⚠ DINHEIRO REAL":"TESTNET · dinheiro de teste"}
   $("tfe").textContent=d.timeframes.entry;$("tft").textContent=d.timeframes.trend;
   $("sit").innerHTML=d.pausado?'<b class="flat">⏸ Pausado</b>':d.alarme?'<b class="down">Alarme de desvio</b>':'<b class="up">● Operando</b>';
-  $("estr").textContent="Estratégias: tendência"+(d.lateral_ligada?" + lateralização":"")+" + cofre";
+  $("estr").textContent=d.aprendiz?"Aprendiz: tendência, lateral e 5 setups de exploração (dinheiro fictício)":
+   "Estratégias: tendência"+(d.lateral_ligada?" + lateralização":"")+(d.cofre||Object.keys(d.cofre_moedas||{}).length||d.bot!==d.carteira?" + cofre":"");
   const tm=d.termometro;$("termo").innerHTML=tm?`Termômetro do mercado: <b class="${tm.nota>=60?"up":tm.nota>=40?"flat":"down"}">${esc(tm.nota)}/100</b> · ${esc(tm.rotulo)}<br>${esc(tm.moedas_em_alta)}/${esc(tm.moedas)} moedas em alta${tm.ligado&&tm.risco<1?` · risco ${fmt(tm.risco*100,0)}%`:""}`:"";
   const eh=d.equity_hist||[],ini=eh.length?eh[0][1]:d.carteira,ch=d.carteira/ini-1;
-  $("k1").textContent=fmt(d.carteira)+" USDT";$("k1b").innerHTML=`<span class="${ch>=0?"up":"down"}">${ch>=0?"+":""}${fmt(ch*100)}%</span> desde que ligou`;spark(eh);
-  $("k2").textContent=fmt(d.bot)+" USDT";const np=(d.posicoes||[]).length;$("k2b").textContent=np?np+" posição(ões) aberta(s)":"sem posições · esperando sinal";
-  $("k3").textContent=fmt(d.cofre)+" USDT";const cm=Object.keys(d.cofre_moedas||{});$("k3b").textContent=cm.length?"segurando "+cm.map(base).join(", "):"em USDT · aguardando tendência";
+  const np=(d.posicoes||[]).length,cm=Object.keys(d.cofre_moedas||{});
+  $("k1").textContent=fmt(d.carteira)+" USDT";
+  $("k1b").innerHTML=d.aprendiz||!d.cofre?`${np?np+" posição(ões) aberta(s)":"sem posições · esperando sinal"}`:
+   `bot ${fmt(d.bot)} · cofre ${fmt(d.cofre)} ${cm.length?"("+cm.map(base).join(", ")+")":"(em USDT)"}`;spark(eh);
+  const dz=d.desempenho||{},cap=d.inicial||ini0(eh,d),luc=d.carteira-cap,real=dz.realizado||0,sgn=v=>(v>0?"+":"")+fmt(v);
+  $("k2").innerHTML=`<span class="${luc>=0?"up":"down"}">${sgn(luc)} USDT</span>`;
+  $("k2b").innerHTML=`<span class="${luc>=0?"up":"down"}">${sgn(luc/cap*100)}%</span> · realizado <b class="${real>=0?"up":"down"}">${sgn(real)}</b> · em aberto <b class="${luc-real>=0?"up":"down"}">${sgn(luc-real)}</b>`;
+  $("k3").textContent=dz.ops||0;
+  $("k3b").textContent=dz.ops?`acerto ${fmt((dz.acerto||0)*100,0)}% · média ${(dz.media_r>0?"+":"")+fmt(dz.media_r)}R · hoje ${dz.hoje_ops||0} (${sgn(dz.hoje_pnl||0)} USDT)`:"ainda sem operações fechadas";
+  document.querySelectorAll(".seg-tf button").forEach(b=>{b.textContent=b.dataset.tf==="1d"?d.timeframes.trend:d.timeframes.entry});
   const rad=Object.entries(d.radar||{}).sort((a,b)=>((b[1].sinal_tendencia||b[1].sinal_lateral)?100:0)+b[1].regras_ok-((a[1].sinal_tendencia||a[1].sinal_lateral)?100:0)-a[1].regras_ok);
   if(rad.length){const [bs,bx]=rad[0];$("k5").textContent=base(bs)+" · "+bx.regras_ok+"/"+bx.regras_total;
    $("k5b").textContent=bx.sinal_tendencia?"SINAL de compra":bx.sinal_lateral?"sinal de lateralização":"falta: "+(bx.falhou||[]).slice(0,2).map(k=>(NOMES[k]||k).toLowerCase()).join(", ");

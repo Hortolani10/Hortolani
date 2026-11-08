@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Central dos bots</title>
+<style>
+/* Central: todos os bots numa tela. Inspirado nos componentes kpi-tile, sparkline e leaderboard-table
+   do 21st.dev, recriados aqui sem bibliotecas. Mesmas cores do painel de cada bot. */
+:root{--bg:#0b1016;--panel:#111a23;--panel2:#16212c;--line:#21303d;--fg:#e7eef4;--muted:#8796a5;--faint:#5b6b7a;
+ --accent:#5b8cff;--accent2:#8f6bff;--up:#2fd39d;--down:#ff6f6f;--flat:#f3b54a;--glow:rgba(91,140,255,.18);color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f2f5f8;--panel:#fff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+ --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}}
+:root[data-theme="light"]{--bg:#f2f5f8;--panel:#fff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+ --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif}
+.num{font-family:"Cascadia Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat)}
+a{color:inherit}[hidden]{display:none!important}
+header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 24px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.brand{display:flex;gap:10px;align-items:center}.brand b{display:block;font-size:16px}.brand small{color:var(--muted);font-size:12px}
+.logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 6px 20px var(--glow)}
+.hright{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--up);animation:p 2s infinite;flex:none}.dot.off{background:var(--down);animation:none}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(47,211,157,.55)}100%{box-shadow:0 0 0 9px rgba(47,211,157,0)}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.btn{font:inherit;font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;text-decoration:none}
+.btn:hover{border-color:var(--accent)}
+main{padding:20px 24px 40px;display:grid;gap:18px;max-width:1440px;margin:0 auto}
+h2{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;min-width:0}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px 6px;flex-wrap:wrap}
+/* KPI tiles */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.kpi{padding:16px 18px;display:grid;gap:2px;position:relative;overflow:hidden}
+.kpi .lbl{font-size:12px;color:var(--muted)}.kpi .val{font-size:24px;font-weight:650;letter-spacing:-.01em}.kpi .sub{font-size:12px;color:var(--muted)}
+/* bots */
+.bots{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.bot{padding:16px 18px;display:grid;gap:10px;text-decoration:none;transition:border-color .15s,transform .15s}
+.bot:hover{border-color:var(--accent);transform:translateY(-1px)}
+.bot.principal{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 20%,transparent) inset}
+.bh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bh b{font-size:15px}.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.chip.real{background:var(--down);color:#fff;border-color:var(--down)}
+.pl{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.pl .v{font-size:26px;font-weight:700;letter-spacing:-.01em}.pl .p{font-size:13px;font-weight:600}
+svg.spark{width:100%;height:44px;display:block}
+.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mini div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 8px;min-width:0}
+.mini small{display:block;font-size:11px;color:var(--muted)}.mini span{font-size:13px;font-weight:600}
+.bf{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.off{opacity:.6}
+/* rankings */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td.r,th.r{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+.medal{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:800;background:var(--panel2);border:1px solid var(--line)}
+.m1{background:#f5c542;color:#3a2a00;border-color:#f5c542}.m2{background:#c9d1d9;color:#20262c;border-color:#c9d1d9}.m3{background:#d08a4a;color:#2e1606;border-color:#d08a4a}
+.rbar{position:relative;height:8px;width:110px;background:var(--panel2);border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.rbar i{position:absolute;top:0;bottom:0}.rbar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--faint)}
+.note{font-size:12px;color:var(--muted);padding:0 18px 14px}
+.empty{padding:18px;color:var(--muted);text-align:center}
+footer{color:var(--faint);font-size:12px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:560px){main,header{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:minmax(0,1fr)}.rbar{width:60px}}
+</style></head><body>
+<header>
+ <div class="brand"><div class="logo">H</div><div><b>Central dos bots</b><small>todos os bots numa tela · só leitura</small></div></div>
+ <div class="hright"><div class="live"><i class="dot" id="dot"></i><span id="hora">conectando…</span></div>
+ <button type="button" class="btn" id="themebtn">◐ Tema</button></div>
+</header>
+<main>
+ <section class="kpis" aria-label="Resumo">
+  <div class="card kpi"><div class="lbl">Bot principal · resultado</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div></div>
+  <div class="card kpi"><div class="lbl">Aprendizes · resultado (dinheiro fictício)</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
+  <div class="card kpi"><div class="lbl">Melhor setup até agora</div><div class="val" id="k3">—</div><div class="sub" id="k3b"></div></div>
+  <div class="card kpi"><div class="lbl">Termômetro do mercado</div><div class="val num" id="k4">—</div><div class="sub" id="k4b"></div></div>
+ </section>
+
+ <section aria-label="Bots"><div class="ch" style="padding:0 2px 10px"><h2>Bots · clique para ver os detalhes</h2><span class="muted" style="font-size:12px">Lucro = carteira agora − capital inicial · realizado = operações fechadas · em aberto = posições ainda abertas</span></div>
+  <div class="bots" id="bots"><div class="card empty">Carregando…</div></div></section>
+
+ <div class="grid2">
+  <section class="card"><div class="ch"><h2>Ranking dos setups (todos os bots)</h2><span class="muted" style="font-size:12px">ordem: média por operação em R</span></div>
+   <div class="tw"><table><thead><tr><th>#</th><th>Setup</th><th class="r">Ops</th><th class="r">Acerto</th><th class="r">Média</th><th class="r">Resultado</th></tr></thead><tbody id="setups"></tbody></table></div>
+   <div class="note">R = quanto ganhou ou perdeu comparado ao risco da operação (+1R = ganhou o que arriscou). Só confie a partir de 20 operações.</div></section>
+  <section class="card"><div class="ch"><h2>Padrões de gráfico na entrada</h2><span class="muted" style="font-size:12px">melhores e piores</span></div>
+   <div class="tw"><table><thead><tr><th>#</th><th>Padrão</th><th class="r">Ops</th><th class="r">Acerto</th><th class="r">Média</th></tr></thead><tbody id="padroes"></tbody></table></div>
+   <div class="note">Uma operação pode ter vários padrões no mesmo candle. No histórico de 6 anos, comprar força (rompimento, RSI &gt; 70) foi melhor que comprar fraqueza (martelo, suporte).</div></section>
+ </div>
+
+ <section class="card"><div class="ch"><h2>Últimas operações fechadas (todos os bots)</h2></div>
+  <div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th class="r">Resultado</th><th class="r">USDT</th><th>Motivo</th></tr></thead><tbody id="ultimas"></tbody></table></div></section>
+ <footer>Este painel só mostra informações: não compra, não vende e não muda configurações. Os aprendizes usam dinheiro fictício (10.000) para aprender; o bot principal é o candidato a dinheiro real.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg=(v,d=2,suf="")=>v==null||isNaN(v)?"—":(v>0?"+":"")+fmt(v,d)+suf;
+const cl=v=>v==null||isNaN(v)||Math.abs(v)<1e-9?"":v>0?"up":"down";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SETUP={tendencia:"Tendência (pullback)",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre",cofre:"Cofre de tendência"};
+const PADRAO={engolfo_alta:"Engolfo de alta",engolfo_baixa:"Engolfo de baixa",martelo:"Martelo",estrela_cadente:"Estrela cadente",doji:"Doji",tres_soldados:"Três soldados",rompimento_20:"Rompimento de 20 candles",perda_20:"Perda da mínima de 20",perto_suporte:"Perto do suporte",perto_resistencia:"Perto da resistência",fundo_duplo:"Fundo duplo",divergencia_alta:"Divergência de alta",volume_explosivo:"Volume explosivo",squeeze:"Bandas apertadas",acima_ema200:"Acima da EMA200",rsi_sobrevenda:"RSI < 30",rsi_sobrecompra:"RSI > 70"};
+let tema="dark";try{tema=localStorage.getItem("painel-tema")||"dark"}catch(e){}
+function aplicaTema(){if(tema==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",tema);
+ $("themebtn").textContent="◐ Tema: "+({auto:"automático",light:"claro",dark:"escuro"}[tema])}
+aplicaTema();$("themebtn").onclick=()=>{tema={dark:"light",light:"auto",auto:"dark"}[tema];try{localStorage.setItem("painel-tema",tema)}catch(e){}aplicaTema()};
+
+function spark(vals){
+ if(!vals||vals.length<2)return '<svg class="spark" viewBox="0 0 100 44" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="22" x2="100" y2="22" stroke="var(--line)" stroke-dasharray="3 3"/></svg>';
+ const mn=Math.min(...vals),mx=Math.max(...vals),r=mx-mn||1,n=vals.length-1;
+ const pts=vals.map((v,i)=>`${(i/n*100).toFixed(2)},${(40-(v-mn)/r*36).toFixed(2)}`).join(" ");
+ const c=vals[n]>=vals[0]?"var(--up)":"var(--down)";
+ return `<svg class="spark" viewBox="0 0 100 44" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,44 ${pts} 100,44" fill="${c}" opacity=".12"/><polyline points="${pts}" fill="none" stroke="${c}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`}
+function rbar(r,max){const w=Math.min(50,Math.abs(r)/(max||1)*50);const c=r>=0?"var(--up)":"var(--down)";
+ return `<span class="rbar" aria-hidden="true"><i style="background:${c};${r>=0?`left:50%;width:${w}%`:`right:50%;width:${w}%`}"></i></span>`}
+function nomeBot(b){return b.id==="principal"?"Bot principal":(b.nome||b.id)}
+
+function cardBot(b){
+ if(!b.online)return `<div class="card bot off"><div class="bh"><b>${esc(b.id)}</b><span class="chip"><i class="dot off"></i>fora do ar</span></div><div class="muted" style="font-size:12px">${esc(b.erro||"")}</div></div>`;
+ const tag=b.real?'<span class="chip real">⚠ DINHEIRO REAL</span>':`<span class="chip">${esc(b.tf||"")}${b.aprendiz?" · aprendiz":""}</span>`;
+ return `<a class="card bot${b.id==="principal"?" principal":""}" href="/bot?b=${encodeURIComponent(b.id)}">
+  <div class="bh"><b>${esc(nomeBot(b))}</b>${tag}</div>
+  <div class="pl"><span class="v num ${cl(b.lucro)}">${sg(b.lucro)} USDT</span><span class="p num ${cl(b.lucro)}">${sg((b.lucro_pct??0)*100)}%</span></div>
+  ${spark(b.equity)}
+  <div class="mini"><div><small>Realizado</small><span class="num ${cl(b.realizado)}">${sg(b.realizado)}</span></div>
+   <div><small>Em aberto</small><span class="num ${cl(b.aberto)}">${sg(b.aberto)}</span></div>
+   <div><small>Posições</small><span class="num">${b.posicoes}</span></div></div>
+  <div class="bf"><span>${b.ops} ops · acerto ${b.acerto==null?"—":fmt(b.acerto*100,0)+"%"} · média ${b.media_r==null?"—":sg(b.media_r)+"R"}</span>
+   <span>hoje: ${b.hoje_ops} · <b class="${cl(b.hoje_pnl)}">${sg(b.hoje_pnl)}</b></span></div>
+  <div class="bf"><span>carteira ${fmt(b.carteira)} de ${fmt(b.inicial,0)}</span><span>${b.pausado?'<b class="flat">⏸ pausado</b>':"ver detalhes →"}</span></div></a>`}
+
+function linhaRank(x,i,nome,max,usdt){
+ const m=i<3&&x.ops>=20?`<span class="medal m${i+1}">${i+1}</span>`:`<span class="medal">${i+1}</span>`;
+ const poucas=x.ops<20?' <span class="chip" title="menos de 20 operações: pode ser sorte">poucas ops</span>':"";
+ return `<tr><td>${m}</td><td>${esc(nome)}${poucas}</td><td class="r num">${x.ops}</td><td class="r num">${fmt(x.acerto*100,0)}%</td>
+  <td class="r num ${cl(x.media_r)}">${sg(x.media_r)}R${rbar(x.media_r,max)}</td>${usdt?`<td class="r num ${cl(x.pnl)}">${sg(x.pnl)}</td>`:""}</tr>`}
+
+async function load(){
+ try{
+  const d=await (await fetch("/api/central",{cache:"no-store"})).json();
+  $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
+  const bots=d.bots||[],on=bots.filter(b=>b.online),p=on.find(b=>b.id==="principal"),ap=on.filter(b=>b.aprendiz);
+  if(p){$("k1").innerHTML=`<span class="${cl(p.lucro)}">${sg(p.lucro)} USDT</span>`;$("k1b").textContent=`${sg((p.lucro_pct??0)*100)}% · carteira ${fmt(p.carteira)} de ${fmt(p.inicial,0)}`}
+  else{$("k1").textContent="—";$("k1b").textContent="bot principal fora do ar"}
+  if(ap.length){const l=ap.reduce((s,b)=>s+(b.lucro||0),0),ini=ap.reduce((s,b)=>s+(b.inicial||0),0),ops=ap.reduce((s,b)=>s+b.ops,0),
+   sr=ap.reduce((s,b)=>s+(b.media_r||0)*b.ops,0);
+   $("k2").innerHTML=`<span class="${cl(l)}">${sg(l)} USDT</span>`;$("k2b").textContent=`${ap.length} aprendizes · ${ops} operações · média ${ops?sg(sr/ops)+"R":"—"} · ${sg(ini?l/ini*100:0)}%`}
+  else{$("k2").textContent="—";$("k2b").textContent="aprendizes fora do ar ou sem dados"}
+  const st=(d.setups||[]).filter(x=>x.ops>=20),best=st[0]||(d.setups||[])[0];
+  if(best){$("k3").innerHTML=`${esc(SETUP[best.nome]||best.nome)} <span class="num ${cl(best.media_r)}" style="font-size:16px">${sg(best.media_r)}R</span>`;
+   $("k3b").textContent=`${best.ops} operações · acerto ${fmt(best.acerto*100,0)}%${best.ops<20?" · ainda poucas operações":""}`}
+  else{$("k3").textContent="—";$("k3b").textContent="aguardando as primeiras operações fechadas"}
+  const tm=(p||on[0]||{}).termometro;
+  if(tm){$("k4").innerHTML=`<span class="${tm.nota>=60?"up":tm.nota>=40?"flat":"down"}">${tm.nota}/100</span>`;$("k4b").textContent=`${tm.rotulo} · ${tm.moedas_em_alta}/${tm.moedas} moedas em alta`}
+  $("bots").innerHTML=bots.map(cardBot).join("")||'<div class="card empty">Nenhum bot encontrado.</div>';
+  const S=d.setups||[],mx=Math.max(0.01,...S.map(x=>Math.abs(x.media_r)));
+  $("setups").innerHTML=S.length?S.map((x,i)=>linhaRank(x,i,SETUP[x.nome]||x.nome,mx,true)).join(""):'<tr><td colspan="6" class="empty">Ainda sem operações fechadas.</td></tr>';
+  let P=d.padroes||[];if(P.length>12)P=[...P.slice(0,6),...P.slice(-6)];
+  const mp=Math.max(0.01,...P.map(x=>Math.abs(x.media_r))),total=(d.padroes||[]).length;
+  $("padroes").innerHTML=P.length?P.map((x,i)=>{const pos=total>12&&i>=6?total-12+i:i;return linhaRank(x,pos,PADRAO[x.nome]||x.nome,mp,false)}).join(""):'<tr><td colspan="5" class="empty">Ainda sem operações fechadas.</td></tr>';
+  const U=d.ultimas||[];
+  $("ultimas").innerHTML=U.length?U.map(j=>{const f=j.features||{};const bt=bots.find(b=>b.id===j.bot);
+   return `<tr><td class="muted">${esc(String(j.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(bt?nomeBot(bt):j.bot)}</td><td><b>${esc(String(j.simbolo||"").split("/")[0])}</b></td>
+   <td>${esc(SETUP[f.estrategia]||f.estrategia||"—")}</td><td class="r num ${cl(j.r)}">${sg(j.r)}R</td><td class="r num ${cl(j.pnl)}">${sg(j.pnl)}</td><td class="muted">${esc(j.motivo)}</td></tr>`}).join(""):'<tr><td colspan="7" class="empty">Ainda sem operações fechadas.</td></tr>';
+ }catch(e){$("dot").className="dot off";$("hora").textContent="sem conexão com o bot"}
+}
+load();setInterval(load,10000);
+</script>
+</body></html>

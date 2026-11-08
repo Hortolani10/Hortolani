@@ -11,6 +11,8 @@ Principal, teste de 6 anos (fev/2020–nov/2026, 100 USDT, reequilíbrio mensal 
 **carteira 100 → ~218 USDT, queda máxima 21%**; só o bot: 100 → 127, queda 14%;
 segurar BTC: muito mais retorno, mas queda de 77%. Ver [`PESQUISA.md`](PESQUISA.md) (seções 14 e 15).
 
+**Central (todos os bots numa tela):** dois cliques em `abrir_painel.bat` (abre o túnel e o navegador em http://localhost:8765). Mostra lucro/prejuízo de cada bot, ranking dos setups e padrões e as últimas operações; clique num bot para ver os detalhes dele.
+
 Ver o que a prática ensinou (todos os bots): `docker compose exec bot python -m bot --config /app/config.yaml diario`
 
 Bot em Python para **Binance Spot (somente compra)** que segue regras objetivas:

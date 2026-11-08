@@ -37,6 +37,7 @@ lateral:
 
 painel:
   port: 8767
+  outros: null
 
 telegram:
   comandos: false           # só o bot normal responde /status e /radar; este só manda os avisos
