@@ -62,6 +62,7 @@ tbody tr:last-child td{border-bottom:0}
 .rbar i{position:absolute;top:0;bottom:0}.rbar::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--faint)}
 .note{font-size:12px;color:var(--muted);padding:0 18px 14px}
 .empty{padding:18px;color:var(--muted);text-align:center}
+.clk{cursor:pointer}.card.clk:hover,.card.clk:focus-visible{border-color:var(--accent);outline:none}tr.clk:hover td{background:var(--panel2)}
 footer{color:var(--faint);font-size:12px}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:560px){main,header{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:minmax(0,1fr)}.rbar{width:60px}}
@@ -73,17 +74,17 @@ footer{color:var(--faint);font-size:12px}
 </header>
 <main>
  <section class="kpis" aria-label="Resumo">
-  <div class="card kpi"><div class="lbl">Bot principal · resultado</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div></div>
-  <div class="card kpi"><div class="lbl">Aprendizes · resultado (dinheiro fictício)</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
-  <div class="card kpi"><div class="lbl">Melhor setup até agora</div><div class="val" id="k3">—</div><div class="sub" id="k3b"></div></div>
-  <div class="card kpi"><div class="lbl">Termômetro do mercado</div><div class="val num" id="k4">—</div><div class="sub" id="k4b"></div></div>
+  <div class="card kpi clk" id="kc1" tabindex="0" title="Abrir o bot principal"><div class="lbl">Bot principal · resultado</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div></div>
+  <div class="card kpi clk" id="kc2" tabindex="0" title="Ver os aprendizes"><div class="lbl">Aprendizes · resultado (dinheiro fictício)</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
+  <div class="card kpi clk" id="kc3" tabindex="0" title="Ver o ranking dos setups"><div class="lbl">Melhor setup até agora</div><div class="val" id="k3">—</div><div class="sub" id="k3b"></div></div>
+  <div class="card kpi clk" id="kc4" tabindex="0" title="Ver o radar das moedas no bot principal"><div class="lbl">Termômetro do mercado</div><div class="val num" id="k4">—</div><div class="sub" id="k4b"></div></div>
  </section>
 
- <section aria-label="Bots"><div class="ch" style="padding:0 2px 10px"><h2>Bots · clique para ver os detalhes</h2><span class="muted" style="font-size:12px">Lucro = carteira agora − capital inicial · realizado = operações fechadas · em aberto = posições ainda abertas</span></div>
+ <section aria-label="Bots" id="secbots"><div class="ch" style="padding:0 2px 10px"><h2>Bots · clique para ver os detalhes</h2><span class="muted" style="font-size:12px">Lucro = carteira agora − capital inicial · realizado = operações fechadas · em aberto = posições ainda abertas</span></div>
   <div class="bots" id="bots"><div class="card empty">Carregando…</div></div></section>
 
  <div class="grid2">
-  <section class="card"><div class="ch"><h2>Ranking dos setups (todos os bots)</h2><span class="muted" style="font-size:12px">ordem: média por operação em R</span></div>
+  <section class="card" id="secrank"><div class="ch"><h2>Ranking dos setups (todos os bots)</h2><span class="muted" style="font-size:12px">ordem: média por operação em R</span></div>
    <div class="tw"><table><thead><tr><th>#</th><th>Setup</th><th class="r">Ops</th><th class="r">Acerto</th><th class="r">Média</th><th class="r">Resultado</th></tr></thead><tbody id="setups"></tbody></table></div>
    <div class="note">R = quanto ganhou ou perdeu comparado ao risco da operação (+1R = ganhou o que arriscou). Só confie a partir de 20 operações.</div></section>
   <section class="card"><div class="ch"><h2>Padrões de gráfico na entrada</h2><span class="muted" style="font-size:12px">melhores e piores</span></div>
@@ -101,6 +102,11 @@ const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{min
 const sg=(v,d=2,suf="")=>v==null||isNaN(v)?"—":(v>0?"+":"")+fmt(v,d)+suf;
 const cl=v=>v==null||isNaN(v)||Math.abs(v)<1e-9?"":v>0?"up":"down";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function clk(el,fn){el.onclick=fn;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fn()}}}
+function ir(id){const e=$(id);if(e)e.scrollIntoView({behavior:"smooth",block:"start"})}
+clk($("kc1"),()=>location.href="/bot?b=principal");clk($("kc2"),()=>ir("secbots"));clk($("kc3"),()=>ir("secrank"));
+clk($("kc4"),()=>location.href="/bot?b=principal#radar");
+const DESC={tendencia:"pullback na EMA21 a favor da tendência (regras do bot principal)",lateral:"compra abaixo da banda inferior quando o diário está lateral",rompimento:"fechou acima da máxima de 20 candles com volume forte",reversao_rsi:"RSI saiu da sobrevenda com candle de alta",padrao_suporte:"engolfo de alta ou martelo perto do suporte",divergencia:"divergência de alta no RSI",pullback_livre:"pullback na EMA21 sem exigir tendência nem BTC"};
 const SETUP={tendencia:"Tendência (pullback)",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre",cofre:"Cofre de tendência"};
 const PADRAO={engolfo_alta:"Engolfo de alta",engolfo_baixa:"Engolfo de baixa",martelo:"Martelo",estrela_cadente:"Estrela cadente",doji:"Doji",tres_soldados:"Três soldados",rompimento_20:"Rompimento de 20 candles",perda_20:"Perda da mínima de 20",perto_suporte:"Perto do suporte",perto_resistencia:"Perto da resistência",fundo_duplo:"Fundo duplo",divergencia_alta:"Divergência de alta",volume_explosivo:"Volume explosivo",squeeze:"Bandas apertadas",acima_ema200:"Acima da EMA200",rsi_sobrevenda:"RSI < 30",rsi_sobrecompra:"RSI > 70"};
 let tema="dark";try{tema=localStorage.getItem("painel-tema")||"dark"}catch(e){}
@@ -135,7 +141,7 @@ function cardBot(b){
 function linhaRank(x,i,nome,max,usdt){
  const m=i<3&&x.ops>=20?`<span class="medal m${i+1}">${i+1}</span>`:`<span class="medal">${i+1}</span>`;
  const poucas=x.ops<20?' <span class="chip" title="menos de 20 operações: pode ser sorte">poucas ops</span>':"";
- return `<tr><td>${m}</td><td>${esc(nome)}${poucas}</td><td class="r num">${x.ops}</td><td class="r num">${fmt(x.acerto*100,0)}%</td>
+ return `<tr title="${esc(DESC[x.nome]||"")}"><td>${m}</td><td>${esc(nome)}${poucas}</td><td class="r num">${x.ops}</td><td class="r num">${fmt(x.acerto*100,0)}%</td>
   <td class="r num ${cl(x.media_r)}">${sg(x.media_r)}R${rbar(x.media_r,max)}</td>${usdt?`<td class="r num ${cl(x.pnl)}">${sg(x.pnl)}</td>`:""}</tr>`}
 
 async function load(){
@@ -162,8 +168,9 @@ async function load(){
   const mp=Math.max(0.01,...P.map(x=>Math.abs(x.media_r))),total=(d.padroes||[]).length;
   $("padroes").innerHTML=P.length?P.map((x,i)=>{const pos=total>12&&i>=6?total-12+i:i;return linhaRank(x,pos,PADRAO[x.nome]||x.nome,mp,false)}).join(""):'<tr><td colspan="5" class="empty">Ainda sem operações fechadas.</td></tr>';
   const U=d.ultimas||[];
+  setTimeout(()=>document.querySelectorAll("#ultimas tr.clk").forEach(tr=>clk(tr,()=>location.href="/bot?b="+encodeURIComponent(tr.dataset.b))),0);
   $("ultimas").innerHTML=U.length?U.map(j=>{const f=j.features||{};const bt=bots.find(b=>b.id===j.bot);
-   return `<tr><td class="muted">${esc(String(j.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(bt?nomeBot(bt):j.bot)}</td><td><b>${esc(String(j.simbolo||"").split("/")[0])}</b></td>
+   return `<tr class="clk" data-b="${esc(j.bot)}" tabindex="0" title="Abrir este bot"><td class="muted">${esc(String(j.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(bt?nomeBot(bt):j.bot)}</td><td><b>${esc(String(j.simbolo||"").split("/")[0])}</b></td>
    <td>${esc(SETUP[f.estrategia]||f.estrategia||"—")}</td><td class="r num ${cl(j.r)}">${sg(j.r)}R</td><td class="r num ${cl(j.pnl)}">${sg(j.pnl)}</td><td class="muted">${esc(j.motivo)}</td></tr>`}).join(""):'<tr><td colspan="7" class="empty">Ainda sem operações fechadas.</td></tr>';
  }catch(e){$("dot").className="dot off";$("hora").textContent="sem conexão com o bot"}
 }

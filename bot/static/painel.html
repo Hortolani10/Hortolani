@@ -98,6 +98,10 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
 #equity{height:180px;margin:6px 6px 8px}
 footer{color:var(--faint);font-size:12px}
+.clk{cursor:pointer;transition:border-color .15s}.card.clk:hover,.card.clk:focus-visible{border-color:var(--accent);outline:none}
+.chip.clk:hover{border-color:var(--accent)}tr.clk:hover td{background:var(--panel2)}
+.checks li{cursor:pointer}.checks li .exp{grid-column:2;font-size:12px;line-height:1.45;color:var(--muted);padding:2px 0}
+.dica{font-size:11px;color:var(--faint)}button.chip{font-family:inherit;line-height:inherit;cursor:pointer}
 @media(max-width:1180px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:980px){.app{grid-template-columns:minmax(0,1fr)}aside.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-right:0;border-bottom:1px solid var(--line)}
  nav.menu{display:none}.side .box{margin:0;padding:8px 10px;grid-auto-flow:column;align-items:center}.grid-main{grid-template-columns:minmax(0,1fr)}main{padding:16px}}
@@ -132,10 +136,10 @@ footer{color:var(--faint);font-size:12px}
  <div class="muted" id="upd"></div></div>
 
  <section class="kpis">
-  <div class="card kpi"><div class="lbl">Carteira</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div><svg class="spark" id="spark" viewBox="0 0 110 36" preserveAspectRatio="none" aria-hidden="true"></svg></div>
-  <div class="card kpi"><div class="lbl">Lucro / prejuízo</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
-  <div class="card kpi"><div class="lbl">Operações fechadas</div><div class="val num" id="k3">—</div><div class="sub" id="k3b"></div></div>
-  <div class="card kpi has-ring"><div class="lbl">Mais perto de um sinal</div><div class="val" id="k5">—</div><div class="sub" id="k5b"></div>
+  <div class="card kpi clk" id="kc1" tabindex="0" title="Ver a evolução da carteira"><div class="lbl">Carteira</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div><svg class="spark" id="spark" viewBox="0 0 110 36" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+  <div class="card kpi clk" id="kc2" tabindex="0" title="Ver a evolução da carteira"><div class="lbl">Lucro / prejuízo</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
+  <div class="card kpi clk" id="kc3" tabindex="0" title="Ver as operações"><div class="lbl">Operações fechadas</div><div class="val num" id="k3">—</div><div class="sub" id="k3b"></div></div>
+  <div class="card kpi has-ring clk" id="kc4" tabindex="0" title="Abrir o gráfico desta moeda"><div class="lbl">Mais perto de um sinal</div><div class="val" id="k5">—</div><div class="sub" id="k5b"></div>
    <svg class="ring" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--line)" stroke-width="5"/><circle id="ringv" cx="23" cy="23" r="19" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 120" transform="rotate(-90 23 23)"/></svg></div>
  </section>
 
@@ -149,20 +153,20 @@ footer{color:var(--faint);font-size:12px}
    <span><i style="background:var(--band)"></i>banda inferior / gatilho da lateralização (4h)</span><span><i style="background:var(--faint);height:6px"></i>volume</span><span>▲ compra · ▼ venda do bot</span></div>
    <div id="chart"></div>
   </section>
-  <section class="card"><div class="ch"><h2 id="cktitle">Checklist</h2></div>
+  <section class="card" id="checksec"><div class="ch"><h2 id="cktitle">Checklist</h2><span class="dica">clique numa regra para entender</span></div>
    <ul class="checks" id="checks"></ul><div class="verdict" id="verdict">—</div></section>
  </div>
 
  <section class="card" id="radar"><div class="ch"><h2>Radar das moedas</h2><span class="muted" style="font-size:12px">11 tracinhos = 11 regras de entrada · clique para ver o gráfico</span></div>
   <div class="tiles" id="tiles"><div class="empty">Aguardando o primeiro ciclo…</div></div></section>
 
- <section class="card"><div class="ch"><h2>Evolução da carteira</h2><span class="muted num" id="eqinfo"></span></div><div id="equity"></div></section>
+ <section class="card" id="evolucao"><div class="ch"><h2>Evolução da carteira</h2><span class="muted num" id="eqinfo"></span></div><div id="equity"></div></section>
 
- <section class="card" id="operacoes"><div class="ch"><h2>Posições abertas</h2></div><div class="tw"><table>
+ <section class="card" id="operacoes"><div class="ch"><h2>Posições abertas</h2><span class="dica">clique numa linha para ver o gráfico</span></div><div class="tw"><table>
   <thead><tr><th>Moeda</th><th>Estratégia</th><th>Entrada</th><th>Agora</th><th>Resultado</th><th>Stop</th><th>Aberta em</th></tr></thead><tbody id="pos"></tbody></table></div></section>
 
  <div class="grid2">
-  <section class="card"><div class="ch"><h2>Diário (últimas operações)</h2></div><div class="tw"><table>
+  <section class="card" id="diariosec"><div class="ch"><h2>Diário (últimas operações)</h2><span class="dica">clique numa linha para ver o gráfico</span></div><div class="tw"><table>
    <thead><tr><th>Origem</th><th>Moeda</th><th>Resultado</th><th>Motivo</th></tr></thead><tbody id="diario"></tbody></table></div></section>
   <section class="card" id="log"><div class="ch"><h2>Log ao vivo</h2><button type="button" class="themebtn" id="logbtn" aria-expanded="false" aria-controls="logbox">Mostrar log</button></div>
    <pre class="term" id="logbox" hidden></pre><div class="empty" id="loghint">O log técnico está oculto. Clique em "Mostrar log" para ver.</div></section>
@@ -238,7 +242,10 @@ function spark(eh){const v=eh.map(x=>x[1]);if(v.length<2){$("spark").innerHTML="
 function drawSelected(){
  const d=last;if(!d||!sel)return;const x=(d.radar||{})[sel]||{};
  ava($("cava"),sel);$("cname").textContent=base(sel)+" / USDT";
- $("ctags").innerHTML=`<span class="chip ${cls(x.tendencia)}">diário ${esc(tname(x.tendencia))}</span><span class="chip ${cls(x.btc)}">BTC ${esc(tname(x.btc))}</span><span class="chip">${x.regras_ok??"—"}/${x.regras_total??"—"} regras</span>`;
+ $("ctags").innerHTML=`<button type="button" class="chip clk ${cls(x.tendencia)}" data-a="diario" title="Ver o gráfico de tendência">diário ${esc(tname(x.tendencia))}</button><button type="button" class="chip clk ${cls(x.btc)}" data-a="btc" title="Abrir o gráfico do BTC">BTC ${esc(tname(x.btc))}</button><button type="button" class="chip clk" data-a="regras" title="Ver o checklist">${x.regras_ok??"—"}/${x.regras_total??"—"} regras</button>`;
+ $("ctags").querySelectorAll("button").forEach(b=>b.onclick=()=>{const a=b.dataset.a;
+  if(a==="diario"){tf="1d";try{localStorage.setItem("painel-tf",tf)}catch(e){}document.querySelectorAll(".seg-tf button").forEach(z=>z.setAttribute("aria-pressed",z.dataset.tf===tf));drawSelected();loadChart(true)}
+  else if(a==="btc")pick("BTC/USDT");else ir("checksec")});
  const lp=(d.precos||{})[sel],vv=(d.var24||{})[sel];$("cprice").textContent=px(lp??x.preco);
  $("cvar").innerHTML=vv==null?"preço ao vivo":`<span class="${vv>=0?"up":"down"}">${vv>=0?"+":""}${fmt(vv)}%</span> em 24h · ao vivo`;
  priceLines.forEach(p=>cs.removePriceLine(p));priceLines=[];
@@ -247,7 +254,8 @@ function drawSelected(){
   priceLines.push(cs.createPriceLine({price:p.stop,color:css("--down"),lineWidth:2,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"stop"}));}
  if(tf==="4h"&&x.tendencia==="LATERAL"&&x.gatilho_lateral)priceLines.push(cs.createPriceLine({price:x.gatilho_lateral,color:css("--band"),lineWidth:1,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"gatilho lateral"}));
  $("cktitle").textContent="Checklist · "+base(sel);
- const rg=x.regras||{};$("checks").innerHTML=Object.keys(rg).length?Object.entries(rg).map(([k,ok])=>`<li><span class="${ok?"ok":"no"}">${ok?"✓":"✕"}</span><span>${esc(NOMES[k]||k)}</span></li>`).join(""):'<li class="muted">Aguardando…</li>';
+ const rg=x.regras||{};$("checks").innerHTML=Object.keys(rg).length?Object.entries(rg).map(([k,ok])=>`<li tabindex="0" data-k="${esc(k)}"><span class="${ok?"ok":"no"}">${ok?"✓":"✕"}</span><span>${esc(NOMES[k]||k)}</span>${abertas.has(k)?`<div class="exp">${esc(EXPL[k]||"")}</div>`:""}</li>`).join(""):'<li class="muted">Aguardando…</li>';
+ $("checks").querySelectorAll("li[data-k]").forEach(li=>clk(li,()=>{const k=li.dataset.k;abertas.has(k)?abertas.delete(k):abertas.add(k);drawSelected()}));
  $("verdict").innerHTML=x.sinal_tendencia?'<b class="up">Sinal de compra (tendência)</b> — todas as regras passaram.':
   x.sinal_lateral?`<b class="flat">Sinal de lateralização</b> — ${d.lateral_ligada?"o bot compra":"só observando"}: preço abaixo da banda inferior com RSI baixo.`:
   x.tendencia==="LATERAL"?`Mercado lateral: a lateralização compra se o preço fechar abaixo de <b class="num">${px(x.gatilho_lateral)}</b>${dist(sel,x)} com RSI < 30 (agora ${fmt(x.rsi,0)}).`:
@@ -257,9 +265,27 @@ function drawSelected(){
 }
 document.querySelectorAll(".seg-tf button").forEach(b=>{b.setAttribute("aria-pressed",b.dataset.tf===tf);b.onclick=()=>{tf=b.dataset.tf;try{localStorage.setItem("painel-tf",tf)}catch(e){}
  document.querySelectorAll(".seg-tf button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.tf===tf));drawSelected();loadChart(true)}});
+clk($("kc1"),()=>ir("evolucao"));clk($("kc2"),()=>ir("evolucao"));clk($("kc3"),()=>ir("diariosec"));
+clk($("kc4"),()=>abrir(window._perto));
 let logAberto=false;try{logAberto=localStorage.getItem("painel-log")==="1"}catch(e){}
 function aplicaLog(){$("logbox").hidden=!logAberto;$("loghint").hidden=logAberto;$("logbtn").textContent=logAberto?"Ocultar log":"Mostrar log";$("logbtn").setAttribute("aria-expanded",logAberto)}
 $("logbtn").onclick=()=>{logAberto=!logAberto;try{localStorage.setItem("painel-log",logAberto?"1":"0")}catch(e){}aplicaLog();if(logAberto){const l=$("logbox");l.scrollTop=l.scrollHeight}};aplicaLog();
+const EXPL={dados:"Precisa de histórico suficiente para calcular as médias (pelo menos 200 candles).",
+ tendencia_maior:"A moeda precisa estar em alta no gráfico maior (diário): preço acima da EMA200 e médias subindo.",
+ mercado_btc:"Só compra moedas com o BTC também em alta: quando o BTC cai, quase tudo cai junto.",
+ emas_alinhadas:"Média rápida acima da média e da lenta (21 > 50 > 200): sinal de tendência organizada.",
+ pullback:"O preço precisa ter voltado até a EMA21 (correção) sem perder a EMA50.",
+ gatilho:"Candle de alta fechando acima da EMA21 e da máxima anterior: a correção acabou.",
+ rsi:"Força do movimento na faixa saudável: abaixo de 45 está fraco, acima de 68 está esticado.",
+ macd:"O MACD precisa estar positivo e subindo: o momento está a favor da compra.",
+ adx:"ADX acima de 20 mostra que existe tendência; abaixo disso o mercado está andando de lado.",
+ volume:"Volume do candle acima da média: tem gente comprando de verdade.",
+ nao_esticado:"O preço não pode estar longe demais da EMA21 (no máximo 1,5 ATR), senão a entrada fica cara.",
+ reward_risk:"Precisa ter espaço até a próxima resistência para valer o risco."};
+const abertas=new Set();
+function clk(el,fn){el.onclick=fn;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fn()}}}
+function ir(id){const e=$(id);if(e)e.scrollIntoView({behavior:"smooth",block:"start"})}
+function abrir(sym){if(!sym)return;pick(sym);ir("grafico")}
 function ini0(eh,d){return eh.length?eh[0][1]:d.carteira}
 function pick(s){sel=s;try{localStorage.setItem("painel-moeda",s)}catch(e){}drawSelected();loadChart(true)}
 async function load(){
@@ -306,8 +332,10 @@ async function load(){
   document.querySelectorAll(".tile").forEach(t=>{t.onclick=()=>pick(t.dataset.s);t.onkeydown=e=>{if(e.key==="Enter")pick(t.dataset.s)}});
   eqs.setData(eh.map(([t,v])=>({time:t+TZ,value:v})));
   $("eqinfo").textContent=eh.length>1?`${fmt(eh[0][1])} → ${fmt(d.carteira)} USDT`:"cresce com o tempo · 1 ponto a cada 5 min";
-  $("pos").innerHTML=np?d.posicoes.map(p=>`<tr><td><b>${esc(p.simbolo)}</b></td><td>${esc(p.estrategia)}</td><td class="num">${px(p.entrada)}</td><td class="num">${px(p.preco)}</td><td class="num ${p.resultado_pct>=0?"up":"down"}">${p.resultado_pct>=0?"+":""}${fmt(p.resultado_pct*100)}%</td><td class="num">${px(p.stop)}</td><td class="muted">${esc(String(p.aberta).slice(0,16).replace("T"," "))}</td></tr>`).join(""):'<tr><td colspan="7" class="empty">Nenhuma posição aberta — o bot está esperando um sinal.</td></tr>';
-  $("diario").innerHTML=(d.diario||[]).length?d.diario.map(j=>`<tr><td class="muted">${esc(j.origem)}</td><td>${esc(j.simbolo)}</td><td class="num ${j.r>=0?"up":"down"}">${j.r>=0?"+":""}${fmt(j.r)}R</td><td class="muted">${esc(j.motivo)}</td></tr>`).join(""):'<tr><td colspan="4" class="empty">Ainda sem operações registradas.</td></tr>';
+  $("pos").innerHTML=np?d.posicoes.map(p=>`<tr class="clk" data-s="${esc(p.simbolo)}"><td><b>${esc(p.simbolo)}</b></td><td>${esc(p.estrategia)}</td><td class="num">${px(p.entrada)}</td><td class="num">${px(p.preco)}</td><td class="num ${p.resultado_pct>=0?"up":"down"}">${p.resultado_pct>=0?"+":""}${fmt(p.resultado_pct*100)}%</td><td class="num">${px(p.stop)}</td><td class="muted">${esc(String(p.aberta).slice(0,16).replace("T"," "))}</td></tr>`).join(""):'<tr><td colspan="7" class="empty">Nenhuma posição aberta — o bot está esperando um sinal.</td></tr>';
+  $("diario").innerHTML=(d.diario||[]).length?d.diario.map(j=>`<tr class="clk" data-s="${esc(j.simbolo)}"><td class="muted">${esc(j.origem)}</td><td>${esc(j.simbolo)}</td><td class="num ${j.r>=0?"up":"down"}">${j.r>=0?"+":""}${fmt(j.r)}R</td><td class="muted">${esc(j.motivo)}</td></tr>`).join(""):'<tr><td colspan="4" class="empty">Ainda sem operações registradas.</td></tr>';
+  document.querySelectorAll("#pos tr.clk,#diario tr.clk").forEach(tr=>clk(tr,()=>abrir(tr.dataset.s)));
+  window._perto=rad.length?rad[0][0]:null;
   const lg=$("logbox"),bottom=lg.scrollTop+lg.clientHeight>=lg.scrollHeight-20;lg.textContent=(d.log||[]).join("\n");if(bottom)lg.scrollTop=lg.scrollHeight;
   const sig=(d.diario||[]).length+"|"+(d.posicoes||[]).map(p=>p.simbolo).join(",");
   if(window._sig!==undefined&&window._sig!==sig){const p=(d.posicoes||[])[0],j=(d.diario||[])[0];
