@@ -105,8 +105,12 @@ class PaperBroker(Broker):
         return bool(order_id)
 
     def stop_filled(self, symbol, order_id, stop):
+        """Simula a ordem STOP_LOSS_LIMIT que fica na Binance no modo real: executa no preço do
+        stop; só sai pior se o preço já passou do limite da ordem (0,6% abaixo), como num gap."""
         px = self.price(symbol)
-        return (px <= stop, px, 0.0)
+        if px > stop:
+            return False, px, 0.0
+        return True, (stop if px >= stop * (1 - 0.006) else px), 0.0
 
 
 class LiveBroker(Broker):

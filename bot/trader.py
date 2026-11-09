@@ -79,7 +79,7 @@ class Trader:
         pnl = pos.proceeds - pos.cost
         risk_cash = (pos.cost / pos.entry) * pos.initial_risk if pos.entry else 0
         r_mult = pnl / risk_cash if risk_cash else 0.0
-        log.info("FECHOU %s | motivo: %s | PnL %.2f USDT (%+.2fR)", sym, reason, pnl, r_mult)
+        log.info("FECHOU %s [%s] | motivo: %s | PnL %.2f USDT (%+.2fR)", sym, pos.strategy, reason, pnl, r_mult)
         self.guard.register_close(pnl, utcnow())
         del self.positions[sym]
         # diário: memória do bot para aprender com a prática
@@ -155,8 +155,8 @@ class Trader:
                 pos.stop_order_id = None
                 self._protect(sym, pos)
             return
-        if got <= 0:      # paper: simula a venda agora
-            px, got = self.broker.sell(sym, pos.qty)
+        if got <= 0:      # paper: simula a venda agora, no preço em que a ordem stop executaria
+            px, got = self.broker.sell(sym, pos.qty, px)
         pos.proceeds += got
         pos.qty = 0
         pos.reasons.append("stop")
@@ -546,6 +546,8 @@ class Trader:
                 self.tg.send(self.status_text(), dedupe_s=0)
             elif c == "/radar":
                 self.tg.send(self.radar_text(), dedupe_s=0)
+            elif c == "/central":
+                self.tg.send(self.central_text(), dedupe_s=0)
             elif c == "/pausar":
                 PAUSE_FILE.write_text("pausado pelo Telegram\n")
                 self.tg.send("⏸ Pausado: sem novas compras. Posições abertas continuam protegidas. /retomar para voltar.", dedupe_s=0)
@@ -555,7 +557,41 @@ class Trader:
                 self.tg.send("▶️ Retomado: o bot volta a abrir posições quando houver sinal.", dedupe_s=0)
                 log.warning("retomado pelo Telegram")
             else:
-                self.tg.send("Comandos: /status · /radar (o que o bot vê em cada moeda) · /pausar (sem novas compras) · /retomar", dedupe_s=0)
+                self.tg.send("Comandos: /central (lucro de todos os bots) · /status · /radar (o que o bot vê em cada moeda) · "
+                             "/pausar (sem novas compras) · /retomar", dedupe_s=0)
+
+    def central_text(self) -> str:
+        """Resumo de TODOS os bots no celular (os mesmos números da Central do painel)."""
+        if not self.painel:
+            return self.status_text()
+        try:
+            self._refresh_painel()
+            d = json.loads(self.painel.central())
+        except Exception:
+            log.exception("erro montando a central")
+            return self.status_text()
+
+        def sg(v, suf=""):
+            return "—" if v is None else f"{v:+.2f}{suf}"
+
+        linhas = ["🏠 Central dos bots"]
+        for b in d.get("bots", []):
+            nome = "Principal" if b["id"] == "principal" else (b.get("nome") or b["id"]).replace("Bot ", "")
+            if not b.get("online"):
+                linhas.append(f"⚪ {nome}: fora do ar")
+                continue
+            ic = "🟢" if (b.get("lucro") or 0) >= 0 else "🔴"
+            ac = "—" if b.get("acerto") is None else f"{b['acerto']:.0%}"
+            linhas.append(f"{ic} {nome}: {sg(b.get('lucro'))} USDT ({sg((b.get('lucro_pct') or 0) * 100, '%')})\n"
+                          f"    realizado {sg(b.get('realizado'))} · aberto {sg(b.get('aberto'))} · {b.get('posicoes', 0)} posições\n"
+                          f"    {b.get('ops', 0)} ops · acerto {ac} · média {sg(b.get('media_r'), 'R')} · hoje {b.get('hoje_ops', 0)} ops")
+        st = d.get("setups") or []
+        if st:
+            linhas.append("\n🏆 Setups (média por operação):")
+            for i, x in enumerate(st[:7]):
+                aviso = " (poucas ops)" if x["ops"] < 20 else ""
+                linhas.append(f"  {i + 1}. {x['nome']}: {x['media_r']:+.2f}R · {x['ops']} ops · acerto {x['acerto']:.0%}{aviso}")
+        return "\n".join(linhas)
 
     def daily_summary(self) -> None:
         if not self.tg or not self.tg.enabled:
@@ -622,5 +658,12 @@ class Trader:
                 self.handle_commands()
             except Exception:
                 log.exception("erro lendo comandos do Telegram")
+            if k % 2 == 0 and self.positions:      # stops conferidos a cada ~10 s, não só a cada ciclo
+                for sym in list(self.positions):
+                    try:
+                        self._check_stop(sym, self.positions[sym])
+                    except Exception:
+                        log.exception("erro conferindo stop de %s", sym)
+                self.save()
             if k % 3 == 0:
                 self._refresh_painel()

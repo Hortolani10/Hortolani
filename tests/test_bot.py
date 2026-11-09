@@ -914,3 +914,34 @@ def test_snapshot_tem_lucro_e_desempenho(synth, cfg, tmp_path, monkeypatch):
     assert snap["inicial"] == cfg["paper"]["initial_balance"]
     assert dz["ops"] == 2 and dz["realizado"] == 1.0 and dz["acerto"] == 0.5 and dz["media_r"] == 0.25
     assert dz["por_setup"]["rompimento"]["ops"] == 2 and dz["por_padrao"]["rompimento_20"]["ganhos"] == 1
+
+
+def test_paper_stop_executa_no_preco_do_stop(cfg):
+    from bot.exchange import PaperBroker
+    class M:
+        p = 99.8
+        def load_markets(self): pass
+        def fetch_ticker(self, s): return {"last": self.p}
+    m = M(); b = PaperBroker(cfg, m, {})
+    assert b.stop_filled("X/USDT", "id", 100.0)[:2] == (True, 100.0)      # passou um pouco: sai no stop
+    m.p = 98.0
+    assert b.stop_filled("X/USDT", "id", 100.0)[:2] == (True, 98.0)       # gap além do limite: sai pior
+    m.p = 101.0
+    assert b.stop_filled("X/USDT", "id", 100.0)[0] is False
+
+
+def test_comando_central_no_telegram(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    from bot.notify import Telegram
+    from bot.painel import Painel
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    br = FakeBroker(e, resample(e, 4)); br.n = 1500
+    api = FakeTelegramAPI([_upd(1, 7, "/central")])
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api),
+                painel=Painel("127.0.0.1", 0, "principal", {"aprendiz-1h": "http://127.0.0.1:9"}))
+    tr.tick()
+    tr.handle_commands()
+    txt = api.sent[-1]
+    assert "Central dos bots" in txt and "Principal" in txt and "USDT" in txt and "fora do ar" in txt

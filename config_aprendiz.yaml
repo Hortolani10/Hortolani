@@ -73,4 +73,5 @@ painel:
 
 telegram:
   comandos: false           # só o bot principal responde /status e /radar
-  avisos: false             # no celular: só erros e o resumo diário (são muitas operações por dia)
+  avisos: true              # avisa no celular cada compra, venda e stop (muitas mensagens por dia).
+                            # false = só erros e o resumo diário
