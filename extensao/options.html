@@ -10,12 +10,9 @@
   small { color: #52606d; }
 </style>
 <h3>Leitor de Pedidos</h3>
-<p><small>Para onde os pedidos lidos no protocolo serão enviados.</small></p>
-<label>Endereço do sistema externo
-  <input id="endpoint" type="url" placeholder="https://xxxx.supabase.co/functions/v1/receber-pedido">
-</label>
-<label>Chave de acesso
-  <input id="chave" type="password" autocomplete="off">
+<p><small>O pedido será aberto no cadastro do Ventriculo para revisão.</small></p>
+<label>Endereço do Ventriculo
+  <input id="appUrl" type="url" placeholder="https://ventriculo-app.vercel.app/pedidos/cadastrar">
 </label>
 <button id="salvar">Salvar</button>
 <span id="status"></span>

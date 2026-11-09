@@ -105,10 +105,10 @@
         <tr><th>Tramitação</th><td>${dataBr(p.dataTramitacao)}</td></tr>
       </table>
       <div class="lp-acoes">
-        <button class="lp-enviar">${enviadoEm ? 'Enviar de novo' : 'Enviar para o sistema'}</button>
+        <button class="lp-enviar">${enviadoEm ? 'Importar de novo' : 'Importar no Ventriculo'}</button>
         <button class="lp-copiar">Copiar dados</button>
       </div>
-      <div class="lp-status">${enviadoEm ? `Já enviado em ${new Date(enviadoEm).toLocaleString('pt-BR')}` : ''}</div>`;
+      <div class="lp-status">${enviadoEm ? `Já importado em ${new Date(enviadoEm).toLocaleString('pt-BR')}` : ''}</div>`;
     const status = div.querySelector('.lp-status');
     div.querySelector('.lp-copiar').onclick = async () => {
       await navigator.clipboard.writeText(JSON.stringify(p, null, 2));
@@ -116,10 +116,10 @@
     };
     div.querySelector('.lp-enviar').onclick = async (ev) => {
       ev.target.disabled = true;
-      status.textContent = 'Enviando…';
+      status.textContent = 'Abrindo o Ventrículo…';
       try {
         await msg({ tipo: 'enviar', pedido: p });
-        status.textContent = 'Enviado ✔';
+        status.textContent = 'Aberto no Ventrículo ✔ Confira e salve lá.';
       } catch (e) {
         status.textContent = 'Erro: ' + e.message;
       } finally {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Leitor de Pedidos - Protocolo Sarapuí",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lê o pedido de compra dentro do protocolo e envia para o sistema de acompanhamento de entregas.",
   "permissions": ["storage", "offscreen"],
   "host_permissions": [

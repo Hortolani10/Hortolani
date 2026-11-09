@@ -2,6 +2,7 @@
 // o documento "offscreen" (que lê o PDF) e o sistema externo.
 
 const OFFSCREEN = 'offscreen.html';
+const APP_URL_PADRAO = 'https://ventriculo-app.vercel.app/pedidos/cadastrar';
 
 async function garantirOffscreen() {
   const existentes = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
@@ -19,15 +20,43 @@ async function lerPdf(url) {
 }
 
 async function enviar(pedido) {
-  const { endpoint, chave } = await chrome.storage.sync.get(['endpoint', 'chave']);
-  if (!endpoint) throw new Error('Configure o endereço do sistema externo nas opções da extensão.');
-  const resp = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(chave ? { 'x-api-key': chave } : {}) },
-    body: JSON.stringify(pedido),
-  });
-  const texto = await resp.text();
-  if (!resp.ok) throw new Error(`Sistema externo respondeu ${resp.status}: ${texto.slice(0, 200)}`);
+  const { appUrl, endpoint } = await chrome.storage.sync.get(['appUrl', 'endpoint']);
+  const baseUrl = appUrl || endpoint || APP_URL_PADRAO;
+
+  let url;
+  try {
+    url = new URL('/pedidos/cadastrar', baseUrl);
+  } catch {
+    throw new Error('O endereço do Ventriculo não é válido.');
+  }
+
+  const payload = {
+    version: 1,
+    source: 'leitor-pedidos-extensao',
+    ata: {
+      numero: pedido.ata || '',
+      diasParaEntrega: 7,
+      diasUteis: true,
+      fiscal: '',
+    },
+    empresa: {
+      nomeEmpresa: pedido.empresa || '',
+      cnpj: pedido.cnpj || '',
+    },
+    pedido: {
+      numeroPedido: pedido.pedido || '',
+      ataNumero: pedido.ata || '',
+      empresaCnpj: pedido.cnpj || '',
+      dataPedido: pedido.dataPedido || '',
+      numeroProtocolo: pedido.protocolo || '',
+      diretoria: pedido.diretoria || '',
+      valorPedido: pedido.valor || 0,
+    },
+  };
+
+  url.hash = `importar-pedido=${encodeURIComponent(JSON.stringify(payload))}`;
+  if (url.href.length > 16000) throw new Error('O pedido é grande demais para ser enviado ao Ventriculo.');
+  await chrome.tabs.create({ url: url.href });
   const { enviados = {} } = await chrome.storage.local.get('enviados');
   enviados[pedido.pedido] = new Date().toISOString();
   await chrome.storage.local.set({ enviados });
