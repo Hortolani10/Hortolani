@@ -72,27 +72,22 @@ const removerFila = (numero) => alterarFila((fila) => void delete fila[numero]);
 const limparFila = () => alterarFila((fila) => Object.keys(fila).forEach((k) => delete fila[k]));
 
 // ---------- Ventrículo ----------
-async function enviar(pedido, { ativa = true } = {}) {
-  const avisos = camposFaltando(pedido);
-  if (avisos.length) throw new Error(avisos.join('; '));
-
+async function enderecoVentriculo(caminho) {
   const { appUrl, endpoint } = await chrome.storage.sync.get(['appUrl', 'endpoint']);
-  const baseUrl = appUrl || endpoint || APP_URL_PADRAO;
-
-  let url;
   try {
-    url = new URL('/pedidos/cadastrar', baseUrl);
+    return new URL(caminho, appUrl || endpoint || APP_URL_PADRAO);
   } catch {
     throw new Error('O endereço do Ventriculo não é válido.');
   }
+}
 
+/** Um pedido no formato que a tela de cadastro do Ventrículo entende. */
+function itemVentriculo(pedido) {
   // O prazo certo é o da ata oficial cadastrada no Ventrículo. Mas a tela de cadastro
   // do Ventrículo só preenche o formulário se o bloco "ata" vier completo (testado: sem
   // diasParaEntrega/diasUteis/fiscal ela abre vazia). Por isso os campos vão no formato
   // que o Ventrículo espera; o ideal é o Ventrículo ignorá-los quando a ata já existe.
-  const payload = {
-    version: 1,
-    source: 'leitor-pedidos-extensao',
+  return {
     ata: {
       numero: pedido.ata || '',
       diasParaEntrega: 7,
@@ -113,23 +108,76 @@ async function enviar(pedido, { ativa = true } = {}) {
       valorPedido: pedido.valor || 0,
     },
   };
+}
 
-  url.hash = `importar-pedido=${encodeURIComponent(JSON.stringify(payload))}`;
+// Só sabemos que a tela foi aberta; quem salva é a pessoa, lá no Ventrículo.
+function marcarAbertos(pedidos) {
+  const abertoEm = new Date().toISOString();
+  return alterarFila((fila) => {
+    for (const pedido of pedidos) {
+      fila[pedido.pedido] = { avisos: [], adicionadoEm: abertoEm, ...fila[pedido.pedido], pedido, abertoEm };
+    }
+    return abertoEm;
+  });
+}
+
+/** Um pedido: abre /pedidos/cadastrar preenchido. */
+async function enviar(pedido, { ativa = true } = {}) {
+  const avisos = camposFaltando(pedido);
+  if (avisos.length) throw new Error(avisos.join('; '));
+  const url = await enderecoVentriculo('/pedidos/cadastrar');
+  url.hash = `importar-pedido=${encodeURIComponent(
+    JSON.stringify({ version: 1, source: 'leitor-pedidos-extensao', ...itemVentriculo(pedido) }),
+  )}`;
   if (url.href.length > 16000) throw new Error('O pedido é grande demais para ser enviado ao Ventriculo.');
   await chrome.tabs.create({ url: url.href, active: ativa });
+  return { ok: true, abertoEm: await marcarAbertos([pedido]) };
+}
 
-  // Só sabemos que a tela foi aberta; quem salva é a pessoa, lá no Ventrículo.
-  const abertoEm = new Date().toISOString();
-  await alterarFila((fila) => {
-    fila[pedido.pedido] = {
-      avisos: [],
-      adicionadoEm: abertoEm,
-      ...fila[pedido.pedido],
-      pedido,
-      abertoEm,
-    };
-  });
-  return { ok: true, abertoEm };
+/**
+ * Vários pedidos numa aba só: /pedidos/importar-lote#importar-pedidos=...
+ * (a tela de lote é do Ventrículo; ver docs/importacao-em-lote.md).
+ */
+async function enviarLote(pedidos) {
+  const url = await enderecoVentriculo('/pedidos/importar-lote');
+  url.hash = `importar-pedidos=${encodeURIComponent(
+    JSON.stringify({ version: 2, source: 'leitor-pedidos-extensao', pedidos: pedidos.map(itemVentriculo) }),
+  )}`;
+  // o Chrome aceita endereços de até ~2 MB; dá folga para centenas de pedidos
+  if (url.href.length > 1_500_000) throw new Error('Pedidos demais para uma aba só: importe em partes.');
+  await chrome.tabs.create({ url: url.href, active: true });
+  await marcarAbertos(pedidos);
+}
+
+// Importar todos os pedidos prontos da fila (sem aviso e ainda não abertos).
+// - modo lote ligado (configuração): uma aba só, com a tela de lote do Ventrículo;
+// - senão: uma aba do Ventrículo para cada pedido (a primeira fica em foco).
+// Quando existir a gravação automática, é aqui que ela entra.
+async function importarTodos() {
+  const { fila = {} } = await chrome.storage.local.get('fila');
+  const prontos = Object.values(fila)
+    .filter((i) => !i.abertoEm && !i.avisos?.length)
+    .map((i) => i.pedido);
+  if (!prontos.length) return { abertos: 0, falhas: [], lote: false };
+
+  const { importarEmLote = false } = await chrome.storage.sync.get('importarEmLote');
+  if (importarEmLote) {
+    await enviarLote(prontos);
+    return { abertos: prontos.length, falhas: [], lote: true };
+  }
+
+  let abertos = 0;
+  const falhas = [];
+  for (const [n, pedido] of prontos.entries()) {
+    try {
+      await enviar(pedido, { ativa: n === 0 });
+      abertos++;
+    } catch (e) {
+      falhas.push(`${pedido.pedido}: ${e.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 300)); // não abre tudo no mesmo instante
+  }
+  return { abertos, falhas, lote: false };
 }
 
 // ---------- leitura dos protocolos em "Receber" ----------
@@ -205,25 +253,6 @@ async function varrer({ protocolos, forcar }) {
     await salvar();
   }
   return estado;
-}
-
-// Hoje: abre uma aba do Ventrículo para cada pedido pronto (a primeira fica em foco).
-// Quando existir a gravação automática, é aqui que ela entra.
-async function importarTodos() {
-  const { fila = {} } = await chrome.storage.local.get('fila');
-  const prontos = Object.values(fila).filter((i) => !i.abertoEm && !i.avisos?.length);
-  let abertos = 0;
-  const falhas = [];
-  for (const [n, item] of prontos.entries()) {
-    try {
-      await enviar(item.pedido, { ativa: n === 0 });
-      abertos++;
-    } catch (e) {
-      falhas.push(`${item.pedido.pedido}: ${e.message}`);
-    }
-    await new Promise((r) => setTimeout(r, 300)); // não abre tudo no mesmo instante
-  }
-  return { abertos, falhas };
 }
 
 const acoes = {

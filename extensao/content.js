@@ -316,12 +316,15 @@
     const { fila = {} } = await chrome.storage.local.get('fila');
     const n = Object.values(fila).filter((i) => !i.abertoEm && !i.avisos?.length).length;
     if (!n) return;
-    if (n > 1 && !confirm(`Vai abrir ${n} abas do Ventrículo, uma para cada pedido, já preenchidas. Em cada uma, confira e salve. Continuar?`)) return;
+    const { importarEmLote = false } = await chrome.storage.sync.get('importarEmLote');
+    if (!importarEmLote && n > 1 && !confirm(`Vai abrir ${n} abas do Ventrículo, uma para cada pedido, já preenchidas. Em cada uma, confira e salve. Continuar?`)) return;
     botao.disabled = true;
     status.textContent = 'Abrindo o Ventrículo…';
     try {
       const r = await msg({ tipo: 'importarTodos' });
-      status.textContent = `${r.abertos} pedido(s) aberto(s) no Ventrículo. Confira e salve em cada aba.` +
+      status.textContent = (r.lote
+        ? `${r.abertos} pedido(s) enviado(s) ao Ventrículo numa aba só. Confira e clique em "Salvar todos" lá.`
+        : `${r.abertos} pedido(s) aberto(s) no Ventrículo. Confira e salve em cada aba.`) +
         (r.falhas?.length ? ` Erro em ${r.falhas.length}: ${r.falhas.join('; ')}` : '');
     } catch (e) {
       status.textContent = 'Erro: ' + e.message;
