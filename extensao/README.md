@@ -59,8 +59,10 @@ amarelo e o botão de importar fica bloqueado.
 
 A extensão abre o cadastro de pedido do Ventrículo numa nova aba, com os dados
 preenchidos para revisão (`/pedidos/cadastrar#importar-pedido=...`).
-**Nenhum prazo é enviado.** O Ventrículo calcula o prazo pela ata oficial
-cadastrada nele, a partir da data do pedido. Da ata, só vai o número.
+O prazo certo é o da **ata oficial cadastrada no Ventrículo**. A tela de cadastro
+do Ventrículo, porém, só preenche o formulário se o bloco `ata` vier completo
+(`numero`, `diasParaEntrega`, `diasUteis`, `fiscal`). Por isso esses campos vão
+com valores padrão (7, true, ""), e o Ventrículo deve ignorá-los quando a ata já existir.
 
 Como quem salva é a pessoa, lá no Ventrículo, a extensão só registra
 "Aberto no Ventrículo em …", e não "salvo".

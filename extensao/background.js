@@ -86,12 +86,19 @@ async function enviar(pedido, { ativa = true } = {}) {
     throw new Error('O endereço do Ventriculo não é válido.');
   }
 
-  // Prazo NÃO vai: o Ventrículo calcula pela ata oficial cadastrada nele,
-  // a partir da data do pedido. Da ata, só o número.
+  // O prazo certo é o da ata oficial cadastrada no Ventrículo. Mas a tela de cadastro
+  // do Ventrículo só preenche o formulário se o bloco "ata" vier completo (testado: sem
+  // diasParaEntrega/diasUteis/fiscal ela abre vazia). Por isso os campos vão no formato
+  // que o Ventrículo espera; o ideal é o Ventrículo ignorá-los quando a ata já existe.
   const payload = {
     version: 1,
     source: 'leitor-pedidos-extensao',
-    ata: { numero: pedido.ata || '' },
+    ata: {
+      numero: pedido.ata || '',
+      diasParaEntrega: 7,
+      diasUteis: true,
+      fiscal: '',
+    },
     empresa: {
       nomeEmpresa: pedido.empresa || '',
       cnpj: pedido.cnpj || '',
