@@ -37,17 +37,21 @@ async function lerPdf(url) {
 // chrome.storage.local.fila = { "4758/0-2026": { pedido, avisos, adicionadoEm, abertoEm } }
 // A chave é o número do pedido, que já inclui o ano: o mesmo pedido nunca entra duas vezes.
 
-// Fila de escrita: evita que duas abas gravem a fila ao mesmo tempo e uma apague a outra.
+// Gravações uma de cada vez: evita que duas abas gravem ao mesmo tempo e uma apague a outra.
 let gravacao = Promise.resolve();
+function serializar(fn) {
+  const tarefa = gravacao.then(fn);
+  gravacao = tarefa.catch(() => {});
+  return tarefa;
+}
+
 function alterarFila(fn) {
-  const tarefa = gravacao.then(async () => {
+  return serializar(async () => {
     const { fila = {}, enviados = {} } = await chrome.storage.local.get(['fila', 'enviados']);
     const resultado = await fn(fila, enviados);
     await chrome.storage.local.set({ fila });
     return resultado;
   });
-  gravacao = tarefa.catch(() => {});
-  return tarefa;
 }
 
 function adicionarFila(pedido) {
@@ -121,7 +125,84 @@ async function enviar(pedido) {
   return { ok: true, abertoEm };
 }
 
+// ---------- leitura dos protocolos em "Receber" ----------
+// Abre cada protocolo numa aba em segundo plano; o content script lê o pedido,
+// coloca na fila e avisa "protocoloLido"; aí a aba é fechada.
+// chrome.storage.local.protocolosLidos = { "10880/2026": { lidoEm, pedidos: [...], erros: [...] } }
+const SIMULTANEOS = 2;
+const TEMPO_MAX_MS = 60000;
+const esperando = new Map(); // tabId -> resolve
+
+function registrarLido(protocolo, pedidos, erros) {
+  if (!protocolo) return;
+  return serializar(async () => {
+    const { protocolosLidos = {} } = await chrome.storage.local.get('protocolosLidos');
+    protocolosLidos[protocolo] = { lidoEm: new Date().toISOString(), pedidos, erros };
+    await chrome.storage.local.set({ protocolosLidos });
+  });
+}
+
+async function protocoloLido(m, sender) {
+  const tabId = sender.tab?.id;
+  // aberto pela leitura em segundo plano: quem registra é varrer(), com o número da lista
+  if (esperando.has(tabId)) return esperando.get(tabId)(m);
+  await registrarLido(m.protocolo, m.pedidos || [], m.erros || []); // aberto pela pessoa
+}
+
+function lerEmSegundoPlano(url) {
+  return new Promise((ok) => {
+    let tabId;
+    const fim = (r) => {
+      clearTimeout(timer);
+      esperando.delete(tabId);
+      if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
+      ok(r);
+    };
+    const timer = setTimeout(() => fim({ erros: ['O protocolo demorou demais para abrir'] }), TEMPO_MAX_MS);
+    chrome.tabs.create({ url, active: false }).then(
+      (tab) => { tabId = tab.id; esperando.set(tabId, fim); },
+      (e) => fim({ erros: [e.message] }),
+    );
+  });
+}
+
+let varrendo = false;
+async function varrer({ protocolos, forcar }) {
+  if (varrendo) throw new Error('Já existe uma leitura em andamento.');
+  const { protocolosLidos = {} } = await chrome.storage.local.get('protocolosLidos');
+  const fila = protocolos.filter(
+    (p) => forcar || !protocolosLidos[p.protocolo] || protocolosLidos[p.protocolo].erros?.length,
+  );
+  const estado = { inicio: new Date().toISOString(), total: fila.length, feitos: 0, pedidos: 0, semPedido: 0, erros: 0, fim: null };
+  const salvar = () => chrome.storage.local.set({ varredura: { ...estado } });
+  varrendo = true;
+  await salvar();
+  try {
+    const trabalhador = async () => {
+      while (fila.length) {
+        const p = fila.shift();
+        const r = await lerEmSegundoPlano(p.url);
+        // registra pelo número da lista; se teve erro, fica marcado e é tentado de novo
+        await registrarLido(p.protocolo, r.pedidos || [], r.erros || []);
+        if (r.erros?.length && !r.pedidos?.length) estado.erros++;
+        else if (!r.pedidos?.length) estado.semPedido++;
+        else estado.pedidos += r.pedidos.length;
+        estado.feitos++;
+        await salvar();
+      }
+    };
+    await Promise.all(Array.from({ length: SIMULTANEOS }, trabalhador));
+  } finally {
+    estado.fim = new Date().toISOString();
+    varrendo = false;
+    await salvar();
+  }
+  return estado;
+}
+
 const acoes = {
+  varrer: (m) => { varrer(m).catch(() => {}); return { ok: true }; }, // roda em segundo plano
+  protocoloLido: (m, sender) => protocoloLido(m, sender),
   lerPdf: (m) => lerPdf(m.url),
   enviar: (m) => enviar(m.pedido),
   adicionarFila: (m) => adicionarFila(m.pedido),
@@ -132,7 +213,7 @@ const acoes = {
 chrome.runtime.onMessage.addListener((msg, _sender, responder) => {
   if (msg.alvo !== 'background') return false;
   const acao = acoes[msg.tipo];
-  const tarefa = acao ? Promise.resolve().then(() => acao(msg)) : Promise.reject(new Error('mensagem desconhecida'));
+  const tarefa = acao ? Promise.resolve().then(() => acao(msg, _sender)) : Promise.reject(new Error('mensagem desconhecida'));
   tarefa.then(
     (r) => responder(r ?? { ok: true }),
     (e) => responder({ erro: e.message || String(e) }),

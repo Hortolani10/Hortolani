@@ -26,6 +26,19 @@ Nomes de servidores que aparecem no PDF (usuários, assinaturas) são ignorados.
 5. Clique no ícone da extensão para conferir o **endereço do Ventriculo**. A
    extensão já vem configurada para `https://ventriculo-app.vercel.app/pedidos/cadastrar`.
 
+## Leitura automática dos protocolos em "Receber"
+
+Ao abrir **Meus Protocolos** (tela Principal), a extensão pega as linhas com
+situação **"Receber"** e assunto de **Pedido de Compra**, abre cada protocolo
+(pelo mesmo link do olho) numa **aba em segundo plano**, 2 de cada vez, lê o
+pedido, coloca na fila e fecha a aba. Um painel mostra o andamento.
+
+- Protocolos já lidos não são lidos de novo. Os que deram erro, sim.
+- Botões: **Ler novos** e **Ler todos de novo**.
+- A leitura automática pode ser desligada nas configurações (⚙ na fila).
+- Ela lê só a página da lista que está aberta (até 50 linhas).
+- Ela nunca clica em "Receber": só abre para ver.
+
 ## Fila de pedidos
 
 Cada pedido lido entra numa **fila**, que é a mesma para todas as abas. Dá para

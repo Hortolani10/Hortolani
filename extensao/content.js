@@ -1,8 +1,14 @@
-// Roda dentro da tela do protocolo (co.wppreviewdocsprotocolo).
-// 1. Acha na árvore os documentos "pedido-NNNN-AAAA..."
-// 2. Clica neles (só visualizar) para o sistema mostrar o PDF
-// 3. Pede para a extensão ler o PDF e mostra os dados num painel
-// 4. Envia ao sistema externo quando a pessoa clica em "Enviar"
+// Roda no sistema de Processos Digitais da prefeitura, em duas telas:
+//
+// A) Tela de documentos do protocolo (co.wppreviewdocsprotocolo):
+//    1. Acha na árvore os documentos "pedido-NNNN-AAAA..."
+//    2. Clica neles (só visualizar) para o sistema mostrar o PDF
+//    3. Pede para a extensão ler o PDF, coloca o pedido na fila e mostra num painel
+//
+// B) Lista "Meus Protocolos" (tela Principal):
+//    pega os protocolos em "Receber" e pede para a extensão abrir cada um
+//    em segundo plano (tela A), que lê o pedido e fecha a aba.
+//
 // Nunca clica em "Receber", "Tramitar" ou qualquer outro botão do sistema.
 (() => {
   if (window.__leitorPedidos) return;
@@ -139,6 +145,8 @@
     corpo.textContent = `Lendo ${itens.length} pedido(s)…`;
     const protocoloTela = protocoloDaTela();
     const cartoes = [];
+    const lidos = [];
+    const erros = [];
     for (const item of itens) {
       try {
         const url = await abrirNoVisualizador(item);
@@ -154,7 +162,9 @@
         // sem número de pedido não dá para identificar na fila: usa o nome do documento
         if (!p.pedido) p.pedido = item.numero;
         cartoes.push(cartao(await msg({ tipo: 'adicionarFila', pedido: p })));
+        lidos.push(p.pedido);
       } catch (e) {
+        erros.push(`${item.nome}: ${e.message}`);
         const div = document.createElement('div');
         div.className = 'lp-cartao lp-erro';
         div.textContent = `${item.nome}: ${e.message}`;
@@ -165,19 +175,142 @@
     rodape.className = 'lp-rodape';
     rodape.textContent = 'Os pedidos ficam na fila: clique no ícone da extensão para ver todos.';
     corpo.replaceChildren(...cartoes, rodape);
+    avisarLido(protocoloTela, lidos, erros);
     return true;
   }
 
+  /** Avisa a extensão que este protocolo foi lido (usado pela leitura em segundo plano). */
+  function avisarLido(protocolo, pedidos, erros = []) {
+    msg({ tipo: 'protocoloLido', protocolo, pedidos, erros }).catch(() => {});
+  }
+
   // A árvore é montada por JavaScript depois que a página carrega: espera ela aparecer.
+  // Se a árvore aparecer e não tiver pedido, avisa "sem pedido" depois de alguns segundos.
   let feito = false;
-  const tentar = async () => {
+  let semPedidoTimer = null;
+  const tentarArvore = async () => {
     if (feito || !document.querySelector('span[id^="ygtvlabelel"]')) return;
-    if (!acharPedidosNaArvore().length) return;
+    if (!acharPedidosNaArvore().length) {
+      semPedidoTimer ??= setTimeout(() => {
+        if (feito || acharPedidosNaArvore().length) return;
+        feito = true;
+        avisarLido(protocoloDaTela(), []);
+      }, 5000);
+      return;
+    }
     feito = true;
-    obs.disconnect();
+    clearTimeout(semPedidoTimer);
     await processar();
   };
-  const obs = new MutationObserver(() => tentar());
+
+  // ---------- B) lista "Meus Protocolos" ----------
+  const STATUS_SEL = 'span[id*="VW_PROTOCOLOUSUARIO_STATUSPROTOCOLO_"]';
+  const RE_STATUS_ID = /^span_(\w*?)VW_PROTOCOLOUSUARIO_STATUSPROTOCOLO_(\d+)$/;
+
+  /** Linhas da lista com situação "Receber" e assunto de pedido de compra. */
+  function protocolosEmReceber() {
+    const lista = [];
+    for (const st of document.querySelectorAll(STATUS_SEL)) {
+      const m = st.id.match(RE_STATUS_ID);
+      if (!m || st.textContent.trim() !== 'Receber') continue;
+      const [, pre, linha] = m;
+      const txt = (col) => document.getElementById(`span_${pre}VW_PROTOCOLOUSUARIO_${col}_${linha}`)?.textContent.trim() || '';
+      const assunto = txt('PROTOCOLOASSUNTODESCRICAO');
+      if (assunto && !/pedido de compra/i.test(assunto)) continue;
+      const link = document.querySelector(`#span_${pre}vGRIDCONDFORMATTING_${linha} a[href*="wppreviewdocsprotocolo"]`);
+      const protocolo = txt('NUMEROEXIBICAO');
+      if (link && protocolo) lista.push({ protocolo, url: link.href });
+    }
+    return lista;
+  }
+
+  let painelLista = null;
+  let autoFeito = false;
+  function montarPainelLista() {
+    if (painelLista?.isConnected) return painelLista;
+    painelLista = document.createElement('div');
+    painelLista.id = 'leitor-pedidos-painel';
+    painelLista.innerHTML = `
+      <div class="lp-topo"><strong>Leitor de Pedidos</strong><button class="lp-fechar" title="Fechar">×</button></div>
+      <div class="lp-corpo">
+        <div class="lp-resumo"></div>
+        <div class="lp-progresso"></div>
+        <div class="lp-acoes">
+          <button class="lp-enviar lp-ler-novos">Ler novos</button>
+          <button class="lp-ler-todos" title="Lê de novo também os que já foram lidos">Ler todos de novo</button>
+        </div>
+        <div class="lp-rodape">Os pedidos lidos vão para a fila: clique no ícone da extensão para ver.</div>
+      </div>`;
+    painelLista.querySelector('.lp-fechar').onclick = () => painelLista.remove();
+    painelLista.querySelector('.lp-ler-novos').onclick = () => iniciarLeitura(false);
+    painelLista.querySelector('.lp-ler-todos').onclick = () => iniciarLeitura(true);
+    document.body.appendChild(painelLista);
+    return painelLista;
+  }
+
+  async function atualizarPainelLista() {
+    const lista = protocolosEmReceber();
+    if (!lista.length && !painelLista?.isConnected) return;
+    const painel = montarPainelLista();
+    const { protocolosLidos = {}, varredura = null } = await chrome.storage.local.get(['protocolosLidos', 'varredura']);
+    const novos = lista.filter((p) => !protocolosLidos[p.protocolo] || protocolosLidos[p.protocolo].erros?.length);
+    painel.querySelector('.lp-resumo').textContent =
+      `${lista.length} protocolo(s) de pedido em "Receber" nesta página · ${novos.length} ainda não lido(s)`;
+    const prog = painel.querySelector('.lp-progresso');
+    // se o Chrome reiniciar a extensão no meio, a leitura não termina: depois de 10 min libera os botões
+    const rodando = varredura && !varredura.fim && Date.now() - Date.parse(varredura.inicio) < 10 * 60000;
+    if (varredura) {
+      const r = varredura;
+      prog.textContent = rodando
+        ? `Lendo ${r.feitos}/${r.total}… (${r.pedidos} pedido(s) encontrado(s))`
+        : `Última leitura: ${r.feitos}/${r.total} protocolo(s), ${r.pedidos} pedido(s) encontrado(s)` +
+          (r.semPedido ? `, ${r.semPedido} sem pedido` : '') +
+          (r.erros ? `, ${r.erros} com erro` : '') + '.';
+    }
+    for (const b of painel.querySelectorAll('.lp-acoes button')) b.disabled = rodando;
+    return novos;
+  }
+
+  async function iniciarLeitura(forcar) {
+    const lista = protocolosEmReceber();
+    if (!lista.length) return;
+    try {
+      await msg({ tipo: 'varrer', protocolos: lista, forcar });
+    } catch (e) {
+      montarPainelLista().querySelector('.lp-progresso').textContent = 'Erro: ' + e.message;
+    }
+  }
+
+  const tentarLista = async () => {
+    if (!document.querySelector(STATUS_SEL)) return;
+    const novos = await atualizarPainelLista();
+    if (autoFeito || !novos?.length) return;
+    autoFeito = true;
+    const { leituraAutomatica = true } = await chrome.storage.sync.get('leituraAutomatica');
+    if (leituraAutomatica) iniciarLeitura(false);
+  };
+
+  chrome.storage.onChanged.addListener((mudou, area) => {
+    if (area === 'local' && (mudou.varredura || mudou.protocolosLidos) && document.querySelector(STATUS_SEL)) atualizarPainelLista();
+  });
+
+  // ---------- início ----------
+  let agendado = false;
+  const tentar = () => {
+    if (agendado) return;
+    agendado = true;
+    setTimeout(() => {
+      agendado = false;
+      tentarArvore();
+      tentarLista();
+    }, 300);
+  };
+  // ignora mudanças feitas pelo próprio painel (senão um atualiza o outro sem parar)
+  const obs = new MutationObserver((mudancas) => {
+    if (mudancas.every((m) => m.target.closest?.('#leitor-pedidos-painel') || m.target.id === 'leitor-pedidos-painel' ||
+      [...m.addedNodes, ...m.removedNodes].every((n) => n.id === 'leitor-pedidos-painel'))) return;
+    tentar();
+  });
   obs.observe(document.documentElement, { childList: true, subtree: true });
   tentar();
 })();
