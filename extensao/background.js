@@ -72,7 +72,7 @@ const removerFila = (numero) => alterarFila((fila) => void delete fila[numero]);
 const limparFila = () => alterarFila((fila) => Object.keys(fila).forEach((k) => delete fila[k]));
 
 // ---------- Ventrículo ----------
-async function enviar(pedido) {
+async function enviar(pedido, { ativa = true } = {}) {
   const avisos = camposFaltando(pedido);
   if (avisos.length) throw new Error(avisos.join('; '));
 
@@ -109,7 +109,7 @@ async function enviar(pedido) {
 
   url.hash = `importar-pedido=${encodeURIComponent(JSON.stringify(payload))}`;
   if (url.href.length > 16000) throw new Error('O pedido é grande demais para ser enviado ao Ventriculo.');
-  await chrome.tabs.create({ url: url.href });
+  await chrome.tabs.create({ url: url.href, active: ativa });
 
   // Só sabemos que a tela foi aberta; quem salva é a pessoa, lá no Ventrículo.
   const abertoEm = new Date().toISOString();
@@ -200,7 +200,27 @@ async function varrer({ protocolos, forcar }) {
   return estado;
 }
 
+// Hoje: abre uma aba do Ventrículo para cada pedido pronto (a primeira fica em foco).
+// Quando existir a gravação automática, é aqui que ela entra.
+async function importarTodos() {
+  const { fila = {} } = await chrome.storage.local.get('fila');
+  const prontos = Object.values(fila).filter((i) => !i.abertoEm && !i.avisos?.length);
+  let abertos = 0;
+  const falhas = [];
+  for (const [n, item] of prontos.entries()) {
+    try {
+      await enviar(item.pedido, { ativa: n === 0 });
+      abertos++;
+    } catch (e) {
+      falhas.push(`${item.pedido.pedido}: ${e.message}`);
+    }
+    await new Promise((r) => setTimeout(r, 300)); // não abre tudo no mesmo instante
+  }
+  return { abertos, falhas };
+}
+
 const acoes = {
+  importarTodos: () => importarTodos(),
   varrer: (m) => { varrer(m).catch(() => {}); return { ok: true }; }, // roda em segundo plano
   protocoloLido: (m, sender) => protocoloLido(m, sender),
   lerPdf: (m) => lerPdf(m.url),

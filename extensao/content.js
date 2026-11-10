@@ -64,11 +64,27 @@
     document.querySelector('#W0062UCFILEPREVIEWContainer embed, embed[src$=".pdf"], iframe[src*=".pdf"]')?.src ||
     null;
 
+  /**
+   * Clica no link da árvore rodando só o onclick do sistema (que seleciona o documento).
+   * O href do link é "javascript:...toggle()" (abrir/fechar pasta). Quando o clique vem
+   * de uma extensão, o Chrome bloqueia esse javascript: e registra um erro. Então o href
+   * sai durante o clique e volta logo depois.
+   */
+  function clicarSemNavegar(link) {
+    const href = link.getAttribute('href');
+    link.removeAttribute('href');
+    try {
+      link.click();
+    } finally {
+      if (href != null) link.setAttribute('href', href);
+    }
+  }
+
   /** Clica no documento da árvore e espera o visualizador trocar de PDF. */
   async function abrirNoVisualizador(item, timeoutMs = 15000) {
     const antes = urlDoPreview();
     if (item.span.classList.contains('NodeTextDecorationSelected') && antes) return antes;
-    item.link.click();
+    clicarSemNavegar(item.link);
     const fim = Date.now() + timeoutMs;
     while (Date.now() < fim) {
       await esperar(300);
@@ -235,15 +251,20 @@
       <div class="lp-corpo">
         <div class="lp-resumo"></div>
         <div class="lp-progresso"></div>
+        <div class="lp-fila"></div>
         <div class="lp-acoes">
-          <button class="lp-enviar lp-ler-novos">Ler novos</button>
+          <button class="lp-enviar lp-importar-todos" disabled>Importar todos</button>
+        </div>
+        <div class="lp-acoes lp-acoes-sec">
+          <button class="lp-ler-novos">Ler novos</button>
           <button class="lp-ler-todos" title="Lê de novo também os que já foram lidos">Ler todos de novo</button>
         </div>
-        <div class="lp-rodape">Os pedidos lidos vão para a fila: clique no ícone da extensão para ver.</div>
+        <div class="lp-status"></div>
       </div>`;
     painelLista.querySelector('.lp-fechar').onclick = () => painelLista.remove();
     painelLista.querySelector('.lp-ler-novos').onclick = () => iniciarLeitura(false);
     painelLista.querySelector('.lp-ler-todos').onclick = () => iniciarLeitura(true);
+    painelLista.querySelector('.lp-importar-todos').onclick = importarTodos;
     document.body.appendChild(painelLista);
     return painelLista;
   }
@@ -252,7 +273,7 @@
     const lista = protocolosEmReceber();
     if (!lista.length && !painelLista?.isConnected) return;
     const painel = montarPainelLista();
-    const { protocolosLidos = {}, varredura = null } = await chrome.storage.local.get(['protocolosLidos', 'varredura']);
+    const { protocolosLidos = {}, varredura = null, fila = {} } = await chrome.storage.local.get(['protocolosLidos', 'varredura', 'fila']);
     const novos = lista.filter((p) => !protocolosLidos[p.protocolo] || protocolosLidos[p.protocolo].erros?.length);
     painel.querySelector('.lp-resumo').textContent =
       `${lista.length} protocolo(s) de pedido em "Receber" nesta página · ${novos.length} ainda não lido(s)`;
@@ -263,11 +284,18 @@
       const r = varredura;
       prog.textContent = rodando
         ? `Lendo ${r.feitos}/${r.total}… (${r.pedidos} pedido(s) encontrado(s))`
-        : `Última leitura: ${r.feitos}/${r.total} protocolo(s), ${r.pedidos} pedido(s) encontrado(s)` +
-          (r.semPedido ? `, ${r.semPedido} sem pedido` : '') +
-          (r.erros ? `, ${r.erros} com erro` : '') + '.';
+        : `Última leitura: ${r.pedidos} pedido(s) encontrado(s)` + (r.erros ? `, ${r.erros} protocolo(s) com erro` : '') + '.';
     }
+    // protocolos sem pedido são simplesmente ignorados (não aparecem em lugar nenhum)
+    const prontos = Object.values(fila).filter((i) => !i.abertoEm && !i.avisos?.length).length;
+    const comAviso = Object.values(fila).filter((i) => !i.abertoEm && i.avisos?.length).length;
+    painel.querySelector('.lp-fila').textContent = prontos
+      ? `${prontos} pedido(s) pronto(s) para importar` + (comAviso ? ` · ${comAviso} com aviso (veja no ícone da extensão)` : '')
+      : 'Nenhum pedido novo para importar.';
     for (const b of painel.querySelectorAll('.lp-acoes button')) b.disabled = rodando;
+    const botao = painel.querySelector('.lp-importar-todos');
+    botao.textContent = prontos ? `Importar todos (${prontos})` : 'Importar todos';
+    botao.disabled = rodando || !prontos;
     return novos;
   }
 
@@ -281,6 +309,26 @@
     }
   }
 
+  async function importarTodos() {
+    const painel = montarPainelLista();
+    const status = painel.querySelector('.lp-status');
+    const botao = painel.querySelector('.lp-importar-todos');
+    const { fila = {} } = await chrome.storage.local.get('fila');
+    const n = Object.values(fila).filter((i) => !i.abertoEm && !i.avisos?.length).length;
+    if (!n) return;
+    if (n > 1 && !confirm(`Vai abrir ${n} abas do Ventrículo, uma para cada pedido, já preenchidas. Em cada uma, confira e salve. Continuar?`)) return;
+    botao.disabled = true;
+    status.textContent = 'Abrindo o Ventrículo…';
+    try {
+      const r = await msg({ tipo: 'importarTodos' });
+      status.textContent = `${r.abertos} pedido(s) aberto(s) no Ventrículo. Confira e salve em cada aba.` +
+        (r.falhas?.length ? ` Erro em ${r.falhas.length}: ${r.falhas.join('; ')}` : '');
+    } catch (e) {
+      status.textContent = 'Erro: ' + e.message;
+    }
+    atualizarPainelLista();
+  }
+
   const tentarLista = async () => {
     if (!document.querySelector(STATUS_SEL)) return;
     const novos = await atualizarPainelLista();
@@ -291,7 +339,7 @@
   };
 
   chrome.storage.onChanged.addListener((mudou, area) => {
-    if (area === 'local' && (mudou.varredura || mudou.protocolosLidos) && document.querySelector(STATUS_SEL)) atualizarPainelLista();
+    if (area === 'local' && (mudou.varredura || mudou.protocolosLidos || mudou.fila) && document.querySelector(STATUS_SEL)) atualizarPainelLista();
   });
 
   // ---------- início ----------

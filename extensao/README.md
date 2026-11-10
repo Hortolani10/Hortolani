@@ -34,6 +34,9 @@ situação **"Receber"** e assunto de **Pedido de Compra**, abre cada protocolo
 pedido, coloca na fila e fecha a aba. Um painel mostra o andamento.
 
 - Protocolos já lidos não são lidos de novo. Os que deram erro, sim.
+- Protocolos sem pedido são ignorados. Protocolos com mais de um pedido geram um item por pedido.
+- **Importar todos (N)**, no próprio painel: abre uma aba do Ventrículo para cada
+  pedido pronto, já preenchida (a primeira fica em foco). Pedidos com aviso ficam de fora.
 - Botões: **Ler novos** e **Ler todos de novo**.
 - A leitura automática pode ser desligada nas configurações (⚙ na fila).
 - Ela lê só a página da lista que está aberta (até 50 linhas).
