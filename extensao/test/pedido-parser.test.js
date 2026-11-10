@@ -31,3 +31,10 @@ test('lê os campos do pedido de compra', () => {
 test('recusa documento que não é pedido', () => {
   assert.throws(() => lerPedido([['Despacho de 3 de Novembro de 2026']]));
 });
+
+test('avisa quando falta campo obrigatório', async () => {
+  const { camposFaltando } = await import('../lib/pedido-parser.js');
+  assert.deepEqual(camposFaltando(lerPedido(linhas)), []);
+  const semAta = { ...lerPedido(linhas), ata: null, valor: 0 };
+  assert.deepEqual(camposFaltando(semAta), ['Não encontrei número da ata no PDF', 'Não encontrei valor no PDF']);
+});

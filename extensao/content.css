@@ -23,3 +23,6 @@
 }
 #leitor-pedidos-painel .lp-acoes .lp-enviar { background: #1e3a5f; color: #fff; }
 #leitor-pedidos-painel .lp-status { margin-top: 6px; color: #52606d; min-height: 1em; }
+#leitor-pedidos-painel .lp-aviso { background: #fff8e1; border: 1px solid #f5c451; color: #7a4f01; border-radius: 6px; padding: 6px; margin: 4px 0 6px; }
+#leitor-pedidos-painel .lp-acoes button:disabled { opacity: .5; cursor: not-allowed; }
+#leitor-pedidos-painel .lp-rodape { color: #52606d; font-size: 12px; }

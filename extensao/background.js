@@ -1,25 +1,77 @@
 // Service worker: faz o meio de campo entre a página do protocolo,
-// o documento "offscreen" (que lê o PDF) e o sistema externo.
+// o documento "offscreen" (que lê o PDF), a fila de pedidos e o Ventrículo.
+import { camposFaltando } from './lib/pedido-parser.js';
 
 const OFFSCREEN = 'offscreen.html';
 const APP_URL_PADRAO = 'https://ventriculo-app.vercel.app/pedidos/cadastrar';
 
+// Várias abas podem pedir leitura ao mesmo tempo: o documento é criado uma vez só.
+let criando = null;
 async function garantirOffscreen() {
   const existentes = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
   if (existentes.length) return;
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN,
-    reasons: ['WORKERS'],
-    justification: 'Ler o texto do PDF do pedido de compra com pdf.js',
-  });
+  criando ??= chrome.offscreen
+    .createDocument({
+      url: OFFSCREEN,
+      reasons: ['WORKERS'],
+      justification: 'Ler o texto do PDF do pedido de compra com pdf.js',
+    })
+    .finally(() => (criando = null));
+  await criando;
 }
 
 async function lerPdf(url) {
   await garantirOffscreen();
-  return chrome.runtime.sendMessage({ alvo: 'offscreen', tipo: 'lerPdf', url });
+  // logo após ser criado, o documento pode ainda não estar ouvindo: tenta de novo por alguns segundos
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      return await chrome.runtime.sendMessage({ alvo: 'offscreen', tipo: 'lerPdf', url });
+    } catch (e) {
+      if (tentativa >= 20 || !/Receiving end does not exist/i.test(e.message)) throw e;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
 }
 
+// ---------- fila ----------
+// chrome.storage.local.fila = { "4758/0-2026": { pedido, avisos, adicionadoEm, abertoEm } }
+// A chave é o número do pedido, que já inclui o ano: o mesmo pedido nunca entra duas vezes.
+
+// Fila de escrita: evita que duas abas gravem a fila ao mesmo tempo e uma apague a outra.
+let gravacao = Promise.resolve();
+function alterarFila(fn) {
+  const tarefa = gravacao.then(async () => {
+    const { fila = {}, enviados = {} } = await chrome.storage.local.get(['fila', 'enviados']);
+    const resultado = await fn(fila, enviados);
+    await chrome.storage.local.set({ fila });
+    return resultado;
+  });
+  gravacao = tarefa.catch(() => {});
+  return tarefa;
+}
+
+function adicionarFila(pedido) {
+  return alterarFila((fila, enviados) => {
+    const anterior = fila[pedido.pedido];
+    fila[pedido.pedido] = {
+      pedido,
+      avisos: camposFaltando(pedido),
+      adicionadoEm: anterior?.adicionadoEm || new Date().toISOString(),
+      // "enviados" é onde a versão 0.2 guardava os pedidos já abertos
+      abertoEm: anterior?.abertoEm || enviados[pedido.pedido] || null,
+    };
+    return fila[pedido.pedido];
+  });
+}
+
+const removerFila = (numero) => alterarFila((fila) => void delete fila[numero]);
+const limparFila = () => alterarFila((fila) => Object.keys(fila).forEach((k) => delete fila[k]));
+
+// ---------- Ventrículo ----------
 async function enviar(pedido) {
+  const avisos = camposFaltando(pedido);
+  if (avisos.length) throw new Error(avisos.join('; '));
+
   const { appUrl, endpoint } = await chrome.storage.sync.get(['appUrl', 'endpoint']);
   const baseUrl = appUrl || endpoint || APP_URL_PADRAO;
 
@@ -30,15 +82,12 @@ async function enviar(pedido) {
     throw new Error('O endereço do Ventriculo não é válido.');
   }
 
+  // Prazo NÃO vai: o Ventrículo calcula pela ata oficial cadastrada nele,
+  // a partir da data do pedido. Da ata, só o número.
   const payload = {
     version: 1,
     source: 'leitor-pedidos-extensao',
-    ata: {
-      numero: pedido.ata || '',
-      diasParaEntrega: 7,
-      diasUteis: true,
-      fiscal: '',
-    },
+    ata: { numero: pedido.ata || '' },
     empresa: {
       nomeEmpresa: pedido.empresa || '',
       cnpj: pedido.cnpj || '',
@@ -57,20 +106,35 @@ async function enviar(pedido) {
   url.hash = `importar-pedido=${encodeURIComponent(JSON.stringify(payload))}`;
   if (url.href.length > 16000) throw new Error('O pedido é grande demais para ser enviado ao Ventriculo.');
   await chrome.tabs.create({ url: url.href });
-  const { enviados = {} } = await chrome.storage.local.get('enviados');
-  enviados[pedido.pedido] = new Date().toISOString();
-  await chrome.storage.local.set({ enviados });
-  return { ok: true };
+
+  // Só sabemos que a tela foi aberta; quem salva é a pessoa, lá no Ventrículo.
+  const abertoEm = new Date().toISOString();
+  await alterarFila((fila) => {
+    fila[pedido.pedido] = {
+      avisos: [],
+      adicionadoEm: abertoEm,
+      ...fila[pedido.pedido],
+      pedido,
+      abertoEm,
+    };
+  });
+  return { ok: true, abertoEm };
 }
+
+const acoes = {
+  lerPdf: (m) => lerPdf(m.url),
+  enviar: (m) => enviar(m.pedido),
+  adicionarFila: (m) => adicionarFila(m.pedido),
+  removerFila: (m) => removerFila(m.numero),
+  limparFila: () => limparFila(),
+};
 
 chrome.runtime.onMessage.addListener((msg, _sender, responder) => {
   if (msg.alvo !== 'background') return false;
-  const tarefa =
-    msg.tipo === 'lerPdf' ? lerPdf(msg.url)
-    : msg.tipo === 'enviar' ? enviar(msg.pedido)
-    : Promise.reject(new Error('mensagem desconhecida'));
+  const acao = acoes[msg.tipo];
+  const tarefa = acao ? Promise.resolve().then(() => acao(msg)) : Promise.reject(new Error('mensagem desconhecida'));
   tarefa.then(
-    (r) => responder(r),
+    (r) => responder(r ?? { ok: true }),
     (e) => responder({ erro: e.message || String(e) }),
   );
   return true; // resposta assíncrona

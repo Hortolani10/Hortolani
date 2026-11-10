@@ -26,11 +26,28 @@ Nomes de servidores que aparecem no PDF (usuários, assinaturas) são ignorados.
 5. Clique no ícone da extensão para conferir o **endereço do Ventriculo**. A
    extensão já vem configurada para `https://ventriculo-app.vercel.app/pedidos/cadastrar`.
 
+## Fila de pedidos
+
+Cada pedido lido entra numa **fila**, que é a mesma para todas as abas. Dá para
+abrir vários protocolos (ao mesmo tempo ou um depois do outro) e ver tudo
+clicando no ícone da extensão. A chave da fila é o número do pedido, que já
+inclui o ano (ex.: `4758/0-2026`), então o mesmo pedido nunca aparece duas vezes.
+
+Na fila: **Importar no Ventrículo**, **Remover**, **Copiar todos** e
+**Limpar abertos** (tira da fila os que já foram abertos no Ventrículo).
+
+Se faltar algum campo no PDF (ata, CNPJ, valor…), o pedido aparece com um aviso
+amarelo e o botão de importar fica bloqueado.
+
 ## Importação
 
-A extensão abre o cadastro de pedido do Ventriculo em uma nova aba com os dados
-preenchidos para revisão. Os pedidos importados ficam marcados no navegador, e
-o painel avisa "Já importado em …" se o pedido já foi aberto.
+A extensão abre o cadastro de pedido do Ventrículo numa nova aba, com os dados
+preenchidos para revisão (`/pedidos/cadastrar#importar-pedido=...`).
+**Nenhum prazo é enviado.** O Ventrículo calcula o prazo pela ata oficial
+cadastrada nele, a partir da data do pedido. Da ata, só vai o número.
+
+Como quem salva é a pessoa, lá no Ventrículo, a extensão só registra
+"Aberto no Ventrículo em …", e não "salvo".
 
 ## Testes
 

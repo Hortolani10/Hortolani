@@ -85,16 +85,18 @@
   const dataBr = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
   const esc = (s) => String(s ?? '—').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
-  async function jaEnviado(numero) {
-    const { enviados = {} } = await chrome.storage.local.get('enviados');
-    return enviados[numero];
-  }
+  const quando = (iso) => new Date(iso).toLocaleString('pt-BR');
 
-  function cartao(p, enviadoEm) {
+  function cartao(item) {
+    const p = item.pedido;
     const div = document.createElement('div');
     div.className = 'lp-cartao';
+    const avisos = item.avisos?.length
+      ? `<div class="lp-aviso">⚠️ ${item.avisos.map(esc).join('<br>⚠️ ')}</div>`
+      : '';
     div.innerHTML = `
       <div class="lp-titulo">Pedido ${esc(p.pedido)}</div>
+      ${avisos}
       <table>
         <tr><th>Protocolo</th><td>${esc(p.protocolo)}</td></tr>
         <tr><th>Empresa</th><td>${esc(p.empresa)}<br><small>CNPJ ${esc(p.cnpj)}</small></td></tr>
@@ -105,10 +107,10 @@
         <tr><th>Tramitação</th><td>${dataBr(p.dataTramitacao)}</td></tr>
       </table>
       <div class="lp-acoes">
-        <button class="lp-enviar">${enviadoEm ? 'Importar de novo' : 'Importar no Ventriculo'}</button>
+        <button class="lp-enviar" ${item.avisos?.length ? 'disabled title="Faltam dados do pedido"' : ''}>${item.abertoEm ? 'Abrir de novo no Ventrículo' : 'Importar no Ventrículo'}</button>
         <button class="lp-copiar">Copiar dados</button>
       </div>
-      <div class="lp-status">${enviadoEm ? `Já importado em ${new Date(enviadoEm).toLocaleString('pt-BR')}` : ''}</div>`;
+      <div class="lp-status">${item.abertoEm ? `Aberto no Ventrículo em ${quando(item.abertoEm)}` : 'Adicionado à fila de pedidos ✔'}</div>`;
     const status = div.querySelector('.lp-status');
     div.querySelector('.lp-copiar').onclick = async () => {
       await navigator.clipboard.writeText(JSON.stringify(p, null, 2));
@@ -118,8 +120,9 @@
       ev.target.disabled = true;
       status.textContent = 'Abrindo o Ventrículo…';
       try {
-        await msg({ tipo: 'enviar', pedido: p });
-        status.textContent = 'Aberto no Ventrículo ✔ Confira e salve lá.';
+        const r = await msg({ tipo: 'enviar', pedido: p });
+        status.textContent = `Aberto no Ventrículo em ${quando(r.abertoEm)}. Confira e salve lá.`;
+        ev.target.textContent = 'Abrir de novo no Ventrículo';
       } catch (e) {
         status.textContent = 'Erro: ' + e.message;
       } finally {
@@ -148,7 +151,9 @@
           pdfUrl: url,
           lidoEm: new Date().toISOString(),
         };
-        cartoes.push(cartao(p, await jaEnviado(p.pedido)));
+        // sem número de pedido não dá para identificar na fila: usa o nome do documento
+        if (!p.pedido) p.pedido = item.numero;
+        cartoes.push(cartao(await msg({ tipo: 'adicionarFila', pedido: p })));
       } catch (e) {
         const div = document.createElement('div');
         div.className = 'lp-cartao lp-erro';
@@ -156,7 +161,10 @@
         cartoes.push(div);
       }
     }
-    corpo.replaceChildren(...cartoes);
+    const rodape = document.createElement('div');
+    rodape.className = 'lp-rodape';
+    rodape.textContent = 'Os pedidos ficam na fila: clique no ícone da extensão para ver todos.';
+    corpo.replaceChildren(...cartoes, rodape);
     return true;
   }
 

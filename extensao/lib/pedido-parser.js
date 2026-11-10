@@ -103,3 +103,21 @@ export function lerPedido(linhas) {
     vencimento: (depoisDe(linhas, 'Dt. Vencimento:') || '').split('/').reverse().join('-') || null,
   };
 }
+
+/** Campos que o Ventrículo precisa. Devolve a lista de avisos (vazia = tudo certo). */
+const OBRIGATORIOS = {
+  pedido: 'número do pedido',
+  ata: 'número da ata',
+  empresa: 'empresa',
+  cnpj: 'CNPJ',
+  valor: 'valor',
+  dataPedido: 'data do pedido',
+  protocolo: 'protocolo',
+  diretoria: 'diretoria',
+};
+
+export function camposFaltando(p) {
+  return Object.entries(OBRIGATORIOS)
+    .filter(([campo]) => p?.[campo] == null || p[campo] === '' || (campo === 'valor' && !(p.valor > 0)))
+    .map(([, nome]) => `Não encontrei ${nome} no PDF`);
+}
