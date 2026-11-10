@@ -37,8 +37,8 @@ pedido, coloca na fila e fecha a aba. Um painel mostra o andamento.
 - Protocolos sem pedido são ignorados. Protocolos com mais de um pedido geram um item por pedido.
 - **Importar todos (N)**, no próprio painel: abre uma aba do Ventrículo para cada
   pedido pronto, já preenchida (a primeira fica em foco). Pedidos com aviso ficam de fora.
-  Com a opção **"uma aba só"** ligada nas configurações, abre o cadastro do
-  Ventrículo uma vez só, com todos os pedidos (`#importar-pedidos=`). Veja
+  Com a opção **"uma aba só"** ligada nas configurações, abre a tela de lote do
+  Ventrículo (`/pedidos/importar-lote`) com todos os pedidos. Veja
   [`docs/importacao-em-lote.md`](../docs/importacao-em-lote.md).
 - Botões: **Ler novos** e **Ler todos de novo**.
 - A leitura automática pode ser desligada nas configurações (⚙ na fila).

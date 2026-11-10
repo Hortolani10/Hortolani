@@ -1,28 +1,20 @@
 # Importação em lote no Ventrículo
 
-Guia para o Ventrículo receber **vários pedidos de uma vez** da extensão
-"Leitor de Pedidos". Hoje, o botão "Importar todos" abre uma aba de
-`/pedidos/cadastrar` para cada pedido. Com isto, ele abre **uma aba só**, com a
-lista, e um botão **"Salvar todos"**.
-
-**Não é preciso criar uma tela nova.** A própria tela `/pedidos/cadastrar` já
-importa vários PDFs de uma vez. A ideia é ela aceitar também a lista que vem da
-extensão e mostrar os pedidos do mesmo jeito que mostra os PDFs importados. A
-extensão não manda PDF: manda os **dados já lidos**, no mesmo formato que o
-`#importar-pedido=` de hoje.
+Guia para criar no Ventrículo a tela que recebe **vários pedidos de uma vez**
+da extensão "Leitor de Pedidos". Hoje, o botão "Importar todos" abre uma aba
+de `/pedidos/cadastrar` para cada pedido. Com a tela de lote, ele abre **uma aba
+só**, com a lista, e um botão **"Salvar todos"**.
 
 ## 1. Endereço
 
 A extensão abre:
 
 ```
-https://ventriculo-app.vercel.app/pedidos/cadastrar#importar-pedidos=<JSON codificado>
+https://ventriculo-app.vercel.app/pedidos/importar-lote#importar-pedidos=<JSON codificado>
 ```
 
 - O JSON vem depois do `#`, codificado com `encodeURIComponent`. Ele não vai
   para o servidor nem para os registros da Vercel.
-- Repare: `importar-pedidos` (plural, lista) é diferente do `importar-pedido`
-  (singular, um pedido) que a tela já lê hoje. A tela deve tratar os dois.
 - Para ler:
 
 ```ts
@@ -92,6 +84,6 @@ Outras regras:
 
 ## 4. Como ligar na extensão
 
-Depois que o Ventrículo aceitar a lista: no ícone da extensão → ⚙ (configurações) →
+Depois que a tela estiver publicada: no ícone da extensão → ⚙ (configurações) →
 marcar **"Importar todos abre uma aba só"** → Salvar. Enquanto não estiver
 marcado, a extensão continua abrindo uma aba por pedido.
