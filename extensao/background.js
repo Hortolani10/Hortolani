@@ -135,11 +135,12 @@ async function enviar(pedido, { ativa = true } = {}) {
 }
 
 /**
- * Vários pedidos numa aba só: /pedidos/importar-lote#importar-pedidos=...
- * (a tela de lote é do Ventrículo; ver docs/importacao-em-lote.md).
+ * Vários pedidos numa aba só: /pedidos/cadastrar#importar-pedidos=...
+ * A mesma tela de cadastro, que já importa vários PDFs, recebe a lista
+ * (ver docs/importacao-em-lote.md).
  */
 async function enviarLote(pedidos) {
-  const url = await enderecoVentriculo('/pedidos/importar-lote');
+  const url = await enderecoVentriculo('/pedidos/cadastrar');
   url.hash = `importar-pedidos=${encodeURIComponent(
     JSON.stringify({ version: 2, source: 'leitor-pedidos-extensao', pedidos: pedidos.map(itemVentriculo) }),
   )}`;
