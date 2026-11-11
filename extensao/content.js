@@ -17,14 +17,44 @@
   const RE_PEDIDO = /^pedido[-\s]*(\d+)[-\s/]+(\d{4})/i;
   const RE_DATA_PASTA = /(\d{2})\/(\d{2})\/(\d{4})\s*$/;
 
+  // Quando a extensão é atualizada/recarregada com a página aberta, este script antigo
+  // continua na página, mas perde a ligação com a extensão ("Extension context
+  // invalidated"). Aí ele para tudo e pede F5, em vez de ficar gerando erro.
+  const extensaoViva = () => {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  };
+  let encerrado = false;
+  function encerrarPorAtualizacao() {
+    if (encerrado) return;
+    encerrado = true;
+    try { obs?.disconnect(); } catch {}
+    const painel = document.getElementById('leitor-pedidos-painel');
+    const corpo = painel?.querySelector('.lp-corpo');
+    if (corpo) corpo.textContent = 'A extensão foi atualizada. Aperte F5 para recarregar esta tela.';
+  }
+  const ehContextoInvalido = (e) => /context invalidated/i.test(e?.message || String(e));
+
   const msg = (dados) =>
-    new Promise((ok, falha) =>
-      chrome.runtime.sendMessage({ alvo: 'background', ...dados }, (r) => {
-        if (chrome.runtime.lastError) return falha(new Error(chrome.runtime.lastError.message));
-        if (r && r.erro) return falha(new Error(r.erro));
-        ok(r);
-      }),
-    );
+    new Promise((ok, falha) => {
+      if (!extensaoViva()) {
+        encerrarPorAtualizacao();
+        return falha(new Error('A extensão foi atualizada. Aperte F5.'));
+      }
+      try {
+        chrome.runtime.sendMessage({ alvo: 'background', ...dados }, (r) => {
+          if (chrome.runtime.lastError) return falha(new Error(chrome.runtime.lastError.message));
+          if (r && r.erro) return falha(new Error(r.erro));
+          ok(r);
+        });
+      } catch (e) {
+        if (ehContextoInvalido(e)) encerrarPorAtualizacao();
+        falha(e);
+      }
+    });
 
   const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -339,7 +369,9 @@
   };
 
   chrome.storage.onChanged.addListener((mudou, area) => {
-    if (area === 'local' && (mudou.varredura || mudou.protocolosLidos || mudou.fila) && document.querySelector(STATUS_SEL)) atualizarPainelLista();
+    if (area === 'local' && (mudou.varredura || mudou.protocolosLidos || mudou.fila) && document.querySelector(STATUS_SEL)) {
+      atualizarPainelLista().catch((e) => ehContextoInvalido(e) && encerrarPorAtualizacao());
+    }
   });
 
   // ---------- início ----------
@@ -349,12 +381,15 @@
     agendado = true;
     setTimeout(() => {
       agendado = false;
-      tentarArvore();
-      tentarLista();
+      if (encerrado) return;
+      if (!extensaoViva()) return encerrarPorAtualizacao();
+      const erro = (e) => (ehContextoInvalido(e) ? encerrarPorAtualizacao() : console.warn('Leitor de Pedidos:', e));
+      tentarArvore().catch(erro);
+      tentarLista().catch(erro);
     }, 300);
   };
   // ignora mudanças feitas pelo próprio painel (senão um atualiza o outro sem parar)
-  const obs = new MutationObserver((mudancas) => {
+  var obs = new MutationObserver((mudancas) => {
     if (mudancas.every((m) => m.target.closest?.('#leitor-pedidos-painel') || m.target.id === 'leitor-pedidos-painel' ||
       [...m.addedNodes, ...m.removedNodes].every((n) => n.id === 'leitor-pedidos-painel'))) return;
     tentar();
