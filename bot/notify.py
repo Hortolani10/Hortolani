@@ -23,7 +23,8 @@ import urllib.request
 log = logging.getLogger("bot")
 
 # Mensagens do log que viram aviso no celular (o resto fica só no arquivo de log)
-AVISAR = ("COMPRA ", "VENDA ", "STOP executado", "FECHOU ", "COFRE COMPRA", "COFRE VENDA",
+# Compras e operações fechadas NÃO vêm daqui: o bot manda um cartão próprio (bot/mensagens.py).
+AVISAR = ("COFRE COMPRA", "COFRE VENDA",
           "COFRE reequilíbrio:", "ALARME", "SEGURANÇA", "Bot iniciado", "MODO LIVE", "gap", "sem stop ativo",
           "executado parcialmente", "Venda manual", "bot desligado")
 
@@ -57,13 +58,15 @@ class Telegram:
             logging.getLogger("bot.notify").debug("telegram %s falhou: %s", method, e)
             return None
 
-    def send(self, text: str, dedupe_s: float = 60.0) -> None:
-        """Envia uma mensagem. Mensagens idênticas em menos de `dedupe_s` são ignoradas."""
+    def send(self, text: str, dedupe_s: float = 60.0, html: bool = False) -> None:
+        """Envia uma mensagem. Mensagens idênticas em menos de `dedupe_s` são ignoradas.
+        `html=True`: o texto usa <b>, <i> e <code> (já escapado por quem montou)."""
         now = time.time()
         if now - self._last.get(text, 0) < dedupe_s:
             return
         self._last[text] = now
-        self._call("sendMessage", chat_id=self.chat_id, text=text[:4000])
+        extra = {"parse_mode": "HTML", "disable_web_page_preview": "true"} if html else {}
+        self._call("sendMessage", chat_id=self.chat_id, text=text[:4000], **extra)
 
     def commands(self, offset: int) -> tuple[list[str], int]:
         """Lê comandos novos (só do chat autorizado). Devolve (comandos, novo offset)."""

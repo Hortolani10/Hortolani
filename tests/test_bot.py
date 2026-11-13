@@ -476,10 +476,11 @@ def test_log_handler_forwards_only_important_events():
     api = FakeTelegramAPI(); h = TelegramLogHandler(Telegram("t", "1", post=api), "[PAPER] ")
     lgr = lg.getLogger("bot.teste_handler"); lgr.addHandler(h); lgr.setLevel(lg.INFO)
     lgr.info("BTC/USDT: sem entrada [tendência LATERAL]")     # rotina: não avisa
-    lgr.info("COMPRA BTC/USDT qty=0.001 @ 70000")
+    lgr.info("COMPRA BTC/USDT qty=0.001 @ 70000")            # compra vira cartão próprio, não texto do log
+    lgr.info("COFRE COMPRA BTC/USDT")
     lgr.error("falha ao buscar candles")
     lgr.removeHandler(h)
-    assert api.sent[0].startswith("[PAPER] COMPRA") and "ERRO" in api.sent[1] and len(api.sent) == 2
+    assert api.sent[0].startswith("[PAPER] COFRE COMPRA") and "ERRO" in api.sent[1] and len(api.sent) == 2
 
 
 def test_trader_telegram_commands_and_status(cfg, tmp_path, monkeypatch):
@@ -945,3 +946,35 @@ def test_comando_central_no_telegram(synth, cfg, tmp_path, monkeypatch):
     tr.handle_commands()
     txt = api.sent[-1]
     assert "Central dos bots" in txt and "Principal" in txt and "USDT" in txt and "fora do ar" in txt
+
+
+def test_cartoes_do_telegram():
+    from bot import mensagens as m
+    cfg = {"instancia": "aprendiz-1h", "mode": "paper", "risk": {"exit_mode": "alvo", "target_r": 2.0}}
+    c = m.compra(cfg, "DOT/USDT", "rompimento", 0.8424, 0.8104, 148.38, 0.9064, ["rompimento_20", "volume_explosivo"])
+    assert "<b>COMPRA DOT</b>" in c and "Aprendiz 1h" in c and "<code>0,8424</code>" in c and "−3,8%" in c
+    assert "Alvo" in c and "Risco 4,75 USDT" in c and "volume 2×" in c
+    f = m.fechou(cfg, "DOGE/USDT", "reversao_rsi", 0.0638, 0.066, 8.99, 2.42, "alvo 2.0R", "2026-01-01T00:00:00+00:00")
+    assert f.startswith("✅ <b>GANHO DOGE") and "+8,99 USDT" in f and "saiu no alvo" in f
+    p = m.fechou({"mode": "live", "testnet": False}, "BTC/USDT", "tendencia", 100, 95, -5, -1.0, "stop", "x")
+    assert p.startswith("❌") and "DINHEIRO REAL" in p and "Bot principal" in p
+    assert m.num(2135.58) == "2.135,58" and m.num(1.5) == "1,50"
+    assert "&lt;" in m.compra(cfg, "<X>/USDT", "rompimento", 1, 0.9, 1, None, [])     # nada vira HTML sem querer
+
+
+def test_compra_e_fechamento_mandam_um_cartao_cada(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    from bot.notify import Telegram
+    from bot.strategy import Position
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    br = FakeBroker(e, resample(e, 4)); br.n = 1500
+    api = FakeTelegramAPI([])
+    tr = Trader(cfg, br, {}, str(tmp_path / "s.json"), tg=Telegram("t", "7", post=api))
+    pos = Position("UP/USDT", 1.0, 100.0, 95.0, 5.0, "2026-01-01T00:00:00+00:00", cost=100.1, proceeds=104.9,
+                   strategy="rompimento", reasons=["alvo 2.0R"])
+    tr.positions["UP/USDT"] = pos
+    tr._close("UP/USDT", pos, "alvo 2.0R")
+    cartoes = [m for m in api.sent if "GANHO" in m or "PERDA" in m]
+    assert len(cartoes) == 1 and "UP" in cartoes[0] and "Rompimento" in cartoes[0]

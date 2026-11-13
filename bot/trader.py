@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from . import exploracao, regime
+from . import mensagens
 from .padroes import NOMES as PAD_NOMES
 from .data import attach_btc_trend, prepare
 
@@ -75,11 +76,24 @@ class Trader:
         return self.broker.usdt_free() - (float(self.sleeve.st.get("cash", 0.0)) if self.sleeve else 0.0)
 
     # ---------- execução ----------
+    def _avisar(self, texto: str) -> None:
+        """Cartão no Telegram (compra / operação fechada). `telegram.avisos: false` desliga."""
+        if self.tg and self.tg.enabled and (self.cfg.get("telegram") or {}).get("avisos", True):
+            try:
+                self.tg.send(texto, dedupe_s=0, html=True)
+            except Exception:
+                log.exception("erro enviando aviso ao Telegram")
+
     def _close(self, sym: str, pos: Position, reason: str) -> None:
         pnl = pos.proceeds - pos.cost
         risk_cash = (pos.cost / pos.entry) * pos.initial_risk if pos.entry else 0
         r_mult = pnl / risk_cash if risk_cash else 0.0
         log.info("FECHOU %s [%s] | motivo: %s | PnL %.2f USDT (%+.2fR)", sym, pos.strategy, reason, pnl, r_mult)
+        fee = self.cfg["fees"]["taker"]
+        vendido = (pos.cost / pos.entry / (1 + fee)) if pos.entry else 0
+        saida = pos.proceeds / (vendido * (1 - fee)) if vendido > 0 and pos.proceeds > 0 else None
+        self._avisar(mensagens.fechou(self.cfg, sym, pos.strategy, pos.entry, saida, pnl, r_mult,
+                                      ", ".join(pos.reasons) or reason, pos.opened_at))
         self.guard.register_close(pnl, utcnow())
         del self.positions[sym]
         # diário: memória do bot para aprender com a prática
@@ -247,6 +261,10 @@ class Trader:
         log.info("COMPRA %s [%s] qty=%.6f @ %.4f | stop %.4f (%.2f%%) | risco x%.2f | saída: %s | padrões: %s",
                  sym, strat, filled, avg, sig.stop, (1 - sig.stop / avg) * 100, scale,
                  "volta à média ou 12 velas" if strat == "lateral" else self.cfg["risk"].get("exit_mode", "parcial"), pads)
+        r = self.cfg["risk"]
+        alvo = (sig.target if strat == "lateral" else
+                avg + float(r.get("target_r", 2.0)) * (avg - sig.stop) if r.get("exit_mode") == "alvo" else None)
+        self._avisar(mensagens.compra(self.cfg, sym, strat, avg, sig.stop, filled, alvo, pos.features.get("padroes", [])))
 
     def tick(self) -> None:
         tf_e, tf_t = self.cfg["timeframes"]["entry"], self.cfg["timeframes"]["trend"]
