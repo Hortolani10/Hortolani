@@ -82,6 +82,15 @@ def relatorio(df: pd.DataFrame, min_ops: int = 8) -> str:
         for lab, g in df.groupby("tf"):
             aviso = "" if len(g) >= min_ops else "  (poucas operações)"
             out.append(f"  {str(lab):<15} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {g.r.mean():+.2f}R{aviso}")
+    if "termometro" in df and df["termometro"].notna().any():
+        from .regime import FASES, fase
+        fz = df["termometro"].map(fase)
+        out.append("\nPor fase do mercado (termômetro na entrada):")
+        for k, _, nome in FASES:
+            g = df[fz == k]
+            if len(g):
+                aviso = "" if len(g) >= min_ops else "  (poucas operações)"
+                out.append(f"  {nome:<20} {len(g):>3} ops · acerto {(g.r > 0).mean():>4.0%} · média {g.r.mean():+.2f}R{aviso}")
     if "estrategia" in df and df["estrategia"].notna().any():
         out.append("\nPor setup (tipo de entrada):")
         for lab, g in df.groupby("estrategia"):

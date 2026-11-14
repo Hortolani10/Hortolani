@@ -488,10 +488,14 @@ class Trader:
 
         corte = (utcnow() - timedelta(days=1)).isoformat()
         hoje = [o for o in ops if str(o.get("fechada", "")) >= corte]
-        por_setup, por_padrao = {}, {}
+        por_setup, por_padrao, por_fase = {}, {}, {}
         for o in ops:
             f = o.get("features") or {}
             por_setup.setdefault(f.get("estrategia") or "tendencia", []).append(o)
+            fz = regime.fase(f.get("termometro"))
+            if fz:
+                por_fase.setdefault(fz, []).append(o)
+                por_fase.setdefault(f"{f.get('estrategia') or 'tendencia'}|{fz}", []).append(o)
             for pd_ in f.get("padroes") or []:
                 por_padrao.setdefault(pd_, []).append(o)
         tot = soma(ops)
@@ -500,7 +504,8 @@ class Trader:
                "media_r": tot["soma_r"] / tot["ops"] if tot["ops"] else None,
                "hoje_ops": len(hoje), "hoje_pnl": round(soma(hoje)["pnl"], 4),
                "por_setup": {k: soma(v) for k, v in por_setup.items()},
-               "por_padrao": {k: soma(v) for k, v in por_padrao.items()}}
+               "por_padrao": {k: soma(v) for k, v in por_padrao.items()},
+               "por_fase": {k: soma(v) for k, v in por_fase.items()}}
         self._desemp_cache = (mt, out)
         return out
 
@@ -603,6 +608,14 @@ class Trader:
             linhas.append(f"{ic} {nome}: {sg(b.get('lucro'))} USDT ({sg((b.get('lucro_pct') or 0) * 100, '%')})\n"
                           f"    realizado {sg(b.get('realizado'))} · aberto {sg(b.get('aberto'))} · {b.get('posicoes', 0)} posições\n"
                           f"    {b.get('ops', 0)} ops · acerto {ac} · média {sg(b.get('media_r'), 'R')} · hoje {b.get('hoje_ops', 0)} ops")
+        fz = {x["nome"]: x for x in d.get("fases") or [] if "|" not in x["nome"]}
+        if fz:
+            from .regime import FASES
+            linhas.append("\n🌡 Por fase do mercado:")
+            for k, _, nome in FASES:
+                if k in fz:
+                    x = fz[k]
+                    linhas.append(f"  {nome}: {x['media_r']:+.2f}R · {x['ops']} ops · acerto {x['acerto']:.0%}")
         st = d.get("setups") or []
         if st:
             linhas.append("\n🏆 Setups (média por operação):")
@@ -617,6 +630,8 @@ class Trader:
         day = utcnow().strftime("%Y-%m-%d")
         if utcnow().hour >= 1 and self.state.get("summary_day") != day:   # ~22h em Brasília, após o fechamento diário
             self.state["summary_day"] = day
+            if utcnow().weekday() == 6 and self.painel and self.painel.outros:   # domingo: semana de todos os bots
+                self.tg.send("📅 Resumo da semana\n" + self.central_text(), dedupe_s=0)
             if exploracao.ativos(self.cfg):           # aprendiz: resumo curto do que aprendeu no dia
                 self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n" + self._resumo_aprendiz(), dedupe_s=0)
             else:

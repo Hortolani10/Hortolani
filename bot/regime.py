@@ -67,6 +67,21 @@ def serie(data: dict[str, pd.DataFrame]) -> pd.Series:
     return (100 * (PESOS[0] * amp + PESOS[1] * up + PESOS[2] * forca)).fillna(50)
 
 
+FASES = (("queda_forte", 20, "Queda forte (0-20)"), ("defensivo", 40, "Defensivo (20-40)"),
+         ("neutro", 60, "Neutro (40-60)"), ("alta", 101, "Alta (60-100)"))
+
+
+def fase(nota) -> str | None:
+    """Fase do mercado pela nota do termômetro (para separar o aprendizado por fase)."""
+    try:
+        n = float(nota)
+    except (TypeError, ValueError):
+        return None
+    if n != n:
+        return None
+    return next(k for k, lim, _ in FASES if n < lim)
+
+
 def escala(cfg: dict, nota: float | None) -> float:
     """Multiplicador do risco por operação conforme a nota."""
     t = cfg.get("termometro") or {}

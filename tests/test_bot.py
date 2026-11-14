@@ -978,3 +978,22 @@ def test_compra_e_fechamento_mandam_um_cartao_cada(synth, cfg, tmp_path, monkeyp
     tr._close("UP/USDT", pos, "alvo 2.0R")
     cartoes = [m for m in api.sent if "GANHO" in m or "PERDA" in m]
     assert len(cartoes) == 1 and "UP" in cartoes[0] and "Rompimento" in cartoes[0]
+
+
+def test_resultado_por_fase_do_mercado(synth, cfg, tmp_path, monkeypatch):
+    from bot import regime
+    from bot.demo import resample
+    from bot.learn import registrar
+    from bot.painel import ranking
+    assert [regime.fase(n) for n in (5, 25, 50, 90, None)] == ["queda_forte", "defensivo", "neutro", "alta", None]
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    tr = Trader(cfg, FakeBroker(e, resample(e, 4)), {}, str(tmp_path / "s.json"))
+    for r, nota in ((-1.0, 5), (-1.0, 8), (2.0, 75)):
+        registrar({"origem": "paper", "simbolo": "UP/USDT", "fechada": "2099-01-01", "pnl": r, "r": r,
+                   "features": {"estrategia": "rompimento", "termometro": nota}})
+    pf = tr.snapshot()["desempenho"]["por_fase"]
+    assert pf["queda_forte"]["ops"] == 2 and pf["rompimento|alta"]["soma_r"] == 2.0
+    rk = {x["nome"]: x for x in ranking([{"tf": "4h", "id": "p", "por_fase": pf}], "por_fase")}
+    assert rk["rompimento|queda_forte"]["media_r"] == -1.0 and rk["alta"]["acerto"] == 1.0

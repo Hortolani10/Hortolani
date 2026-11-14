@@ -53,7 +53,7 @@ def resumo_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
             "media_r": dz.get("media_r"), "hoje_pnl": dz.get("hoje_pnl"), "hoje_ops": dz.get("hoje_ops", 0),
             "pausado": d.get("pausado"), "agora": d.get("agora"), "termometro": d.get("termometro"),
             "equity": [v for _, v in eh[::passo]][-120:], "por_setup": dz.get("por_setup") or {},
-            "por_padrao": dz.get("por_padrao") or {},
+            "por_padrao": dz.get("por_padrao") or {}, "por_fase": dz.get("por_fase") or {},
             "ultimas": [{**j, "bot": nome} for j in (d.get("diario") or [])[:10]]}
 
 
@@ -148,7 +148,8 @@ class Painel:
         on = [b for b in bots if b.get("online")]
         ultimas = sorted((j for b in on for j in b.pop("ultimas", [])), key=lambda j: str(j.get("fechada")), reverse=True)[:20]
         body = json.dumps({"agora": time.time(), "bots": bots, "setups": ranking(on, "por_setup"),
-                           "padroes": ranking(on, "por_padrao"), "ultimas": ultimas},
+                           "padroes": ranking(on, "por_padrao"), "fases": ranking(on, "por_fase"),
+                           "ultimas": ultimas},
                           ensure_ascii=False, default=str).encode()
         self._central = (time.time(), body)
         return body

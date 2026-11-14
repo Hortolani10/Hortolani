@@ -106,7 +106,6 @@ painel:
     aprendiz-4h: http://aprendiz-4h:8768
     aprendiz-2h: http://aprendiz-2h:8769
     aprendiz-1h: http://aprendiz-1h:8770
-    aprendiz-15m: http://aprendiz-15m:8771
 
 # Estratégias em OBSERVAÇÃO: o bot registra no diário o que teria acontecido, sem operar.
 # Veja os resultados com: python -m bot aprender   (origem "observacao-lateral")

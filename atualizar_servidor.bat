@@ -32,7 +32,7 @@ if errorlevel 1 (
 )
 echo.
 echo  3/3 Instalando e reiniciando os bots (2 a 4 minutos). Digite a senha da chave de novo:
-ssh bot@187.41.127.210 "rm -rf ~/novo && mkdir -p ~/novo && tar -xf ~/atualizacao.tar -C ~/novo && cp -r ~/novo/. ~/Hortolani/ && rm -rf ~/novo ~/atualizacao.tar && cd ~/Hortolani && docker compose up -d --build && echo && docker compose ps"
+ssh bot@187.41.127.210 "rm -rf ~/novo && mkdir -p ~/novo && tar -xf ~/atualizacao.tar -C ~/novo && cp -r ~/novo/. ~/Hortolani/ && rm -rf ~/novo ~/atualizacao.tar && cd ~/Hortolani && docker compose up -d --build --remove-orphans && echo && docker compose ps"
 if errorlevel 1 (
   echo.
   echo  Algo deu errado na instalacao. Tire um print desta janela e mande para o Claude.
@@ -41,7 +41,7 @@ if errorlevel 1 (
 )
 del "%PACOTE%"
 echo.
-echo  PRONTO! Os 5 bots devem aparecer acima como "Up".
+echo  PRONTO! Os 4 bots devem aparecer acima como "Up".
 echo  Para ver o painel: dois cliques em abrir_painel.bat
 echo.
 pause

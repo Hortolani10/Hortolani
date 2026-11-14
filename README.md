@@ -15,6 +15,8 @@ segurar BTC: muito mais retorno, mas queda de 77%. Ver [`PESQUISA.md`](PESQUISA.
 
 **Atualizar o servidor:** extraia o ZIP novo por cima da pasta Hortolani e dê dois cliques em `atualizar_servidor.bat` (pede a senha da chave 2 vezes; não mexe no .env, saldo nem diário).
 
+**Backup:** dois cliques em `baixar_dados.bat` (uma vez por semana) salva os diários e saldos de todos os bots na pasta `backup`.
+
 **Central (todos os bots numa tela):** dois cliques em `abrir_painel.bat` (abre o túnel e o navegador em http://localhost:8765). Mostra lucro/prejuízo de cada bot, ranking dos setups e padrões e as últimas operações; clique num bot para ver os detalhes dele.
 
 Ver o que a prática ensinou (todos os bots): `docker compose exec bot python -m bot --config /app/config.yaml diario`

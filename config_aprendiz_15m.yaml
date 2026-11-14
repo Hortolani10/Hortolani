@@ -1,3 +1,5 @@
+# DESLIGADO em nov/2026 (taxas comem o resultado no 15 min). Para religar, devolva o serviço
+# aprendiz-15m ao docker-compose.yml e o endereço em config.yaml -> painel.outros.
 # Bot aprendiz no gráfico de 15m (tendência no 1h). Só em PAPER.
 # Herda tudo do config_aprendiz.yaml (setups, 0,5% de risco, alvo 2R, saída por tempo).
 # max_bars conta candles deste gráfico: 18 candles de 15m.

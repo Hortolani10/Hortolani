@@ -92,6 +92,10 @@ footer{color:var(--faint);font-size:12px}
    <div class="note">Uma operação pode ter vários padrões no mesmo candle. No histórico de 6 anos, comprar força (rompimento, RSI &gt; 70) foi melhor que comprar fraqueza (martelo, suporte).</div></section>
  </div>
 
+ <section class="card" id="secfases"><div class="ch"><h2>Setups por fase do mercado</h2><span class="muted" style="font-size:12px">média por operação em R · (nº de operações) · fase = termômetro na hora da compra</span></div>
+  <div class="tw"><table><thead><tr><th>Setup</th><th class="r">Queda forte<br><small class="muted">0-20</small></th><th class="r">Defensivo<br><small class="muted">20-40</small></th><th class="r">Neutro<br><small class="muted">40-60</small></th><th class="r">Alta<br><small class="muted">60-100</small></th></tr></thead><tbody id="fases"></tbody></table></div>
+  <div class="note">É aqui que o aprendizado fica útil: um setup pode perder na queda e ganhar na alta. Só confie em células com 20+ operações.</div></section>
+
  <section class="card"><div class="ch"><h2>Últimas operações fechadas (todos os bots)</h2></div>
   <div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th class="r">Resultado</th><th class="r">USDT</th><th>Motivo</th></tr></thead><tbody id="ultimas"></tbody></table></div></section>
  <footer>Este painel só mostra informações: não compra, não vende e não muda configurações. Os aprendizes usam dinheiro fictício (10.000) para aprender; o bot principal é o candidato a dinheiro real.</footer>
@@ -167,6 +171,11 @@ async function load(){
   let P=d.padroes||[];if(P.length>12)P=[...P.slice(0,6),...P.slice(-6)];
   const mp=Math.max(0.01,...P.map(x=>Math.abs(x.media_r))),total=(d.padroes||[]).length;
   $("padroes").innerHTML=P.length?P.map((x,i)=>{const pos=total>12&&i>=6?total-12+i:i;return linhaRank(x,pos,PADRAO[x.nome]||x.nome,mp,false)}).join(""):'<tr><td colspan="5" class="empty">Ainda sem operações fechadas.</td></tr>';
+  const F={};for(const x of d.fases||[])F[x.nome]=x;const FZ=["queda_forte","defensivo","neutro","alta"];
+  const cel=x=>x?`<td class="r num ${cl(x.media_r)}" title="acerto ${fmt(x.acerto*100,0)}%">${sg(x.media_r)}R <span class="muted">(${x.ops})</span></td>`:'<td class="r muted">—</td>';
+  const sts=[...new Set((d.fases||[]).filter(x=>x.nome.includes("|")).map(x=>x.nome.split("|")[0]))];
+  $("fases").innerHTML=sts.length?sts.map(s=>`<tr title="${esc(DESC[s]||"")}"><td>${esc(SETUP[s]||s)}</td>${FZ.map(f=>cel(F[s+"|"+f])).join("")}</tr>`).join("")+
+   `<tr><td><b>Todos</b></td>${FZ.map(f=>cel(F[f])).join("")}</tr>`:'<tr><td colspan="5" class="empty">As operações novas passam a registrar a fase do mercado.</td></tr>';
   const U=d.ultimas||[];
   setTimeout(()=>document.querySelectorAll("#ultimas tr.clk").forEach(tr=>clk(tr,()=>location.href="/bot?b="+encodeURIComponent(tr.dataset.b))),0);
   $("ultimas").innerHTML=U.length?U.map(j=>{const f=j.features||{};const bt=bots.find(b=>b.id===j.bot);
