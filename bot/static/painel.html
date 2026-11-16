@@ -250,16 +250,19 @@ function drawSelected(){
  $("cvar").innerHTML=vv==null?"preço ao vivo":`<span class="${vv>=0?"up":"down"}">${vv>=0?"+":""}${fmt(vv)}%</span> em 24h · ao vivo`;
  priceLines.forEach(p=>cs.removePriceLine(p));priceLines=[];
  for(const p of d.posicoes||[])if(p.simbolo===sel){
-  priceLines.push(cs.createPriceLine({price:p.entrada,color:css("--accent"),lineWidth:1,lineStyle:LW.LineStyle.Dotted,axisLabelVisible:true,title:"entrada"}));
+  priceLines.push(cs.createPriceLine({price:p.entrada,color:css("--accent"),lineWidth:1,lineStyle:LW.LineStyle.Dotted,axisLabelVisible:true,title:"entrada · "+(SETUPN[p.estrategia]||p.estrategia)}));
+  if(p.alvo)priceLines.push(cs.createPriceLine({price:p.alvo,color:css("--up"),lineWidth:1,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"alvo"}));
   priceLines.push(cs.createPriceLine({price:p.stop,color:css("--down"),lineWidth:2,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"stop"}));}
  if(tf==="4h"&&x.tendencia==="LATERAL"&&x.gatilho_lateral)priceLines.push(cs.createPriceLine({price:x.gatilho_lateral,color:css("--band"),lineWidth:1,lineStyle:LW.LineStyle.Dashed,axisLabelVisible:true,title:"gatilho lateral"}));
  $("cktitle").textContent="Checklist · "+base(sel);
  const rg=x.regras||{};$("checks").innerHTML=Object.keys(rg).length?Object.entries(rg).map(([k,ok])=>`<li tabindex="0" data-k="${esc(k)}"><span class="${ok?"ok":"no"}">${ok?"✓":"✕"}</span><span>${esc(NOMES[k]||k)}</span>${abertas.has(k)?`<div class="exp">${esc(EXPL[k]||"")}</div>`:""}</li>`).join(""):'<li class="muted">Aguardando…</li>';
  $("checks").querySelectorAll("li[data-k]").forEach(li=>clk(li,()=>{const k=li.dataset.k;abertas.has(k)?abertas.delete(k):abertas.add(k);drawSelected()}));
- $("verdict").innerHTML=x.sinal_tendencia?'<b class="up">Sinal de compra (tendência)</b> — todas as regras passaram.':
+ const aberta=(d.posicoes||[]).find(p=>p.simbolo===sel);
+ if(aberta){const pc=aberta.resultado_pct*100;$("verdict").innerHTML=`<b class="${pc>=0?"up":"down"}">Posição aberta</b> pelo setup <b>${esc(SETUPN[aberta.estrategia]||aberta.estrategia)}</b>${d.aprendiz&&aberta.estrategia!=="tendencia"?" (setup de exploração do aprendiz: não usa este checklist)":""}. Resultado agora: <b class="${pc>=0?"up":"down"}">${pc>=0?"+":""}${fmt(pc)}%</b>.`}
+ else $("verdict").innerHTML=x.sinal_tendencia?'<b class="up">Sinal de compra (tendência)</b> — todas as regras passaram.':
   x.sinal_lateral?`<b class="flat">Sinal de lateralização</b> — ${d.lateral_ligada?"o bot compra":"só observando"}: preço abaixo da banda inferior com RSI baixo.`:
   x.tendencia==="LATERAL"?`Mercado lateral: a lateralização compra se o preço fechar abaixo de <b class="num">${px(x.gatilho_lateral)}</b>${dist(sel,x)} com RSI < 30 (agora ${fmt(x.rsi,0)}).`:
-  x.tendencia==="BAIXA"?"Tendência de baixa: o bot fica de fora desta moeda.":`Faltam ${(x.falhou||[]).length} regra(s) para a estratégia de tendência.`;
+  x.tendencia==="BAIXA"?(d.aprendiz?"Tendência de baixa: pelas regras deste checklist, fica de fora. O aprendiz ainda pode comprar por um setup de exploração (rompimento, reversão do RSI, suporte…).":"Tendência de baixa: o bot fica de fora desta moeda."):`Faltam ${(x.falhou||[]).length} regra(s) para a estratégia de tendência.`;
  document.querySelectorAll("#coins button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===sel));
  document.querySelectorAll(".tile").forEach(t=>t.classList.toggle("sel",t.dataset.s===sel));
 }
@@ -270,6 +273,7 @@ clk($("kc4"),()=>abrir(window._perto));
 let logAberto=false;try{logAberto=localStorage.getItem("painel-log")==="1"}catch(e){}
 function aplicaLog(){$("logbox").hidden=!logAberto;$("loghint").hidden=logAberto;$("logbtn").textContent=logAberto?"Ocultar log":"Mostrar log";$("logbtn").setAttribute("aria-expanded",logAberto)}
 $("logbtn").onclick=()=>{logAberto=!logAberto;try{localStorage.setItem("painel-log",logAberto?"1":"0")}catch(e){}aplicaLog();if(logAberto){const l=$("logbox");l.scrollTop=l.scrollHeight}};aplicaLog();
+const SETUPN={tendencia:"Tendência",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre"};
 const EXPL={dados:"Precisa de histórico suficiente para calcular as médias (pelo menos 200 candles).",
  tendencia_maior:"A moeda precisa estar em alta no gráfico maior (diário): preço acima da EMA200 e médias subindo.",
  mercado_btc:"Só compra moedas com o BTC também em alta: quando o BTC cai, quase tudo cai junto.",

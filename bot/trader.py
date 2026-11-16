@@ -438,7 +438,10 @@ class Trader:
                 px = self.broker.price(s)
             except Exception:
                 px = p.entry
-            pos.append({"simbolo": s, "estrategia": p.strategy, "entrada": p.entry, "preco": px, "stop": p.stop,
+            r = self.cfg["risk"]
+            alvo = (p.entry + float(r.get("target_r", 2.0)) * p.initial_risk
+                    if r.get("exit_mode") == "alvo" and p.strategy != "lateral" else None)
+            pos.append({"simbolo": s, "estrategia": p.strategy, "entrada": p.entry, "preco": px, "stop": p.stop, "alvo": alvo,
                         "qtd": p.qty, "resultado_pct": px / p.entry - 1, "aberta": p.opened_at})
         return {
             "modo": self.origem, "agora": utcnow().isoformat(),
