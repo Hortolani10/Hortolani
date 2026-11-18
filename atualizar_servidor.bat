@@ -32,7 +32,7 @@ if errorlevel 1 (
 )
 echo.
 echo  3/3 Instalando e reiniciando os bots (2 a 4 minutos). Digite a senha da chave de novo:
-ssh bot@187.41.127.210 "rm -rf ~/novo && mkdir -p ~/novo && tar -xf ~/atualizacao.tar -C ~/novo && cp -r ~/novo/. ~/Hortolani/ && rm -rf ~/novo ~/atualizacao.tar && cd ~/Hortolani && docker compose up -d --build --remove-orphans && echo && docker compose ps"
+ssh bot@187.41.127.210 "rm -rf ~/novo && mkdir -p ~/novo && tar -xf ~/atualizacao.tar -C ~/novo && cp -r ~/novo/. ~/Hortolani/ && rm -rf ~/novo ~/atualizacao.tar && cd ~/Hortolani && docker compose up -d --build --remove-orphans && docker image prune -f >/dev/null && docker builder prune -f >/dev/null && echo && docker compose ps && echo && df -h / | tail -1"
 if errorlevel 1 (
   echo.
   echo  Algo deu errado na instalacao. Tire um print desta janela e mande para o Claude.
