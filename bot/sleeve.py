@@ -24,10 +24,23 @@ log = logging.getLogger("bot")
 
 
 def daily_trends(daily: dict[str, pd.DataFrame], cfg: dict) -> dict[str, pd.Series]:
-    """Tendência diária por moeda (index = close_ts em ms)."""
+    """Sinal diário por moeda (index = close_ts em ms): "ALTA" = o cofre pode segurar.
+
+    trend_sleeve.sinal:
+      "media" (padrão, nov/2026): fechamento acima da média simples de `media_dias` dias (50).
+              Pesquisa da Grayscale + nosso teste: carteira 6 anos 223 -> 314, melhor também
+              nas duas metades e nos últimos 12 meses; todas as médias de 30 a 150 dias venceram.
+      "tendencia": regra antiga (EMA200, EMA50 > EMA200 e inclinação), mais lenta.
+    """
+    sc = cfg.get("trend_sleeve") or {}
     out = {}
     for s, d in daily.items():
-        t = trend_series(add_all(d, cfg))
+        if sc.get("sinal", "media") == "media":
+            c = d["close"].astype(float)
+            m = c.rolling(int(sc.get("media_dias", 50))).mean()
+            t = pd.Series("BAIXA", index=d.index).where(~(c > m), ALTA).where(m.notna(), "SEM_DADOS")
+        else:
+            t = trend_series(add_all(d, cfg))
         out[s] = pd.Series(t.values, index=(d["ts"] + 86_400_000).astype("int64").values)
     return out
 

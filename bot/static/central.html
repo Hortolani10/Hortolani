@@ -70,6 +70,7 @@ footer{color:var(--faint);font-size:12px}
 <header>
  <div class="brand"><div class="logo">H</div><div><b>Central dos bots</b><small>todos os bots numa tela · só leitura</small></div></div>
  <div class="hright"><div class="live"><i class="dot" id="dot"></i><span id="hora">conectando…</span></div>
+ <a class="btn" href="/historico">☰ Histórico de operações</a>
  <button type="button" class="btn" id="themebtn">◐ Tema</button></div>
 </header>
 <main>
@@ -96,7 +97,7 @@ footer{color:var(--faint);font-size:12px}
   <div class="tw"><table><thead><tr><th>Setup</th><th class="r">Queda forte<br><small class="muted">0-20</small></th><th class="r">Defensivo<br><small class="muted">20-40</small></th><th class="r">Neutro<br><small class="muted">40-60</small></th><th class="r">Alta<br><small class="muted">60-100</small></th></tr></thead><tbody id="fases"></tbody></table></div>
   <div class="note">É aqui que o aprendizado fica útil: um setup pode perder na queda e ganhar na alta. Só confie em células com 20+ operações.</div></section>
 
- <section class="card"><div class="ch"><h2>Últimas operações fechadas (todos os bots)</h2></div>
+ <section class="card"><div class="ch"><h2>Últimas operações fechadas (todos os bots)</h2><a class="btn" href="/historico">ver todas, com filtros →</a></div>
   <div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th class="r">Resultado</th><th class="r">USDT</th><th>Motivo</th></tr></thead><tbody id="ultimas"></tbody></table></div></section>
  <footer>Este painel só mostra informações: não compra, não vende e não muda configurações. Os aprendizes usam dinheiro fictício (10.000) para aprender; o bot principal é o candidato a dinheiro real.</footer>
 </main>
@@ -145,7 +146,7 @@ function cardBot(b){
 function linhaRank(x,i,nome,max,usdt){
  const m=i<3&&x.ops>=20?`<span class="medal m${i+1}">${i+1}</span>`:`<span class="medal">${i+1}</span>`;
  const poucas=x.ops<20?' <span class="chip" title="menos de 20 operações: pode ser sorte">poucas ops</span>':"";
- return `<tr title="${esc(DESC[x.nome]||"")}"><td>${m}</td><td>${esc(nome)}${poucas}</td><td class="r num">${x.ops}</td><td class="r num">${fmt(x.acerto*100,0)}%</td>
+ return `<tr title="${esc(DESC[x.nome]||"")}"${usdt?` class="clk" data-st="${esc(x.nome)}" tabindex="0"`:""}><td>${m}</td><td>${esc(nome)}${poucas}</td><td class="r num">${x.ops}</td><td class="r num">${fmt(x.acerto*100,0)}%</td>
   <td class="r num ${cl(x.media_r)}">${sg(x.media_r)}R${rbar(x.media_r,max)}</td>${usdt?`<td class="r num ${cl(x.pnl)}">${sg(x.pnl)}</td>`:""}</tr>`}
 
 async function load(){
@@ -177,6 +178,7 @@ async function load(){
   $("fases").innerHTML=sts.length?sts.map(s=>`<tr title="${esc(DESC[s]||"")}"><td>${esc(SETUP[s]||s)}</td>${FZ.map(f=>cel(F[s+"|"+f])).join("")}</tr>`).join("")+
    `<tr><td><b>Todos</b></td>${FZ.map(f=>cel(F[f])).join("")}</tr>`:'<tr><td colspan="5" class="empty">As operações novas passam a registrar a fase do mercado.</td></tr>';
   const U=d.ultimas||[];
+  setTimeout(()=>document.querySelectorAll("#setups tr.clk").forEach(tr=>clk(tr,()=>location.href="/historico?setup="+encodeURIComponent(tr.dataset.st))),0);
   setTimeout(()=>document.querySelectorAll("#ultimas tr.clk").forEach(tr=>clk(tr,()=>location.href="/bot?b="+encodeURIComponent(tr.dataset.b))),0);
   $("ultimas").innerHTML=U.length?U.map(j=>{const f=j.features||{};const bt=bots.find(b=>b.id===j.bot);
    return `<tr class="clk" data-b="${esc(j.bot)}" tabindex="0" title="Abrir este bot"><td class="muted">${esc(String(j.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(bt?nomeBot(bt):j.bot)}</td><td><b>${esc(String(j.simbolo||"").split("/")[0])}</b></td>

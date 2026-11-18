@@ -411,6 +411,31 @@ o ponto de partida; o diário real vai confirmar ou derrubar estes números. Can
 no bot principal quando houver 100+ operações reais: rompimento no 4h com RSI > 62.
 Relatório da prática: `python -m bot diario`.
 
+## 16. Cofre pela média de 50 dias, 16 moedas no bot principal e o que a pesquisa diz (nov/2026)
+
+**O que os estudos mostram (cripto):** seguir a tendência no tempo é o efeito mais forte e mais estudado;
+comparar moedas entre si é fraco (andam juntas); padrões de candle têm pouco poder de previsão;
+sair para o caixa abaixo de uma média móvel reduz as grandes quedas (Grayscale, 2023). Indicadores
+"de topo e fundo" (média de 200 semanas, MVRV, funding) aparecem quase só em blogs, sem teste sério.
+
+**Cofre de tendência: segurar BTC/ETH com o preço acima da média de 50 dias** (antes: regra da EMA200).
+Carteira completa (bot 75% + cofre 25%), 100 USDT, simulador oficial com taxas:
+
+| Cofre | 6 anos | 2020–23 | 2023–hoje | 12 meses | Queda máx. |
+|---|---|---|---|---|---|
+| Regra antiga (EMA200) | 201 | 162 | 128 | 97 | 21% |
+| **Média de 50 dias (adotada)** | **283** | **188** | **154** | **103** | **18%** |
+
+Todas as médias de 30 a 150 dias venceram a regra antiga (robusto, não é um número de sorte).
+Reduzir o cofre pela volatilidade diminuiu um pouco as quedas, mas também o lucro: descartado.
+
+**Bot principal com 16 moedas** (as mesmas dos aprendizes, todas com anos de Binance e boa liquidez):
+carteira 6 anos 284 (vs 283 com 8), ~40% mais operações, último ano −0,09R (vs −0,20R).
+Mesmo risco: continua no máximo 2 posições. 3 posições: 292 em 6 anos, mas pior no último ano; descartado.
+
+**Descartados nesta rodada:** stop mais curto (sem diferença nos dados recentes), operar vendido
+(perdeu até em 2022), meta de lucro diário (forçar operações aumenta o risco; ver conversa de nov/2026).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

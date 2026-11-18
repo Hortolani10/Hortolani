@@ -9,7 +9,10 @@ testnet: true          # true = usa testnet.binance.vision (recomendado antes do
 # O espelho oficial data-api.binance.vision funciona onde api.binance.com é bloqueado.
 market_data_url: https://data-api.binance.vision/api/v3
 
-# Moedas consolidadas (testadas em 3 anos de dados reais)
+# 16 moedas consolidadas: projetos grandes, anos de histórico na Binance e liquidez diária alta
+# (nada de memecoin nova ou token recém-lançado). Nov/2026: 16 moedas = mesmo resultado da carteira
+# que 8 em 6 anos (284 x 283), mas ~40% mais operações e o último ano menos ruim (-0,09R x -0,20R).
+# Continua no máximo 2 posições ao mesmo tempo: mais opções, mesmo risco. PESQUISA.md seção 16.
 symbols:
   - BTC/USDT
   - ETH/USDT
@@ -19,6 +22,14 @@ symbols:
   - ADA/USDT
   - LTC/USDT
   - LINK/USDT
+  - DOGE/USDT
+  - AVAX/USDT
+  - DOT/USDT
+  - TRX/USDT
+  - ATOM/USDT
+  - UNI/USDT
+  - BCH/USDT
+  - XLM/USDT
 
 timeframes:
   trend: 1d            # tempo gráfico maior: define a tendência (só compra a favor dela)
@@ -74,6 +85,9 @@ trend_sleeve:
   fraction: 0.25              # 25% da carteira
   symbols: [BTC/USDT, ETH/USDT]
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
+  sinal: media                # segura enquanto o preço fecha ACIMA da média de 50 dias (ETH só com o BTC também)
+  media_dias: 50              # testado de 30 a 150 dias: todos venceram a regra antiga (PESQUISA.md seção 16)
+                              # sinal: tendencia = regra antiga (EMA200), mais lenta
 
 # Termômetro do mercado (0-100), ideia da skill crypto-regime-analyzer calculada com os
 # candles que o bot já baixa: 50% % das moedas em alta no diário, 30% BTC em alta, 20% BTC > EMA50.

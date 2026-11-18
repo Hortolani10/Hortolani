@@ -115,6 +115,7 @@ footer{color:var(--faint);font-size:12px}
  <div class="mode" id="modo" hidden></div>
  <nav class="menu" aria-label="Seções">
   <a href="/"><span class="ic">⌂</span>Central (todos os bots)</a>
+  <a href="/historico" id="linkhist"><span class="ic">☰</span>Histórico de operações</a>
   <a href="#visao"><span class="ic">◧</span>Visão geral</a>
   <a href="#grafico"><span class="ic">▤</span>Gráfico</a>
   <a href="#radar"><span class="ic">◎</span>Radar</a>
@@ -180,6 +181,7 @@ footer{color:var(--faint);font-size:12px}
 const $=id=>document.getElementById(id);
 const BOT=new URLSearchParams(location.search).get("b")||"";      // bot escolhido na Central
 const QB=BOT?"b="+encodeURIComponent(BOT):"";
+if(BOT)document.getElementById("linkhist").href="/historico?b="+encodeURIComponent(BOT);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const px=v=>{if(v==null)return"—";const a=Math.abs(v);return fmt(v,a>=100?2:a>=1?4:6)};

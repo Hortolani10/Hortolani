@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Histórico de operações</title>
+<style>
+/* Histórico: todas as operações fechadas de todos os bots, com filtros e exportação para planilha. */
+:root{--bg:#0b1016;--panel:#111a23;--panel2:#16212c;--line:#21303d;--fg:#e7eef4;--muted:#8796a5;--faint:#5b6b7a;
+ --accent:#5b8cff;--accent2:#8f6bff;--up:#2fd39d;--down:#ff6f6f;--flat:#f3b54a;--glow:rgba(91,140,255,.18);color-scheme:dark}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f2f5f8;--panel:#fff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+ --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}}
+:root[data-theme="light"]{--bg:#f2f5f8;--panel:#fff;--panel2:#f6f8fb;--line:#dde4eb;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;
+ --accent:#2f63e0;--accent2:#7048e8;--up:#0e9468;--down:#d64141;--flat:#b07800;--glow:rgba(47,99,224,.12);color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif}
+.num{font-family:"Cascadia Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}.up{color:var(--up)}.down{color:var(--down)}
+header{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 24px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.brand{display:flex;gap:10px;align-items:center}.brand b{display:block;font-size:16px}.brand small{color:var(--muted);font-size:12px}
+.logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.btn{font:inherit;font-size:13px;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;text-decoration:none}
+.btn:hover{border-color:var(--accent)}.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+main{padding:20px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;min-width:0}
+.filtros{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;align-items:end}
+.filtros label{display:grid;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+select{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);min-width:130px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.kpi{padding:14px 16px;display:grid;gap:2px}.kpi .lbl{font-size:12px;color:var(--muted)}.kpi .val{font-size:22px;font-weight:650}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px 6px;flex-wrap:wrap}
+h2{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+#barras{display:block;width:100%;height:120px;padding:0 18px 12px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);position:sticky;top:0;background:var(--panel)}
+td.r,th.r{text-align:right}td.pad{white-space:normal;min-width:180px;color:var(--muted);font-size:12px}
+.empty{padding:22px;color:var(--muted);text-align:center}
+.mais{display:flex;justify-content:center;padding:12px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){main,header{padding-left:16px;padding-right:16px}select{min-width:0;width:100%}.filtros label{flex:1 1 45%}}
+</style></head><body>
+<header>
+ <div class="brand"><div class="logo">H</div><div><b>Histórico de operações</b><small>todas as operações fechadas de todos os bots</small></div></div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/">← Central</a><button type="button" class="btn pri" id="csv">⬇ Baixar planilha (CSV)</button></div>
+</header>
+<main>
+ <section class="card filtros" aria-label="Filtros">
+  <label>Bot<select id="fbot"></select></label>
+  <label>Setup<select id="fsetup"></select></label>
+  <label>Moeda<select id="fmoeda"></select></label>
+  <label>Resultado<select id="fres"><option value="">Todos</option><option value="g">Só ganhos</option><option value="p">Só perdas</option></select></label>
+  <label>Fase do mercado<select id="ffase"><option value="">Todas</option><option value="queda_forte">Queda forte (0-20)</option><option value="defensivo">Defensivo (20-40)</option><option value="neutro">Neutro (40-60)</option><option value="alta">Alta (60-100)</option></select></label>
+  <label>Período<select id="fper"><option value="1">Últimas 24 h</option><option value="7">Últimos 7 dias</option><option value="30" selected>Últimos 30 dias</option><option value="0">Tudo</option></select></label>
+ </section>
+ <section class="kpis">
+  <div class="card kpi"><div class="lbl">Operações</div><div class="val num" id="k1">—</div></div>
+  <div class="card kpi"><div class="lbl">Acerto</div><div class="val num" id="k2">—</div></div>
+  <div class="card kpi"><div class="lbl">Média por operação</div><div class="val num" id="k3">—</div></div>
+  <div class="card kpi"><div class="lbl">Resultado</div><div class="val num" id="k4">—</div></div>
+  <div class="card kpi"><div class="lbl">Melhor / pior</div><div class="val num" id="k5" style="font-size:16px">—</div></div>
+ </section>
+ <section class="card"><div class="ch"><h2>Resultado por dia (USDT)</h2><span class="muted" style="font-size:12px" id="binfo"></span></div><svg id="barras" role="img" aria-label="Resultado por dia"></svg></section>
+ <section class="card"><div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th>Fase</th><th class="r">R</th><th class="r">USDT</th><th class="r">Duração</th><th>Saída</th><th>Padrões na entrada</th></tr></thead>
+  <tbody id="linhas"><tr><td colspan="10" class="empty">Carregando…</td></tr></tbody></table></div><div class="mais"><button type="button" class="btn" id="mais" hidden>Mostrar mais</button></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg=(v,d=2)=>v==null||isNaN(v)?"—":(v>0?"+":"")+fmt(v,d);
+const cl=v=>v>0?"up":v<0?"down":"";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SETUP={tendencia:"Tendência",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre",cofre:"Cofre de tendência"};
+const PAD={engolfo_alta:"engolfo de alta",engolfo_baixa:"engolfo de baixa",martelo:"martelo",estrela_cadente:"estrela cadente",doji:"doji",tres_soldados:"3 altas seguidas",rompimento_20:"rompeu máx. 20",perda_20:"perdeu mín. 20",perto_suporte:"no suporte",perto_resistencia:"na resistência",fundo_duplo:"fundo duplo",divergencia_alta:"divergência RSI",volume_explosivo:"volume 2×",squeeze:"bandas apertadas",acima_ema200:"acima EMA200",rsi_sobrevenda:"RSI < 30",rsi_sobrecompra:"RSI > 70"};
+const FASE=n=>n==null||isNaN(n)?null:n<20?"queda_forte":n<40?"defensivo":n<60?"neutro":"alta";
+const FNOME={queda_forte:"queda forte",defensivo:"defensivo",neutro:"neutro",alta:"alta"};
+const nb=b=>b==="principal"?"Principal":String(b||"").replace("aprendiz-","Aprendiz ");
+let tema="dark";try{tema=localStorage.getItem("painel-tema")||"dark"}catch(e){}
+if(tema!=="auto")document.documentElement.setAttribute("data-theme",tema);
+let OPS=[],filtradas=[],limite=100;
+function dur(a,b){const t=(new Date(b)-new Date(a))/36e5;if(!(t>=0))return"—";return t<1?Math.max(1,Math.round(t*60))+" min":t<48?fmt(t,0)+" h":fmt(t/24,1)+" d"}
+function opcoes(sel,vals,nome,rot){const v=sel.value;sel.innerHTML=`<option value="">${nome}</option>`+vals.map(x=>`<option value="${esc(x)}">${esc(rot?rot(x):x)}</option>`).join("");sel.value=vals.includes(v)?v:""}
+function filtra(){
+ const b=$("fbot").value,s=$("fsetup").value,m=$("fmoeda").value,r=$("fres").value,f=$("ffase").value,dias=+$("fper").value;
+ const corte=dias?Date.now()-dias*864e5:0;
+ filtradas=OPS.filter(o=>(!b||o.bot===b)&&(!s||o.setup===s)&&(!m||String(o.simbolo).split("/")[0]===m)&&(!r||(r==="g"?o.r>0:o.r<=0))
+  &&(!f||FASE(o.termometro)===f)&&(!corte||new Date(o.fechada).getTime()>=corte));
+ limite=100;desenha()}
+function desenha(){
+ const F=filtradas,n=F.length,g=F.filter(o=>o.r>0).length,soma=F.reduce((a,o)=>a+(+o.pnl||0),0),sr=F.reduce((a,o)=>a+(+o.r||0),0);
+ $("k1").textContent=n;$("k2").textContent=n?fmt(g/n*100,0)+"%":"—";
+ $("k3").innerHTML=n?`<span class="${cl(sr/n)}">${sg(sr/n)}R</span>`:"—";$("k4").innerHTML=n?`<span class="${cl(soma)}">${sg(soma)} USDT</span>`:"—";
+ const rs=F.map(o=>+o.r||0);$("k5").innerHTML=n?`<span class="up">${sg(Math.max(...rs))}R</span> / <span class="down">${sg(Math.min(...rs))}R</span>`:"—";
+ // barras por dia
+ const dia={};for(const o of F){const k=String(o.fechada||"").slice(0,10);if(k)dia[k]=(dia[k]||0)+(+o.pnl||0)}
+ const ks=Object.keys(dia).sort().slice(-60),svg=$("barras"),W=svg.clientWidth||800,H=108,mx=Math.max(1e-9,...ks.map(k=>Math.abs(dia[k])));
+ const passo=ks.length?W/ks.length:0,bw=Math.max(3,Math.min(28,passo-3)),mid=H/2;
+ svg.setAttribute("viewBox",`0 0 ${W} ${H+12}`);
+ svg.innerHTML=`<line x1="0" x2="${W}" y1="${mid}" y2="${mid}" stroke="var(--line)"/>`+ks.map((k,i)=>{const v=dia[k],h=Math.abs(v)/mx*(mid-4),x=i*passo+(passo-bw)/2;
+  return `<rect x="${x}" y="${v>=0?mid-h:mid}" width="${bw}" height="${Math.max(1,h)}" rx="2" fill="${v>=0?"var(--up)":"var(--down)"}"><title>${k.slice(8,10)}/${k.slice(5,7)}: ${sg(v)} USDT</title></rect>`}).join("");
+ $("binfo").textContent=ks.length?`${ks.length} dia(s) · passe o mouse nas barras`:"";
+ $("linhas").innerHTML=n?F.slice(0,limite).map(o=>{const fz=FASE(o.termometro);
+  return `<tr><td class="muted num">${esc(String(o.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(nb(o.bot))}</td><td><b>${esc(String(o.simbolo||"").split("/")[0])}</b></td>
+  <td>${esc(SETUP[o.setup]||o.setup)}</td><td class="muted">${fz?FNOME[fz]:"—"}</td><td class="r num ${cl(o.r)}">${sg(o.r)}</td><td class="r num ${cl(o.pnl)}">${sg(o.pnl)}</td>
+  <td class="r muted">${dur(o.aberta,o.fechada)}</td><td class="muted">${esc(o.motivo)}</td><td class="pad">${esc((o.padroes||[]).map(p=>PAD[p]||p).join(" · "))}</td></tr>`}).join("")
+  :'<tr><td colspan="10" class="empty">Nenhuma operação com esses filtros.</td></tr>';
+ $("mais").hidden=n<=limite}
+$("mais").onclick=()=>{limite+=200;desenha()};
+["fbot","fsetup","fmoeda","fres","ffase","fper"].forEach(id=>$(id).onchange=filtra);
+$("csv").onclick=()=>{
+ const cab=["fechou","aberta","bot","moeda","setup","fase","termometro","r","usdt","entrada","saida_motivo","padroes"];
+ const q=v=>{const s=String(v??"");return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+ const num=v=>v==null||v===""||isNaN(v)?"":String(v).replace(".",",");
+ const linhas=filtradas.map(o=>[o.fechada,o.aberta,nb(o.bot),String(o.simbolo||"").split("/")[0],SETUP[o.setup]||o.setup,FNOME[FASE(o.termometro)]||"",num(o.termometro),num(o.r),num(o.pnl),num(o.entrada),o.motivo,(o.padroes||[]).map(p=>PAD[p]||p).join(" | ")].map(q).join(";"));
+ const blob=new Blob(["﻿"+cab.join(";")+"\n"+linhas.join("\n")],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="operacoes_bots_"+new Date().toISOString().slice(0,10)+".csv";
+ document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
+async function carrega(){
+ try{const d=await (await fetch("/api/historico",{cache:"no-store"})).json();OPS=d.operacoes||[];
+  opcoes($("fbot"),d.bots||[],"Todos os bots",nb);
+  opcoes($("fsetup"),[...new Set(OPS.map(o=>o.setup))].sort(),"Todos",x=>SETUP[x]||x);
+  opcoes($("fmoeda"),[...new Set(OPS.map(o=>String(o.simbolo||"").split("/")[0]))].sort(),"Todas");
+  const q=new URLSearchParams(location.search);if(q.get("b"))$("fbot").value=q.get("b");if(q.get("setup"))$("fsetup").value=q.get("setup");
+  filtra()}catch(e){$("linhas").innerHTML='<tr><td colspan="10" class="empty">Sem conexão com o bot.</td></tr>'}}
+carrega();setInterval(carrega,60000);
+</script>
+</body></html>

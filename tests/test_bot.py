@@ -997,3 +997,40 @@ def test_resultado_por_fase_do_mercado(synth, cfg, tmp_path, monkeypatch):
     assert pf["queda_forte"]["ops"] == 2 and pf["rompimento|alta"]["soma_r"] == 2.0
     rk = {x["nome"]: x for x in ranking([{"tf": "4h", "id": "p", "por_fase": pf}], "por_fase")}
     assert rk["rompimento|queda_forte"]["media_r"] == -1.0 and rk["alta"]["acerto"] == 1.0
+
+
+def test_cofre_pela_media_de_50_dias(cfg):
+    import pandas as pd
+    from bot.sleeve import daily_trends
+    n = 120
+    sobe = list(range(100, 100 + n))                       # sobe sempre: acima da média
+    cai = list(range(300, 300 - n, -1))                    # cai sempre: abaixo da média
+    mk = lambda c: pd.DataFrame({"ts": [i * 86_400_000 for i in range(n)], "open": c, "high": c, "low": c,
+                                 "close": c, "volume": [1.0] * n})
+    cfg["trend_sleeve"].update({"sinal": "media", "media_dias": 50})
+    t = daily_trends({"A": mk(sobe), "B": mk(cai)}, cfg)
+    assert t["A"].iloc[10] == "SEM_DADOS" and t["A"].iloc[-1] == "ALTA" and t["B"].iloc[-1] == "BAIXA"
+    cfg["trend_sleeve"]["sinal"] = "tendencia"
+    assert daily_trends({"A": mk(sobe)}, cfg)["A"].iloc[-1] in ("ALTA", "SEM_DADOS", "LATERAL")
+
+
+def test_historico_junta_todos_os_bots(monkeypatch, tmp_path):
+    import json as _j, urllib.request
+    from bot.learn import registrar
+    from bot.painel import Painel
+    d1, d2 = tmp_path / "a", tmp_path / "b"
+    d1.mkdir(); d2.mkdir()
+    monkeypatch.chdir(d2)
+    registrar({"origem": "paper-aprendiz-4h", "simbolo": "ETH/USDT", "fechada": "2026-11-02", "pnl": 3, "r": 1,
+               "features": {"estrategia": "rompimento", "termometro": 70}})
+    ap = Painel("127.0.0.1", 0, "aprendiz-4h"); s_ap = _servir(monkeypatch, ap)
+    monkeypatch.chdir(d1)
+    registrar({"origem": "paper", "simbolo": "BTC/USDT", "fechada": "2026-11-01", "pnl": -1, "r": -1, "features": {}})
+    main = Painel("127.0.0.1", 0, "principal", {"aprendiz-4h": "http://127.0.0.1:%d" % s_ap.server_address[1]})
+    s_m = _servir(monkeypatch, main)
+    base = "http://127.0.0.1:%d" % s_m.server_address[1]
+    h = _j.loads(urllib.request.urlopen(base + "/api/historico", timeout=10).read())
+    assert [o["simbolo"] for o in h["operacoes"]] == ["ETH/USDT", "BTC/USDT"]       # mais recente primeiro
+    assert h["operacoes"][0]["bot"] == "aprendiz-4h" and h["operacoes"][0]["setup"] == "rompimento"
+    assert "Histórico de operações".encode() in urllib.request.urlopen(base + "/historico", timeout=5).read()
+    s_ap.shutdown(); s_m.shutdown()

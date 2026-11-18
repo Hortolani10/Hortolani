@@ -81,6 +81,7 @@ class Painel:
         self.host, self.port = host, port
         self.nome = nome
         self.outros = dict(outros or {})                 # nome -> endereço base (fixos no config)
+        self.pasta = Path.cwd()                          # pasta de trabalho deste bot (diário em logs/)
         self.data: dict = {"carregando": True}
         self.charts: dict = {}
         self.lock = threading.Lock()
@@ -104,6 +105,43 @@ class Painel:
             if j.get("simbolo") == sym:
                 trades.append({k: j.get(k) for k in ("aberta", "fechada", "entrada", "saida", "r", "motivo", "origem")})
         return json.dumps({"simbolo": sym, "candles": c, "operacoes": trades}, default=str).encode()
+
+    def diario(self) -> list[dict]:
+        """Todas as operações fechadas registradas no diário deste bot."""
+        out = []
+        p = self.pasta / "logs" / "diario.jsonl"
+        if p.exists():
+            for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+                try:
+                    j = json.loads(line)
+                except ValueError:
+                    continue
+                f = j.get("features") or {}
+                out.append({"bot": self.nome, "origem": j.get("origem"), "simbolo": j.get("simbolo"),
+                            "aberta": j.get("aberta"), "fechada": j.get("fechada"), "entrada": j.get("entrada"),
+                            "pnl": j.get("pnl"), "r": j.get("r"), "motivo": j.get("motivo"),
+                            "setup": f.get("estrategia") or ("cofre" if str(j.get("origem", "")).endswith("-tendencia") else "tendencia"),
+                            "tf": f.get("tf"), "termometro": f.get("termometro"), "padroes": f.get("padroes") or []})
+        return out
+
+    def historico(self) -> bytes:
+        """Diário de todos os bots (este + os da lista fixa), para a tela de histórico."""
+        ops = self.diario()
+
+        def busca(item):
+            n, url = item
+            try:
+                with urllib.request.urlopen(url.rstrip("/") + "/api/diario", timeout=8) as r:  # nosec B310
+                    return json.loads(r.read().decode("utf-8"))
+            except Exception:
+                return []
+
+        if self.outros:
+            with ThreadPoolExecutor(max_workers=len(self.outros)) as ex:
+                for lista in ex.map(busca, self.outros.items()):
+                    ops += lista
+        ops.sort(key=lambda o: str(o.get("fechada") or ""), reverse=True)
+        return json.dumps({"operacoes": ops, "bots": [self.nome] + list(self.outros)}, ensure_ascii=False, default=str).encode()
 
     def payload(self) -> bytes:
         with self.lock:
@@ -181,6 +219,13 @@ class Painel:
                     self._send(200, CENTRAL.encode(), "text/html; charset=utf-8")
                 elif u.path == "/bot":
                     self._send(200, HTML.encode(), "text/html; charset=utf-8")
+                elif u.path == "/historico":
+                    self._send(200, HISTORICO.encode(), "text/html; charset=utf-8")
+                elif u.path == "/api/diario":
+                    self._send(200, json.dumps(painel.diario(), ensure_ascii=False, default=str).encode(),
+                               "application/json; charset=utf-8")
+                elif u.path == "/api/historico":
+                    self._send(200, painel.historico(), "application/json; charset=utf-8")
                 elif u.path == "/api/central":
                     self._send(200, painel.central(), "application/json; charset=utf-8")
                 elif u.path == "/api/status":
@@ -222,3 +267,4 @@ def from_config(cfg: dict) -> Painel | None:
 
 HTML = (Path(__file__).with_name("static") / "painel.html").read_text(encoding="utf-8")
 CENTRAL = (Path(__file__).with_name("static") / "central.html").read_text(encoding="utf-8")
+HISTORICO = (Path(__file__).with_name("static") / "historico.html").read_text(encoding="utf-8")
