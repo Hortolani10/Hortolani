@@ -93,13 +93,13 @@ class Trader:
         vendido = (pos.cost / pos.entry / (1 + fee)) if pos.entry else 0
         saida = pos.proceeds / (vendido * (1 - fee)) if vendido > 0 and pos.proceeds > 0 else None
         self._avisar(mensagens.fechou(self.cfg, sym, pos.strategy, pos.entry, saida, pnl, r_mult,
-                                      ", ".join(pos.reasons) or reason, pos.opened_at))
+                                      ", ".join(pos.reasons) or reason, pos.opened_at, pos.taxas))
         self.guard.register_close(pnl, utcnow())
         del self.positions[sym]
         # diário: memória do bot para aprender com a prática
         registrar({"origem": self.origem, "simbolo": sym, "aberta": pos.opened_at,
                    "fechada": utcnow().isoformat(), "entrada": pos.entry, "pnl": pnl, "r": r_mult,
-                   "motivo": ", ".join(pos.reasons), "features": pos.features})
+                   "motivo": ", ".join(pos.reasons), "taxas": round(pos.taxas, 6), "features": pos.features})
         self._check_drift()
 
     def _check_drift(self) -> None:
@@ -134,6 +134,7 @@ class Trader:
             self._close(sym, pos, reason)
             return
         px, got = self.broker.sell(sym, qty)
+        pos.taxas += max(0.0, qty * px - got)
         pos.qty -= qty
         pos.proceeds += got
         pos.reasons.append(reason)
@@ -171,6 +172,7 @@ class Trader:
             return
         if got <= 0:      # paper: simula a venda agora, no preço em que a ordem stop executaria
             px, got = self.broker.sell(sym, pos.qty, px)
+        pos.taxas += max(0.0, pos.qty * px - got)
         pos.proceeds += got
         pos.qty = 0
         pos.reasons.append("stop")
@@ -254,6 +256,7 @@ class Trader:
             return
         filled, avg, cost = self.broker.buy(sym, qty)
         pos = Position(sym, filled, avg, sig.stop, avg - sig.stop, utcnow().isoformat(), highest=avg, cost=cost,
+                       taxas=max(0.0, cost - filled * avg),
                        strategy=strat, features={**entry_features(df, i), "risco_escala": scale, "estrategia": strat,
                                                  "termometro": (self.state.get("termometro") or {}).get("nota"),
                                                  "tf": self.cfg["timeframes"]["entry"]})
@@ -489,7 +492,8 @@ class Trader:
         def soma(lista):
             g = [o for o in lista if float(o.get("r") or 0) > 0]
             return {"ops": len(lista), "ganhos": len(g), "soma_r": sum(float(o.get("r") or 0) for o in lista),
-                    "pnl": sum(float(o.get("pnl") or 0) for o in lista)}
+                    "pnl": sum(float(o.get("pnl") or 0) for o in lista),
+                    "taxas": sum(float(o.get("taxas") or 0) for o in lista)}
 
         corte = (utcnow() - timedelta(days=1)).isoformat()
         hoje = [o for o in ops if str(o.get("fechada", "")) >= corte]
@@ -508,6 +512,8 @@ class Trader:
                "acerto": tot["ganhos"] / tot["ops"] if tot["ops"] else None,
                "media_r": tot["soma_r"] / tot["ops"] if tot["ops"] else None,
                "hoje_ops": len(hoje), "hoje_pnl": round(soma(hoje)["pnl"], 4),
+               "taxas": round(tot["taxas"], 4), "hoje_taxas": round(soma(hoje)["taxas"], 4),
+               "ops_com_taxa": sum(1 for o in ops if o.get("taxas") is not None),
                "por_setup": {k: soma(v) for k, v in por_setup.items()},
                "por_padrao": {k: soma(v) for k, v in por_padrao.items()},
                "por_fase": {k: soma(v) for k, v in por_fase.items()}}
@@ -599,8 +605,8 @@ class Trader:
             log.exception("erro montando a central")
             return self.status_text()
 
-        def sg(v, suf=""):
-            return "—" if v is None else f"{v:+.2f}{suf}"
+        def sg(v, suf=""):                                     # número no padrão brasileiro: +1,25
+            return "—" if v is None else mensagens.sinal(float(v)) + suf
 
         linhas = ["🏠 Central dos bots"]
         for b in d.get("bots", []):
@@ -610,9 +616,10 @@ class Trader:
                 continue
             ic = "🟢" if (b.get("lucro") or 0) >= 0 else "🔴"
             ac = "—" if b.get("acerto") is None else f"{b['acerto']:.0%}"
+            tx = f" · taxas {mensagens.num(b['taxas'], 2)}" if b.get("taxas") else ""
             linhas.append(f"{ic} {nome}: {sg(b.get('lucro'))} USDT ({sg((b.get('lucro_pct') or 0) * 100, '%')})\n"
                           f"    realizado {sg(b.get('realizado'))} · aberto {sg(b.get('aberto'))} · {b.get('posicoes', 0)} posições\n"
-                          f"    {b.get('ops', 0)} ops · acerto {ac} · média {sg(b.get('media_r'), 'R')} · hoje {b.get('hoje_ops', 0)} ops")
+                          f"    {b.get('ops', 0)} ops · acerto {ac} · média {sg(b.get('media_r'), 'R')}{tx} · hoje {b.get('hoje_ops', 0)} ops")
         fz = {x["nome"]: x for x in d.get("fases") or [] if "|" not in x["nome"]}
         if fz:
             from .regime import FASES
@@ -620,13 +627,13 @@ class Trader:
             for k, _, nome in FASES:
                 if k in fz:
                     x = fz[k]
-                    linhas.append(f"  {nome}: {x['media_r']:+.2f}R · {x['ops']} ops · acerto {x['acerto']:.0%}")
+                    linhas.append(f"  {nome}: {sg(x['media_r'], 'R')} · {x['ops']} ops · acerto {x['acerto']:.0%}")
         st = d.get("setups") or []
         if st:
             linhas.append("\n🏆 Setups (média por operação):")
             for i, x in enumerate(st[:7]):
                 aviso = " (poucas ops)" if x["ops"] < 20 else ""
-                linhas.append(f"  {i + 1}. {x['nome']}: {x['media_r']:+.2f}R · {x['ops']} ops · acerto {x['acerto']:.0%}{aviso}")
+                linhas.append(f"  {i + 1}. {mensagens.SETUPS.get(x['nome'], (x['nome'],))[0]}: {sg(x['media_r'], 'R')} · {x['ops']} ops · acerto {x['acerto']:.0%}{aviso}")
         return "\n".join(linhas)
 
     def daily_summary(self) -> None:

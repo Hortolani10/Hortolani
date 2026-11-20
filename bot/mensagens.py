@@ -96,7 +96,7 @@ def compra(cfg: dict, simbolo: str, setup: str, entrada: float, stop: float, qtd
 
 
 def fechou(cfg: dict, simbolo: str, setup: str, entrada: float, saida: float | None, pnl: float,
-           r_mult: float, motivo: str, aberta: str) -> str:
+           r_mult: float, motivo: str, aberta: str, taxas: float | None = None) -> str:
     moeda = escape(simbolo.split("/")[0])
     if r_mult >= 0.15:
         icone, rotulo = "✅", "GANHO"
@@ -114,6 +114,8 @@ def fechou(cfg: dict, simbolo: str, setup: str, entrada: float, saida: float | N
               f"📌 {escape(titulo)} · saiu {saiu}"]
     if saida:
         linhas.append(f"💵 <code>{num(entrada)}</code> → <code>{num(saida)}</code>  ({sinal((saida / entrada - 1) * 100, 2)}%)")
+    if taxas:
+        linhas.append(f"💸 Taxas {num(taxas, 2)} USDT (já descontadas) · bruto {sinal(pnl + taxas)} USDT")
     d = _duracao(aberta)
     if d:
         linhas.append(f"⏱ durou {d}")

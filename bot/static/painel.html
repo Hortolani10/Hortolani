@@ -316,7 +316,7 @@ async function load(){
   $("k2").innerHTML=`<span class="${luc>=0?"up":"down"}">${sgn(luc)} USDT</span>`;
   $("k2b").innerHTML=`<span class="${luc>=0?"up":"down"}">${sgn(luc/cap*100)}%</span> · realizado <b class="${real>=0?"up":"down"}">${sgn(real)}</b> · em aberto <b class="${luc-real>=0?"up":"down"}">${sgn(luc-real)}</b>`;
   $("k3").textContent=dz.ops||0;
-  $("k3b").textContent=dz.ops?`acerto ${fmt((dz.acerto||0)*100,0)}% · média ${(dz.media_r>0?"+":"")+fmt(dz.media_r)}R · hoje ${dz.hoje_ops||0} (${sgn(dz.hoje_pnl||0)} USDT)`:"ainda sem operações fechadas";
+  $("k3b").textContent=dz.ops?`acerto ${fmt((dz.acerto||0)*100,0)}% · média ${(dz.media_r>0?"+":"")+fmt(dz.media_r)}R · hoje ${dz.hoje_ops||0} (${sgn(dz.hoje_pnl||0)} USDT)${dz.taxas?` · taxas ${fmt(dz.taxas)} USDT`:""}`:"ainda sem operações fechadas";
   document.querySelectorAll(".seg-tf button").forEach(b=>{b.textContent=b.dataset.tf==="1d"?d.timeframes.trend:d.timeframes.entry});
   const rad=Object.entries(d.radar||{}).sort((a,b)=>((b[1].sinal_tendencia||b[1].sinal_lateral)?100:0)+b[1].regras_ok-((a[1].sinal_tendencia||a[1].sinal_lateral)?100:0)-a[1].regras_ok);
   if(rad.length){const [bs,bx]=rad[0];$("k5").textContent=base(bs)+" · "+bx.regras_ok+"/"+bx.regras_total;

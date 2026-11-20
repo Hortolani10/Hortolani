@@ -23,7 +23,7 @@ main{padding:20px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto
 .filtros{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;align-items:end}
 .filtros label{display:grid;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 select{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);min-width:130px}
-.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
 .kpi{padding:14px 16px;display:grid;gap:2px}.kpi .lbl{font-size:12px;color:var(--muted)}.kpi .val{font-size:22px;font-weight:650}
 .ch{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 18px 6px;flex-wrap:wrap}
 h2{margin:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -35,7 +35,7 @@ th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
 td.r,th.r{text-align:right}td.pad{white-space:normal;min-width:180px;color:var(--muted);font-size:12px}
 .empty{padding:22px;color:var(--muted);text-align:center}
 .mais{display:flex;justify-content:center;padding:12px}
-@media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){main,header{padding-left:16px;padding-right:16px}select{min-width:0;width:100%}.filtros label{flex:1 1 45%}}
 </style></head><body>
 <header>
@@ -56,11 +56,12 @@ td.r,th.r{text-align:right}td.pad{white-space:normal;min-width:180px;color:var(-
   <div class="card kpi"><div class="lbl">Acerto</div><div class="val num" id="k2">—</div></div>
   <div class="card kpi"><div class="lbl">Média por operação</div><div class="val num" id="k3">—</div></div>
   <div class="card kpi"><div class="lbl">Resultado</div><div class="val num" id="k4">—</div></div>
+  <div class="card kpi"><div class="lbl">Taxas pagas</div><div class="val num" id="k6">—</div><div class="muted" style="font-size:12px" id="k6b"></div></div>
   <div class="card kpi"><div class="lbl">Melhor / pior</div><div class="val num" id="k5" style="font-size:16px">—</div></div>
  </section>
  <section class="card"><div class="ch"><h2>Resultado por dia (USDT)</h2><span class="muted" style="font-size:12px" id="binfo"></span></div><svg id="barras" role="img" aria-label="Resultado por dia"></svg></section>
- <section class="card"><div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th>Fase</th><th class="r">R</th><th class="r">USDT</th><th class="r">Duração</th><th>Saída</th><th>Padrões na entrada</th></tr></thead>
-  <tbody id="linhas"><tr><td colspan="10" class="empty">Carregando…</td></tr></tbody></table></div><div class="mais"><button type="button" class="btn" id="mais" hidden>Mostrar mais</button></div></section>
+ <section class="card"><div class="tw"><table><thead><tr><th>Fechou</th><th>Bot</th><th>Moeda</th><th>Setup</th><th>Fase</th><th class="r">R</th><th class="r">USDT</th><th class="r">Taxas</th><th class="r">Duração</th><th>Saída</th><th>Padrões na entrada</th></tr></thead>
+  <tbody id="linhas"><tr><td colspan="11" class="empty">Carregando…</td></tr></tbody></table></div><div class="mais"><button type="button" class="btn" id="mais" hidden>Mostrar mais</button></div></section>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -88,6 +89,8 @@ function desenha(){
  const F=filtradas,n=F.length,g=F.filter(o=>o.r>0).length,soma=F.reduce((a,o)=>a+(+o.pnl||0),0),sr=F.reduce((a,o)=>a+(+o.r||0),0);
  $("k1").textContent=n;$("k2").textContent=n?fmt(g/n*100,0)+"%":"—";
  $("k3").innerHTML=n?`<span class="${cl(sr/n)}">${sg(sr/n)}R</span>`:"—";$("k4").innerHTML=n?`<span class="${cl(soma)}">${sg(soma)} USDT</span>`:"—";
+ const cT=F.filter(o=>o.taxas!=null),tx=cT.reduce((a,o)=>a+(+o.taxas||0),0);
+ $("k6").textContent=cT.length?fmt(tx)+" USDT":"—";$("k6b").textContent=cT.length?`bruto ${sg(soma+tx)} · ${cT.length<n?cT.length+" de "+n+" ops com taxa registrada":"já descontadas"}`:"operações novas registram a taxa";
  const rs=F.map(o=>+o.r||0);$("k5").innerHTML=n?`<span class="up">${sg(Math.max(...rs))}R</span> / <span class="down">${sg(Math.min(...rs))}R</span>`:"—";
  // barras por dia
  const dia={};for(const o of F){const k=String(o.fechada||"").slice(0,10);if(k)dia[k]=(dia[k]||0)+(+o.pnl||0)}
@@ -99,17 +102,17 @@ function desenha(){
  $("binfo").textContent=ks.length?`${ks.length} dia(s) · passe o mouse nas barras`:"";
  $("linhas").innerHTML=n?F.slice(0,limite).map(o=>{const fz=FASE(o.termometro);
   return `<tr><td class="muted num">${esc(String(o.fechada||"").slice(5,16).replace("T"," "))}</td><td>${esc(nb(o.bot))}</td><td><b>${esc(String(o.simbolo||"").split("/")[0])}</b></td>
-  <td>${esc(SETUP[o.setup]||o.setup)}</td><td class="muted">${fz?FNOME[fz]:"—"}</td><td class="r num ${cl(o.r)}">${sg(o.r)}</td><td class="r num ${cl(o.pnl)}">${sg(o.pnl)}</td>
+  <td>${esc(SETUP[o.setup]||o.setup)}</td><td class="muted">${fz?FNOME[fz]:"—"}</td><td class="r num ${cl(o.r)}">${sg(o.r)}</td><td class="r num ${cl(o.pnl)}">${sg(o.pnl)}</td><td class="r num muted">${o.taxas==null?"—":fmt(o.taxas)}</td>
   <td class="r muted">${dur(o.aberta,o.fechada)}</td><td class="muted">${esc(o.motivo)}</td><td class="pad">${esc((o.padroes||[]).map(p=>PAD[p]||p).join(" · "))}</td></tr>`}).join("")
-  :'<tr><td colspan="10" class="empty">Nenhuma operação com esses filtros.</td></tr>';
+  :'<tr><td colspan="11" class="empty">Nenhuma operação com esses filtros.</td></tr>';
  $("mais").hidden=n<=limite}
 $("mais").onclick=()=>{limite+=200;desenha()};
 ["fbot","fsetup","fmoeda","fres","ffase","fper"].forEach(id=>$(id).onchange=filtra);
 $("csv").onclick=()=>{
- const cab=["fechou","aberta","bot","moeda","setup","fase","termometro","r","usdt","entrada","saida_motivo","padroes"];
+ const cab=["fechou","aberta","bot","moeda","setup","fase","termometro","r","usdt_liquido","taxas","usdt_bruto","entrada","saida_motivo","padroes"];
  const q=v=>{const s=String(v??"");return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
  const num=v=>v==null||v===""||isNaN(v)?"":String(v).replace(".",",");
- const linhas=filtradas.map(o=>[o.fechada,o.aberta,nb(o.bot),String(o.simbolo||"").split("/")[0],SETUP[o.setup]||o.setup,FNOME[FASE(o.termometro)]||"",num(o.termometro),num(o.r),num(o.pnl),num(o.entrada),o.motivo,(o.padroes||[]).map(p=>PAD[p]||p).join(" | ")].map(q).join(";"));
+ const linhas=filtradas.map(o=>[o.fechada,o.aberta,nb(o.bot),String(o.simbolo||"").split("/")[0],SETUP[o.setup]||o.setup,FNOME[FASE(o.termometro)]||"",num(o.termometro),num(o.r),num(o.pnl),num(o.taxas),o.taxas==null?"":num((+o.pnl||0)+(+o.taxas||0)),num(o.entrada),o.motivo,(o.padroes||[]).map(p=>PAD[p]||p).join(" | ")].map(q).join(";"));
  const blob=new Blob(["﻿"+cab.join(";")+"\n"+linhas.join("\n")],{type:"text/csv;charset=utf-8"});
  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="operacoes_bots_"+new Date().toISOString().slice(0,10)+".csv";
  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
@@ -119,7 +122,7 @@ async function carrega(){
   opcoes($("fsetup"),[...new Set(OPS.map(o=>o.setup))].sort(),"Todos",x=>SETUP[x]||x);
   opcoes($("fmoeda"),[...new Set(OPS.map(o=>String(o.simbolo||"").split("/")[0]))].sort(),"Todas");
   const q=new URLSearchParams(location.search);if(q.get("b"))$("fbot").value=q.get("b");if(q.get("setup"))$("fsetup").value=q.get("setup");
-  filtra()}catch(e){$("linhas").innerHTML='<tr><td colspan="10" class="empty">Sem conexão com o bot.</td></tr>'}}
+  filtra()}catch(e){$("linhas").innerHTML='<tr><td colspan="11" class="empty">Sem conexão com o bot.</td></tr>'}}
 carrega();setInterval(carrega,60000);
 </script>
 </body></html>

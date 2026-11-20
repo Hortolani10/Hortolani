@@ -141,6 +141,7 @@ function cardBot(b){
    <div><small>Posições</small><span class="num">${b.posicoes}</span></div></div>
   <div class="bf"><span>${b.ops} ops · acerto ${b.acerto==null?"—":fmt(b.acerto*100,0)+"%"} · média ${b.media_r==null?"—":sg(b.media_r)+"R"}</span>
    <span>hoje: ${b.hoje_ops} · <b class="${cl(b.hoje_pnl)}">${sg(b.hoje_pnl)}</b></span></div>
+  ${b.taxas?`<div class="bf"><span>💸 taxas pagas ${fmt(b.taxas)} USDT${b.hoje_taxas?` · hoje ${fmt(b.hoje_taxas)}`:""}</span><span>já descontadas do resultado</span></div>`:""}
   <div class="bf"><span>carteira ${fmt(b.carteira)} de ${fmt(b.inicial,0)}</span><span>${b.pausado?'<b class="flat">⏸ pausado</b>':"ver detalhes →"}</span></div></a>`}
 
 function linhaRank(x,i,nome,max,usdt){

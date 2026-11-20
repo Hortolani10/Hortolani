@@ -203,6 +203,7 @@ class Position:
     reasons: list = field(default_factory=list)
     strategy: str = "tendencia"  # "tendencia" (pullback) ou "lateral" (reversão à média)
     bars: int = 0                # candles desde a entrada
+    taxas: float = 0.0           # taxas da corretora pagas na compra e nas vendas (USDT)
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()

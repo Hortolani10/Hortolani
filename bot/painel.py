@@ -51,6 +51,7 @@ def resumo_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
             "realizado": real, "aberto": (lucro - real) if lucro is not None else None,
             "posicoes": len(d.get("posicoes") or []), "ops": dz.get("ops", 0), "acerto": dz.get("acerto"),
             "media_r": dz.get("media_r"), "hoje_pnl": dz.get("hoje_pnl"), "hoje_ops": dz.get("hoje_ops", 0),
+            "taxas": dz.get("taxas"), "hoje_taxas": dz.get("hoje_taxas"), "ops_com_taxa": dz.get("ops_com_taxa", 0),
             "pausado": d.get("pausado"), "agora": d.get("agora"), "termometro": d.get("termometro"),
             "equity": [v for _, v in eh[::passo]][-120:], "por_setup": dz.get("por_setup") or {},
             "por_padrao": dz.get("por_padrao") or {}, "por_fase": dz.get("por_fase") or {},
@@ -119,7 +120,7 @@ class Painel:
                 f = j.get("features") or {}
                 out.append({"bot": self.nome, "origem": j.get("origem"), "simbolo": j.get("simbolo"),
                             "aberta": j.get("aberta"), "fechada": j.get("fechada"), "entrada": j.get("entrada"),
-                            "pnl": j.get("pnl"), "r": j.get("r"), "motivo": j.get("motivo"),
+                            "pnl": j.get("pnl"), "r": j.get("r"), "motivo": j.get("motivo"), "taxas": j.get("taxas"),
                             "setup": f.get("estrategia") or ("cofre" if str(j.get("origem", "")).endswith("-tendencia") else "tendencia"),
                             "tf": f.get("tf"), "termometro": f.get("termometro"), "padroes": f.get("padroes") or []})
         return out

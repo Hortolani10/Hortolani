@@ -1057,3 +1057,30 @@ def test_config_capitulacao_so_paper_e_sem_tendencia():
     assert c["exploracao"]["enabled"] and c["exploracao"]["setups"] == ["capitulacao"]
     assert c["strategy"]["tendencia"] is False and c["risk"]["max_bars"] == 6 and c["timeframes"]["entry"] == "4h"
     assert c["risk"]["stop_min_atr"] == 4.0 and c["exploracao"]["capitulacao_queda"] == 0.05
+
+
+def test_taxas_por_operacao(cfg, tmp_path, monkeypatch):
+    import json as _j
+    from bot.exchange import PaperBroker
+    from bot.learn import DIARIO
+    from bot.mensagens import fechou
+    from bot.strategy import Position
+    monkeypatch.chdir(tmp_path)
+    class M:
+        p = 100.0
+        def load_markets(self): pass
+        def fetch_ticker(self, s): return {"last": self.p}
+        def market(self, s): return {"limits": {"cost": {"min": 5}}}
+        def amount_to_precision(self, s, q): return q
+    m = M(); b = PaperBroker(cfg, m, {})
+    tr = Trader(cfg, b, {}, str(tmp_path / "s.json"))
+    filled, avg, cost = b.buy("X/USDT", 1.0)
+    pos = Position("X/USDT", filled, avg, 90.0, avg - 90.0, "2026-01-01T00:00:00+00:00", cost=cost, taxas=cost - filled * avg)
+    tr.positions["X/USDT"] = pos
+    m.p = 110.0
+    tr._sell("X/USDT", pos, pos.qty, "alvo 2.0R")
+    j = _j.loads(DIARIO.read_text().splitlines()[-1])
+    fee = cfg["fees"]["taker"]
+    assert abs(j["taxas"] - (avg * fee + 110 * (1 - cfg["fees"]["slippage"]) * fee)) < 1e-6
+    assert abs(j["pnl"] + j["taxas"] - (110 * (1 - cfg["fees"]["slippage"]) - avg)) < 1e-6      # bruto - taxas = líquido
+    assert "Taxas 0,21 USDT" in fechou(cfg, "X/USDT", "rompimento", 100, 110, 9.6, 1.0, "alvo", "x", 0.21)
