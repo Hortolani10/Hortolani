@@ -19,13 +19,17 @@ def _merge(base: dict, over: dict) -> dict:
     return out
 
 
-def load_config(path: str) -> dict:
+def load_config(path: str, _topo: bool = True) -> dict:
     """Lê o config. Com `herda: outro.yaml`, parte daquele arquivo e muda só o que estiver aqui."""
     with open(path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f) or {}
     base = cfg.pop("herda", None)
     if base:
-        cfg = _merge(load_config(str(Path(path).parent / base)), cfg)
+        cfg = _merge(load_config(str(Path(path).parent / base), _topo=False), cfg)
+    fees = cfg.get("fees") or {}
+    if _topo and fees.get("pagar_com_bnb"):           # desconto do BNB vale em simulação, backtest e real
+        fees["taxa_sem_bnb"] = fees.get("taker")
+        fees["taker"] = float(fees.get("taker_bnb", 0.00075))
     return cfg
 
 

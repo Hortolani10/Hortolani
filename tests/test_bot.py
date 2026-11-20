@@ -1084,3 +1084,31 @@ def test_taxas_por_operacao(cfg, tmp_path, monkeypatch):
     assert abs(j["taxas"] - (avg * fee + 110 * (1 - cfg["fees"]["slippage"]) * fee)) < 1e-6
     assert abs(j["pnl"] + j["taxas"] - (110 * (1 - cfg["fees"]["slippage"]) - avg)) < 1e-6      # bruto - taxas = líquido
     assert "Taxas 0,21 USDT" in fechou(cfg, "X/USDT", "rompimento", 100, 110, 9.6, 1.0, "alvo", "x", 0.21)
+
+
+def test_desconto_bnb_na_config(tmp_path):
+    from bot.__main__ import load_config
+    c = load_config(str(ROOT / "config.yaml"))
+    assert c["fees"]["pagar_com_bnb"] and c["fees"]["taker"] == 0.00075 and c["fees"]["taxa_sem_bnb"] == 0.001
+    a = load_config(str(ROOT / "config_aprendiz.yaml"))                  # herda: aplica uma vez só
+    assert a["fees"]["taker"] == 0.00075
+    (tmp_path / "base.yaml").write_text((ROOT / "config.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "f.yaml").write_text("herda: base.yaml\nfees:\n  pagar_com_bnb: false\n", encoding="utf-8")
+    assert load_config(str(tmp_path / "f.yaml"))["fees"]["taker"] == 0.001   # desligado no filho: taxa normal
+
+
+def test_live_taxa_em_bnb_entra_no_custo(cfg):
+    from bot.exchange import LiveBroker
+    class EX:
+        def load_markets(self): pass
+        def fetch_ticker(self, s): return {"last": 600.0 if s == "BNB/USDT" else 100.0}
+        def amount_to_precision(self, s, q): return q
+        def create_order(self, *a, **k): return {"id": "1"}
+        def fetch_order(self, oid, s):
+            return {"filled": 1.0, "average": 100.0, "price": 100.0, "cost": 100.0,
+                    "fees": [{"currency": "BNB", "cost": 0.000125}]}          # 0,075% de 100 USDT em BNB
+    b = LiveBroker(cfg, EX(), EX(), {})
+    q, avg, custo = b.buy("X/USDT", 1.0)
+    assert q == 1.0 and abs(custo - 100.075) < 1e-9
+    px, got = b.sell("X/USDT", 1.0)
+    assert abs(got - 99.925) < 1e-9

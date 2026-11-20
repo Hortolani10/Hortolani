@@ -636,7 +636,26 @@ class Trader:
                 linhas.append(f"  {i + 1}. {mensagens.SETUPS.get(x['nome'], (x['nome'],))[0]}: {sg(x['media_r'], 'R')} · {x['ops']} ops · acerto {x['acerto']:.0%}{aviso}")
         return "\n".join(linhas)
 
+    def _checar_bnb(self) -> None:
+        """Modo live com taxas em BNB: avisa (1 vez por dia) quando o BNB da conta está acabando."""
+        f = self.cfg.get("fees") or {}
+        if self.cfg.get("mode") != "live" or not f.get("pagar_com_bnb") or not hasattr(self.broker, "bnb_usdt"):
+            return
+        day = utcnow().strftime("%Y-%m-%d")
+        if self.state.get("bnb_check_day") == day:
+            return
+        self.state["bnb_check_day"] = day
+        try:
+            v = self.broker.bnb_usdt()
+        except Exception:
+            log.exception("erro conferindo o saldo de BNB")
+            return
+        if v < float(f.get("bnb_minimo_usdt", 3)):
+            log.warning("BNB para taxas acabando: %.2f USDT em BNB na conta. Compre um pouco de BNB, senão as "
+                        "taxas voltam para 0,1%% (sem o desconto de 25%%).", v)
+
     def daily_summary(self) -> None:
+        self._checar_bnb()
         if not self.tg or not self.tg.enabled:
             return
         day = utcnow().strftime("%Y-%m-%d")

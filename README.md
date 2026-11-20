@@ -15,6 +15,10 @@ segurar BTC: muito mais retorno, mas queda de 77%. Ver [`PESQUISA.md`](PESQUISA.
 
 **Atualizar o servidor:** extraia o ZIP novo por cima da pasta Hortolani e dê dois cliques em `atualizar_servidor.bat` (pede a senha da chave 2 vezes; não mexe no .env, saldo nem diário).
 
+**Taxas com BNB (25% de desconto):** o bot já calcula com 0,075% (`fees.pagar_com_bnb`). No dinheiro real:
+Binance → Perfil → Configurações → **"Usar BNB para pagar taxas"** ligado, e manter uns 5–10 USDT em BNB na conta
+(o bot avisa no Telegram quando o BNB ficar abaixo de 3 USDT). Teste de 6 anos: carteira 283 → 287.
+
 **Saúde do servidor:** dois cliques em `verificar_servidor.bat` mostra os bots, o disco livre, a memória e os erros das últimas 24 h (só lê, não muda nada).
 
 **Backup:** dois cliques em `baixar_dados.bat` (uma vez por semana) salva os diários e saldos de todos os bots na pasta `backup`.

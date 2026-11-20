@@ -130,6 +130,9 @@ observacao:
 fees:
   min_order: 5.0            # valor mínimo de uma ordem na Binance (USDT) — conferido em nov/2026
   taker: 0.001              # 0,1% (Binance spot sem desconto BNB)
+  pagar_com_bnb: true       # taxas pagas com BNB: 25% de desconto (0,1% -> 0,075%).
+  taker_bnb: 0.00075        # No dinheiro real: ligar "Usar BNB para pagar taxas" na Binance e manter BNB na conta
+  bnb_minimo_usdt: 3        # avisa no Telegram quando o BNB da conta ficar abaixo disso (só no modo live)
   slippage: 0.0005
 
 live:                       # modo live (testnet ou dinheiro real)

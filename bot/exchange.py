@@ -145,21 +145,38 @@ class LiveBroker(Broker):
             return real
         return max(0.0, min(real, float(self.state.get("live_cash", self.budget))))
 
+    def _taxa_bnb(self, o: dict) -> float:
+        """Taxa paga em BNB (desconto de 25%), convertida para USDT. Entra no custo da operação."""
+        bnb = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "BNB")
+        if bnb <= 0:
+            return 0.0
+        try:
+            return bnb * float(self.ex.fetch_ticker("BNB/USDT")["last"])
+        except Exception:
+            return 0.0
+
+    def bnb_usdt(self) -> float:
+        """Quanto de BNB livre a conta tem, em USDT (para pagar as taxas com desconto)."""
+        q = float(self.ex.fetch_balance()["free"].get("BNB", 0.0))
+        return q * float(self.ex.fetch_ticker("BNB/USDT")["last"]) if q > 0 else 0.0
+
     def buy(self, symbol, qty):
         o = self.ex.create_order(symbol, "market", "buy", self.amount(symbol, qty))
         o = self.ex.fetch_order(o["id"], symbol)
         filled = float(o["filled"])
         avg = float(o["average"] or o["price"])
         fee_base = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == symbol.split("/")[0])
-        self._cash(-float(o["cost"]))
-        return filled - fee_base, avg, float(o["cost"])
+        custo = float(o["cost"]) + self._taxa_bnb(o)
+        self._cash(-custo)
+        return filled - fee_base, avg, custo
 
     def sell(self, symbol, qty, px: float | None = None):
         o = self.ex.create_order(symbol, "market", "sell", self.amount(symbol, qty))
         o = self.ex.fetch_order(o["id"], symbol)
         fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
-        self._cash(float(o["cost"]) - fee_q)
-        return float(o["average"] or o["price"]), float(o["cost"]) - fee_q
+        got = float(o["cost"]) - fee_q - self._taxa_bnb(o)
+        self._cash(got)
+        return float(o["average"] or o["price"]), got
 
     def place_stop(self, symbol, qty, stop):
         limit = float(self.ex.price_to_precision(symbol, stop * 0.995))
@@ -222,7 +239,7 @@ class LiveBroker(Broker):
         o = self.ex.fetch_order(order_id, symbol)
         if o["status"] == "closed":
             fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
-            got = float(o["cost"]) - fee_q
+            got = float(o["cost"]) - fee_q - self._taxa_bnb(o)
             self._cash(got)
             return True, float(o["average"] or o["price"]), got
         return False, 0.0, 0.0
