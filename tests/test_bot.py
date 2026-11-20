@@ -1112,3 +1112,20 @@ def test_live_taxa_em_bnb_entra_no_custo(cfg):
     assert q == 1.0 and abs(custo - 100.075) < 1e-9
     px, got = b.sell("X/USDT", 1.0)
     assert abs(got - 99.925) < 1e-9
+
+
+def test_live_venda_nao_passa_do_saldo_livre(cfg):
+    from bot.exchange import LiveBroker
+    class EX:
+        vendido = None
+        def load_markets(self): pass
+        def fetch_ticker(self, s): return {"last": 600.0}
+        def amount_to_precision(self, s, q): return q
+        def fetch_balance(self): return {"free": {"BNB": 0.0995, "USDT": 0}, "total": {}}
+        def create_order(self, sym, typ, side, qty, *a, **k):
+            EX.vendido = qty; return {"id": "1"}
+        def fetch_order(self, oid, s):
+            return {"filled": EX.vendido, "average": 600.0, "price": 600.0, "cost": EX.vendido * 600.0, "fees": []}
+    b = LiveBroker(cfg, EX(), EX(), {})
+    b.sell("BNB/USDT", 0.1)                      # posição de 0,1 BNB, mas as taxas comeram 0,0005
+    assert EX.vendido == 0.0995

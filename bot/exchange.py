@@ -171,6 +171,13 @@ class LiveBroker(Broker):
         return filled - fee_base, avg, custo
 
     def sell(self, symbol, qty, px: float | None = None):
+        # Nunca tenta vender mais do que está livre. Importante no BNB: as taxas pagas em BNB saem do
+        # mesmo saldo, e a posição do bot pode ter ficado um pouquinho menor que a quantidade comprada.
+        try:
+            livre = float((self.ex.fetch_balance().get("free") or {}).get(symbol.split("/")[0], qty))
+            qty = min(qty, livre)
+        except Exception:
+            pass
         o = self.ex.create_order(symbol, "market", "sell", self.amount(symbol, qty))
         o = self.ex.fetch_order(o["id"], symbol)
         fee_q = sum(float(f["cost"]) for f in o.get("fees") or [] if f.get("currency") == "USDT")
