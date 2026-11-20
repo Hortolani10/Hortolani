@@ -1055,4 +1055,5 @@ def test_config_capitulacao_so_paper_e_sem_tendencia():
     from bot.__main__ import load_config
     c = load_config(str(ROOT / "config_aprendiz_capitulacao.yaml"))
     assert c["exploracao"]["enabled"] and c["exploracao"]["setups"] == ["capitulacao"]
-    assert c["strategy"]["tendencia"] is False and c["risk"]["max_bars"] == 3 and c["timeframes"]["entry"] == "1d"
+    assert c["strategy"]["tendencia"] is False and c["risk"]["max_bars"] == 6 and c["timeframes"]["entry"] == "4h"
+    assert c["risk"]["stop_min_atr"] == 4.0 and c["exploracao"]["capitulacao_queda"] == 0.05

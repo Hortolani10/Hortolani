@@ -460,6 +460,17 @@ acerto 70%, +0,08R; últimos 12 meses 16 ops em **5 dias**, acerto 88%, +0,45R. 
 juntas, então a amostra real é pequena. Por isso virou o **aprendiz de capitulação** (paper,
 `config_aprendiz_capitulacao.yaml`), e não uma regra do bot principal.
 
+**Capitulação no 4h (adotada no aprendiz):** candle de 4h com queda de 5%+ e RSI < 20, sai em 24 h.
+Com stop normal (1,5–3 ATR) o efeito sumia: depois do pânico o preço sacode mais para baixo antes de
+repicar e ~40% batiam no stop. Com **stop largo (4–6 ATR)**, simulador oficial: 6 anos 159 ops em 54 dias,
+acerto 71%, **+0,18R**; 2020–23 +0,15R; 3 anos +0,22R; 12 meses +0,14R. Positiva em todos os períodos,
+ao contrário da versão diária (2020–23 negativa).
+
+**Falso rompimento para baixo** (fura a mínima de 20 e fecha acima; "Turtle Soup"): ~0% no diário e
+no 4h, negativo no último ano. Descartado.
+
+**Divergência de alta no RSI:** desligada nos aprendizes (pior setup no histórico e na prática).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

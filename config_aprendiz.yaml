@@ -34,7 +34,7 @@ exploracao:
     - rompimento            # fechou acima da máxima de 20 candles com volume forte
     - reversao_rsi          # RSI saiu da sobrevenda com candle de alta
     - padrao_suporte        # engolfo de alta ou martelo perto do suporte
-    - divergencia           # divergência de alta no RSI
+    # divergencia DESLIGADA (nov/2026): a pior no histórico de 6 anos e na prática (−1,03R, acerto 7%)
     - pullback_livre        # pullback na EMA21 sem exigir tendência/BTC
 
 risk:
