@@ -21,6 +21,7 @@ DESCRICAO = {
     "padrao_suporte": "engolfo de alta ou martelo perto do suporte",
     "pullback_livre": "pullback na EMA21 com gatilho, sem exigir tendência do diário nem BTC",
     "divergencia": "divergência de alta no RSI com candle de alta",
+    "capitulacao": "dia de pânico: caiu 10%+ no candle com RSI abaixo de 25",
 }
 
 
@@ -40,6 +41,10 @@ def _mask(df: pd.DataFrame, nome: str, cfg: dict) -> pd.Series:
                 & (c > df["high"].shift(1)))
     if nome == "divergencia":
         return df["pad_divergencia_alta"] & verde
+    if nome == "capitulacao":
+        ex = cfg.get("exploracao") or {}
+        queda = float(ex.get("capitulacao_queda", 0.10))
+        return (c / c.shift(1) - 1 <= -queda) & (df["rsi"] < float(ex.get("capitulacao_rsi", 25)))
     raise ValueError(f"setup desconhecido: {nome}")
 
 
@@ -55,7 +60,7 @@ def mascaras(df: pd.DataFrame, cfg: dict) -> dict[str, np.ndarray]:
     out = {}
     for nome in ativos(cfg):
         m = _mask(df, nome, cfg).fillna(False).to_numpy(dtype=bool).copy()
-        m[:60] = False                                   # aquecimento dos indicadores
+        m[:30 if nome == "capitulacao" else 60] = False  # aquecimento dos indicadores
         out[nome] = m
     return out
 

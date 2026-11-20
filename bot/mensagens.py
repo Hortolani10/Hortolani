@@ -16,6 +16,7 @@ SETUPS = {
     "padrao_suporte": ("Padrão no suporte", "engolfo de alta ou martelo perto do suporte"),
     "divergencia": ("Divergência no RSI", "divergência de alta no RSI"),
     "pullback_livre": ("Pullback livre", "pullback na EMA21 sem exigir tendência"),
+    "capitulacao": ("Capitulação", "comprou no dia de pânico, vende em 3 dias"),
 }
 CURTO = {   # padrões em poucas palavras para caber no celular
     "engolfo_alta": "engolfo de alta", "engolfo_baixa": "engolfo de baixa", "martelo": "martelo",

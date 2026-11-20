@@ -436,6 +436,30 @@ Mesmo risco: continua no máximo 2 posições. 3 posições: 292 em 6 anos, mas 
 **Descartados nesta rodada:** stop mais curto (sem diferença nos dados recentes), operar vendido
 (perdeu até em 2022), meta de lucro diário (forçar operações aumenta o risco; ver conversa de nov/2026).
 
+## 17. O que testar no mercado em queda: acumulação e repique de capitulação (nov/2026)
+
+Mercado em queda forte (termômetro 0/100). Ideias já descartadas antes: vender (short), comprar
+repiques comuns (aprendizes), gráficos menores. Duas ideias novas, dados diários reais da Binance:
+
+**Acumular na queda (10 USDT por semana só com preço descontado):** BTC +117% em 6 anos comprando
+só 40%+ abaixo do topo, mas negativo nos últimos 3 anos e 12 meses (a queda continua). É aposta de
+anos, não operação. Não adotado.
+
+**Repique de capitulação:** comprar no dia seguinte a um dia de pânico (queda de 10%+ com RSI < 25)
+e vender 3 dias depois. 16 moedas, com taxas:
+
+| Período | Ops | Acerto | Média por op. |
+|---|---|---|---|
+| 6 anos | 72 | 75% | +3,5% |
+| 2020–2023 | 41 | 61% | +0,2% |
+| Últimos 3 anos | 31 | 94% | +7,8% |
+| Últimos 12 meses | 23 | 91% | +6,8% |
+
+No simulador oficial (com stop e limite de posições): 6 anos 61 ops em só **22 dias diferentes**,
+acerto 70%, +0,08R; últimos 12 meses 16 ops em **5 dias**, acerto 88%, +0,45R. As moedas despencam
+juntas, então a amostra real é pequena. Por isso virou o **aprendiz de capitulação** (paper,
+`config_aprendiz_capitulacao.yaml`), e não uma regra do bot principal.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

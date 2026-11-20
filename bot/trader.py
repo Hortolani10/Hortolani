@@ -19,7 +19,7 @@ from .learn import checar_desvio, ler_diario, registrar
 from .notify import ping_health
 from .shadow import ShadowRange
 from .sleeve import TrendSleeve
-from .strategy import Position, entry_features, entry_signal, lateral_signal, manage_position
+from .strategy import Position, Signal, entry_features, entry_signal, lateral_signal, manage_position
 
 log = logging.getLogger("bot")
 
@@ -224,6 +224,8 @@ class Trader:
             return
 
         sig = entry_signal(df, i, trend, self.cfg)
+        if not self.cfg["strategy"].get("tendencia", True):      # bot só com setups de exploração
+            sig = Signal(False, checks={"tendencia": (False, "estratégia de tendência desligada neste bot")})
         strat = "tendencia"
         if not sig.ok and (self.cfg.get("lateral") or {}).get("enabled"):
             lsig = lateral_signal(df, i, self.cfg)

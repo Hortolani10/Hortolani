@@ -102,5 +102,21 @@ services:
       retries: 2
       start_period: 5m
 
+  # Aprendiz de CAPITULAÇÃO (nov/2026): compra no dia de pânico (queda de 10%+ com RSI < 25), vende em 3 dias.
+  aprendiz-capitulacao:
+    <<: *seguro
+    container_name: aprendiz-capitulacao
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-capitulacao && cd /app/runtime/aprendiz-capitulacao && exec python -m bot --config /app/config_aprendiz_capitulacao.yaml paper"]
+    environment: [PAINEL_HOST=0.0.0.0]
+    ports: ["127.0.0.1:8771:8771"]
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-capitulacao/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      interval: 5m
+      timeout: 30s
+      retries: 2
+      start_period: 5m
+
   # aprendiz-15m DESLIGADO (nov/2026): no 15 min as taxas comem o resultado, no histórico e na prática
   # (−0,68R por operação). O diário dele fica em runtime/aprendiz-15m. Para religar, ver config_aprendiz_15m.yaml.

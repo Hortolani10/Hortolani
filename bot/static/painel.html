@@ -275,7 +275,7 @@ clk($("kc4"),()=>abrir(window._perto));
 let logAberto=false;try{logAberto=localStorage.getItem("painel-log")==="1"}catch(e){}
 function aplicaLog(){$("logbox").hidden=!logAberto;$("loghint").hidden=logAberto;$("logbtn").textContent=logAberto?"Ocultar log":"Mostrar log";$("logbtn").setAttribute("aria-expanded",logAberto)}
 $("logbtn").onclick=()=>{logAberto=!logAberto;try{localStorage.setItem("painel-log",logAberto?"1":"0")}catch(e){}aplicaLog();if(logAberto){const l=$("logbox");l.scrollTop=l.scrollHeight}};aplicaLog();
-const SETUPN={tendencia:"Tendência",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre"};
+const SETUPN={tendencia:"Tendência",lateral:"Lateralização",rompimento:"Rompimento",reversao_rsi:"Reversão do RSI",padrao_suporte:"Padrão no suporte",divergencia:"Divergência no RSI",pullback_livre:"Pullback livre",capitulacao:"Capitulação"};
 const EXPL={dados:"Precisa de histórico suficiente para calcular as médias (pelo menos 200 candles).",
  tendencia_maior:"A moeda precisa estar em alta no gráfico maior (diário): preço acima da EMA200 e médias subindo.",
  mercado_btc:"Só compra moedas com o BTC também em alta: quando o BTC cai, quase tudo cai junto.",

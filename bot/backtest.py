@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 
 from . import exploracao, regime
@@ -88,7 +89,8 @@ def run(data: dict[str, pd.DataFrame], cfg: dict, initial: float = 1000.0, start
         timeline = [t for t in timeline if t >= start_ts]
     if end_ts is not None:
         timeline = [t for t in timeline if t < end_ts]
-    candidates = {s: prefilter(df, cfg).to_numpy() for s, df in data.items()}
+    tend_on = cfg["strategy"].get("tendencia", True)
+    candidates = {s: (prefilter(df, cfg).to_numpy() if tend_on else np.zeros(len(df), dtype=bool)) for s, df in data.items()}
     lat_on = bool((cfg.get("lateral") or {}).get("enabled"))
     lat_cand = {s: lateral_prefilter(df, cfg).to_numpy() for s, df in data.items()} if lat_on else {}
     lat_scale = float((cfg.get("lateral") or {}).get("risk_scale", 1.0))

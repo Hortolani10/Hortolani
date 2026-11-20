@@ -1,0 +1,39 @@
+# ============================================================
+#  APRENDIZ DE CAPITULAÇÃO — só em PAPER (dinheiro fictício)
+#  Compra depois de um DIA DE PÂNICO (a moeda caiu 10%+ no dia com RSI < 25)
+#  e vende 3 dias depois. Teste nov/2026 (16 moedas, diário, com taxas):
+#  6 anos 72 ops, acerto 75%, +3,5% por operação; últimos 12 meses 23 ops,
+#  acerto 91%, +6,8%. Mas 2020-23 deu só +0,2%, e quedas no mesmo dia
+#  costumam pegar várias moedas juntas: a amostra real é menor. Por isso,
+#  primeiro em paper. PESQUISA.md seção 17.
+# ============================================================
+herda: config_aprendiz.yaml
+instancia: aprendiz-capitulacao
+
+timeframes:
+  trend: 1d
+  entry: 1d
+
+strategy:
+  tendencia: false          # este bot não usa a estratégia de tendência, só o setup de capitulação
+
+exploracao:
+  enabled: true
+  setups: [capitulacao]
+  capitulacao_queda: 0.10   # queda mínima no dia (10%)
+  capitulacao_rsi: 25       # RSI diário abaixo disso
+
+lateral:
+  enabled: false
+
+risk:
+  exit_mode: alvo
+  target_r: 50              # sem alvo: sai por tempo
+  max_bars: 3               # vende no fechamento do 3º dia
+  stop_min_atr: 1.5         # stop de proteção abaixo do fundo do pânico (1,5 a 3 ATR)
+  stop_max_atr: 3.0
+  max_open_positions: 6
+
+painel:
+  nome: Bot Aprendiz Capitulação
+  port: 8771

@@ -1034,3 +1034,25 @@ def test_historico_junta_todos_os_bots(monkeypatch, tmp_path):
     assert h["operacoes"][0]["bot"] == "aprendiz-4h" and h["operacoes"][0]["setup"] == "rompimento"
     assert "Histórico de operações".encode() in urllib.request.urlopen(base + "/historico", timeout=5).read()
     s_ap.shutdown(); s_m.shutdown()
+
+
+def test_setup_capitulacao(cfg):
+    import pandas as pd
+    from bot.exploracao import mascaras
+    n = 60
+    c = [100.0] * n
+    c[50] = 88.0                                         # dia de pânico: -12%
+    df = pd.DataFrame({"close": c, "open": c, "rsi": [50.0] * n})
+    df.loc[50, "rsi"] = 18.0
+    cfg["exploracao"] = {"enabled": True, "setups": ["capitulacao"], "capitulacao_queda": 0.10, "capitulacao_rsi": 25}
+    m = mascaras(df, cfg)["capitulacao"]
+    assert m[50] and m.sum() == 1
+    df.loc[50, "rsi"] = 40.0                             # caiu, mas sem pânico no RSI: não compra
+    assert mascaras(df, cfg)["capitulacao"].sum() == 0
+
+
+def test_config_capitulacao_so_paper_e_sem_tendencia():
+    from bot.__main__ import load_config
+    c = load_config(str(ROOT / "config_aprendiz_capitulacao.yaml"))
+    assert c["exploracao"]["enabled"] and c["exploracao"]["setups"] == ["capitulacao"]
+    assert c["strategy"]["tendencia"] is False and c["risk"]["max_bars"] == 3 and c["timeframes"]["entry"] == "1d"
