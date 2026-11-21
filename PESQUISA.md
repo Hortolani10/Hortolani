@@ -537,6 +537,19 @@ carteira 2020–hoje 413 → 451 e último ano 105 → 107, mas 2018–20 igual 
 
 **Adotado nesta rodada:** cofre de 25% para **40%** (seção 19).
 
+## 21. Robô de média (recomprar na queda e vender no repique) e "comprar na baixa" (nov/2026)
+
+**Robô de média** (recompra a cada −5%/−10%, até 5–10 vezes, vende +3% a +10% sobre o preço médio), 16 moedas
+escolhidas pela força de 30 dias: acerto ~100%, mas 2022 −63% a −70%, últimos 12 meses −13% a −46% e posições presas
+de até −98% (DOT caiu de 53,82 para 0,66). Mesmo nos 6 anos (+93% a +141%) perde para a carteira atual (+313%).
+**Moeda por moeda:** só BNB e TRX passaram em todos os períodos (TRX sem histórico de 2018), com quedas de até 51%;
+são "moedas de empresa" (Binance, Tron) e escolher pelo passado repete o erro de quem escolheria LUNA em 2021.
+**Decisão do dono: não fazer.**
+
+**Comprar BTC na baixa e segurar (DCA semanal com BTC 30%+ abaixo do topo):** em 2018 e 2022 deu +50% e +168% um ano
+depois, +770% e +342% dois anos depois, mas o BTC ainda caiu mais 71% e 59% depois do início das compras. É investimento
+de longo prazo, fora do bot (pode ser feito pela "Compra recorrente" da Binance), só com dinheiro para 2–4 anos.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
