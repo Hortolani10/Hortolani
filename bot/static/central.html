@@ -64,7 +64,31 @@ tbody tr:last-child td{border-bottom:0}
 .empty{padding:18px;color:var(--muted);text-align:center}
 .clk{cursor:pointer}.card.clk:hover,.card.clk:focus-visible{border-color:var(--accent);outline:none}tr.clk:hover td{background:var(--panel2)}
 footer{color:var(--faint);font-size:12px}
-@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}}
+/* topo: saldo (estilo balance-chart do 21st.dev), cartões de variação (stat-card) e calendário de lucro (heat-calendar) */
+.topo{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px}
+.saldo{padding:18px 20px;display:grid;gap:10px}
+.sel{display:flex;flex-wrap:wrap;gap:6px}
+.sel button,.rng button{font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);cursor:pointer}
+.sel button[aria-pressed="true"],.rng button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.saldo .linha{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px}
+.saldo .big{font-size:34px;font-weight:750;letter-spacing:-.02em}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--panel2)}
+.badge.up{background:color-mix(in srgb,var(--up) 15%,transparent)}.badge.down{background:color-mix(in srgb,var(--down) 15%,transparent)}
+.rng{display:flex;gap:4px}
+#grafsaldo{display:block;width:100%;height:190px;cursor:crosshair}
+#tipsaldo{font-size:12px;color:var(--muted);min-height:18px}
+.stats{display:grid;gap:12px;grid-template-rows:repeat(4,minmax(0,1fr))}
+.stat{padding:12px 16px;display:grid;gap:2px;align-content:center}
+.stat .lbl{font-size:12px;color:var(--muted)}.stat .val{font-size:20px;font-weight:700}.stat .sub{font-size:12px}
+.cal{padding:14px 18px 16px;display:grid;gap:10px}
+.calgrid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,18px);grid-auto-columns:18px;gap:4px;overflow-x:auto;padding-bottom:2px;flex:1}
+.calgrid i{width:18px;height:18px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);display:block}
+.calwrap{display:flex;gap:8px;align-items:flex-start}
+.caldias{display:grid;grid-template-rows:repeat(7,18px);gap:4px;font-size:10px;color:var(--faint);line-height:18px}
+.calres{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;color:var(--muted)}
+.calres b{color:var(--fg)}.calres b.up{color:var(--up)}.calres b.down{color:var(--down)}
+.legenda{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--faint)}.legenda i{width:12px;height:12px;border-radius:3px;display:inline-block}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:minmax(0,1fr)}.topo{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none}}
 @media(max-width:560px){main,header{padding-left:16px;padding-right:16px}.kpis{grid-template-columns:minmax(0,1fr)}.rbar{width:60px}}
 </style></head><body>
 <header>
@@ -74,6 +98,29 @@ footer{color:var(--faint);font-size:12px}
  <button type="button" class="btn" id="themebtn">◐ Tema</button></div>
 </header>
 <main>
+ <div class="topo">
+  <section class="card saldo" aria-label="Saldo">
+   <div class="sel" id="selbot" role="group" aria-label="Escolher o bot"></div>
+   <div class="linha"><div><div class="muted" style="font-size:12px" id="saldolbl">Saldo</div><div class="big num" id="saldoval">—</div></div>
+    <div style="display:grid;gap:6px;justify-items:end"><span class="badge num" id="saldovar">—</span><div class="rng" id="rng" role="group" aria-label="Período">
+     <button type="button" data-r="hoje">Hoje</button><button type="button" data-r="7d">7 dias</button><button type="button" data-r="30d" aria-pressed="true">30 dias</button><button type="button" data-r="tudo">Tudo</button></div></div></div>
+   <svg id="grafsaldo" role="img" aria-label="Evolução do saldo"></svg>
+   <div id="tipsaldo" class="num">passe o mouse no gráfico</div>
+  </section>
+  <section class="stats" aria-label="Lucro por período">
+   <div class="card stat"><div class="lbl">Lucro de hoje</div><div class="val num" id="sh">—</div><div class="sub num" id="shb"></div></div>
+   <div class="card stat"><div class="lbl">Últimos 7 dias</div><div class="val num" id="s7">—</div><div class="sub num" id="s7b"></div></div>
+   <div class="card stat"><div class="lbl">Últimos 30 dias</div><div class="val num" id="s30">—</div><div class="sub num" id="s30b"></div></div>
+   <div class="card stat"><div class="lbl">Desde o início</div><div class="val num" id="sall">—</div><div class="sub num" id="sallb"></div></div>
+  </section>
+ </div>
+
+ <section class="card cal" aria-label="Lucro por dia">
+  <div class="ch" style="padding:0"><h2 id="caltit">Lucro por dia</h2><div class="legenda">prejuízo <i style="background:var(--down)"></i><i style="background:color-mix(in srgb,var(--down) 40%,var(--panel2))"></i><i style="background:var(--panel2);border:1px solid var(--line)"></i><i style="background:color-mix(in srgb,var(--up) 40%,var(--panel2))"></i><i style="background:var(--up)"></i> lucro</div></div>
+  <div class="calwrap"><div class="caldias"><span>seg</span><span></span><span>qua</span><span></span><span>sex</span><span></span><span>dom</span></div><div class="calgrid" id="calgrid"></div></div>
+  <div class="calres" id="calres"></div>
+ </section>
+
  <section class="kpis" aria-label="Resumo">
   <div class="card kpi clk" id="kc1" tabindex="0" title="Abrir o bot principal"><div class="lbl">Bot principal · resultado</div><div class="val num" id="k1">—</div><div class="sub" id="k1b"></div></div>
   <div class="card kpi clk" id="kc2" tabindex="0" title="Ver os aprendizes"><div class="lbl">Aprendizes · resultado (dinheiro fictício)</div><div class="val num" id="k2">—</div><div class="sub" id="k2b"></div></div>
@@ -129,6 +176,63 @@ function rbar(r,max){const w=Math.min(50,Math.abs(r)/(max||1)*50);const c=r>=0?"
  return `<span class="rbar" aria-hidden="true"><i style="background:${c};${r>=0?`left:50%;width:${w}%`:`right:50%;width:${w}%`}"></i></span>`}
 function nomeBot(b){return b.id==="principal"?"Bot principal":(b.nome||b.id)}
 
+let selB="principal",rngSel="30d",ULT=null;try{selB=localStorage.getItem("central-bot")||"principal";rngSel=localStorage.getItem("central-rng")||"30d"}catch(e){}
+const DIA=864e5,brDia=ms=>new Date(ms-3*36e5).toISOString().slice(0,10);
+function pontos(b){
+ if(!b)return[];const agora=Date.now();
+ if(rngSel==="hoje")return(b.intradia||[]).map(([t,v])=>[t*1000,v]).concat([[agora,b.carteira]]);
+ const n=rngSel==="7d"?7:rngSel==="30d"?30:1e9,ds=(b.dias||[]).slice(-n);
+ return ds.map(([d,v])=>[Date.parse(d+"T03:00:00Z"),v]).concat([[agora,b.carteira]]);
+}
+function grafico(b){
+ const svg=$("grafsaldo"),W=svg.clientWidth||700,H=190,P=pontos(b);svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+ if(P.length<2){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="13">Ainda sem histórico suficiente para este período</text>`;return}
+ const vs=P.map(p=>p[1]),mn=Math.min(...vs),mx=Math.max(...vs),r=mx-mn||1,t0=P[0][0],t1=P[P.length-1][0]||t0+1;
+ const X=t=>8+(t-t0)/(t1-t0||1)*(W-16),Y=v=>12+(1-(v-mn)/r)*(H-34);
+ const up=vs[vs.length-1]>=vs[0],cor=up?"var(--up)":"var(--down)",pts=P.map(([t,v])=>`${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+ const iMx=vs.indexOf(mx),iMn=vs.indexOf(mn);
+ const marca=(i,txt,dy)=>{const y=Y(P[i][1]),yy=y+dy<12?y+16:y+dy>H-4?y-8:y+dy;
+  return `<circle cx="${X(P[i][0])}" cy="${y}" r="3.5" fill="${cor}"/><text x="${Math.min(W-80,Math.max(4,X(P[i][0])-24))}" y="${yy}" fill="var(--muted)" font-size="11">${txt} ${fmt(P[i][1])}</text>`};
+ svg.innerHTML=`<defs><linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}" stop-opacity=".28"/><stop offset="1" stop-color="${cor}" stop-opacity="0"/></linearGradient></defs>
+  <polygon points="${X(t0)},${H-20} ${pts} ${X(t1)},${H-20}" fill="url(#gs)"/><polyline points="${pts}" fill="none" stroke="${cor}" stroke-width="2.2" stroke-linejoin="round"/>
+  ${marca(iMx,"máx",-8)}${iMn!==iMx?marca(iMn,"mín",16):""}<line id="cx" x1="0" x2="0" y1="8" y2="${H-20}" stroke="var(--faint)" stroke-dasharray="3 3" visibility="hidden"/><circle id="cp" r="4" fill="var(--fg)" visibility="hidden"/>`;
+ svg.onmousemove=e=>{const bx=svg.getBoundingClientRect(),x=(e.clientX-bx.left)*(W/bx.width);let k=0,dm=1e18;P.forEach((p,i)=>{const dd=Math.abs(X(p[0])-x);if(dd<dm){dm=dd;k=i}});
+  const [t,v]=P[k];$("cx").setAttribute("x1",X(t));$("cx").setAttribute("x2",X(t));$("cx").setAttribute("visibility","visible");$("cp").setAttribute("cx",X(t));$("cp").setAttribute("cy",Y(v));$("cp").setAttribute("visibility","visible");
+  const ref=P[0][1],dt=new Date(t);$("tipsaldo").innerHTML=`${dt.toLocaleDateString("pt-BR")}${rngSel==="hoje"?" "+dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):""} · <b>${fmt(v)} USDT</b> · <span class="${cl(v-ref)}">${sg(v-ref)} (${sg((v/ref-1)*100)}%)</span> desde o início do período`};
+ svg.onmouseleave=()=>{["cx","cp"].forEach(i=>$(i)&&$(i).setAttribute("visibility","hidden"));$("tipsaldo").textContent="passe o mouse no gráfico"};
+}
+function calendario(b){
+ const g=$("calgrid"),ds=(b&&b.dias)||[];if(!b||!ds.length){g.innerHTML="";$("calres").textContent="Os dias aparecem aqui conforme o bot roda.";return}
+ const ab={};ds.forEach(([d,v])=>ab[d]=+v);const ks=Object.keys(ab).sort(),lucro={};
+ ks.forEach((d,i)=>{const prox=i+1<ks.length?ab[ks[i+1]]:b.carteira;lucro[d]=prox-ab[d]});
+ const cabe=Math.floor(((g.parentElement.clientWidth||600)-40)/22),comDados=Math.ceil((Date.now()-Date.parse(ks[0]+"T00:00:00Z"))/(7*DIA))+1;
+ const semanas=Math.max(Math.min(8,cabe),Math.min(52,cabe,comDados)),hoje=brDia(Date.now()),fim=new Date(hoje+"T12:00:00Z"),ini=new Date(fim.getTime()-((fim.getUTCDay()+6)%7)*DIA-(semanas-1)*7*DIA);
+ const vals=Object.values(lucro),mx=Math.max(1e-9,...vals.map(Math.abs));let html="";
+ for(let k=0;k<semanas*7;k++){const dt=new Date(ini.getTime()+k*DIA),d=dt.toISOString().slice(0,10);
+  if(d>hoje){html+=`<i style="visibility:hidden"></i>`;continue}
+  const v=lucro[d];let bg="var(--panel2)";
+  if(v!=null&&Math.abs(v)>1e-9){const f=Math.round(25+75*Math.min(1,Math.abs(v)/mx));bg=`color-mix(in srgb,${v>0?"var(--up)":"var(--down)"} ${f}%,var(--panel2))`}
+  html+=`<i style="background:${bg}" title="${dt.toLocaleDateString("pt-BR",{timeZone:"UTC",weekday:"short",day:"2-digit",month:"2-digit"})}: ${v==null?"sem dados":sg(v)+" USDT"+(d===hoje?" (até agora)":"")}"></i>`}
+ g.innerHTML=html;
+ const dd=Object.entries(lucro),pos=dd.filter(([,v])=>v>1e-9).length,neg=dd.filter(([,v])=>v<-1e-9).length,soma=vals.reduce((a,v)=>a+v,0);
+ const best=dd.reduce((a,x)=>x[1]>a[1]?x:a,["",-1e18]),worst=dd.reduce((a,x)=>x[1]<a[1]?x:a,["",1e18]),f=d=>d.slice(8,10)+"/"+d.slice(5,7);
+ $("calres").innerHTML=`<span>Dias com lucro <b class="up">${pos}</b> · com prejuízo <b class="down">${neg}</b></span><span>Melhor dia <b class="up">${sg(best[1])}</b> (${f(best[0])})</span><span>Pior dia <b class="down">${sg(worst[1])}</b> (${f(worst[0])})</span><span>Soma dos dias <b class="${cl(soma)}">${sg(soma)} USDT</b></span>`;
+}
+function topo(d){
+ const on=(d.bots||[]).filter(b=>b.online);if(!on.find(b=>b.id===selB))selB=(on[0]||{}).id;
+ $("selbot").innerHTML=on.map(b=>`<button type="button" data-b="${esc(b.id)}" aria-pressed="${b.id===selB}">${esc(nomeBot(b))}</button>`).join("");
+ $("selbot").querySelectorAll("button").forEach(x=>x.onclick=()=>{selB=x.dataset.b;try{localStorage.setItem("central-bot",selB)}catch(e){}topo(ULT)});
+ document.querySelectorAll("#rng button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.r===rngSel));
+ const b=on.find(x=>x.id===selB);if(!b)return;
+ $("saldolbl").textContent=`Saldo · ${nomeBot(b)}${b.aprendiz?" (dinheiro fictício)":""}`;$("saldoval").textContent=fmt(b.carteira)+" USDT";
+ const vh=b.var_hoje;$("saldovar").className="badge num "+cl(vh);$("saldovar").textContent=vh==null?"—":`${vh>=0?"▲":"▼"} ${sg(vh)} hoje (${sg((b.var_hoje_pct||0)*100)}%)`;
+ const st=(id,v,p)=>{$(id).innerHTML=v==null?"—":`<span class="${cl(v)}">${sg(v)} USDT</span>`;$(id+"b").innerHTML=v==null?"":`<span class="${cl(v)}">${sg((p||0)*100)}%</span>`};
+ st("sh",b.var_hoje,b.var_hoje_pct);st("s7",b.var_7d,b.var_7d_pct);st("s30",b.var_30d,b.var_30d_pct);st("sall",b.lucro,b.lucro_pct);
+ $("caltit").textContent="Lucro por dia · "+nomeBot(b);
+ grafico(b);calendario(b);
+}
+document.querySelectorAll("#rng button").forEach(x=>x.onclick=()=>{rngSel=x.dataset.r;try{localStorage.setItem("central-rng",rngSel)}catch(e){}if(ULT)topo(ULT)});
+window.addEventListener("resize",()=>{if(ULT)topo(ULT)});
 function cardBot(b){
  if(!b.online)return `<div class="card bot off"><div class="bh"><b>${esc(b.id)}</b><span class="chip"><i class="dot off"></i>fora do ar</span></div><div class="muted" style="font-size:12px">${esc(b.erro||"")}</div></div>`;
  const tag=b.real?'<span class="chip real">⚠ DINHEIRO REAL</span>':`<span class="chip">${esc(b.tf||"")}${b.aprendiz?" · aprendiz":""}</span>`;
@@ -140,7 +244,7 @@ function cardBot(b){
    <div><small>Em aberto</small><span class="num ${cl(b.aberto)}">${sg(b.aberto)}</span></div>
    <div><small>Posições</small><span class="num">${b.posicoes}</span></div></div>
   <div class="bf"><span>${b.ops} ops · acerto ${b.acerto==null?"—":fmt(b.acerto*100,0)+"%"} · média ${b.media_r==null?"—":sg(b.media_r)+"R"}</span>
-   <span>hoje: ${b.hoje_ops} · <b class="${cl(b.hoje_pnl)}">${sg(b.hoje_pnl)}</b></span></div>
+   <span>hoje: <b class="${cl(b.var_hoje)}">${b.var_hoje==null?"—":sg(b.var_hoje)}</b> · ${b.hoje_ops} ops</span></div>
   ${b.taxas?`<div class="bf"><span>💸 taxas pagas ${fmt(b.taxas)} USDT${b.hoje_taxas?` · hoje ${fmt(b.hoje_taxas)}`:""}</span><span>já descontadas do resultado</span></div>`:""}
   <div class="bf"><span>carteira ${fmt(b.carteira)} de ${fmt(b.inicial,0)}</span><span>${b.pausado?'<b class="flat">⏸ pausado</b>':"ver detalhes →"}</span></div></a>`}
 
@@ -154,6 +258,7 @@ async function load(){
  try{
   const d=await (await fetch("/api/central",{cache:"no-store"})).json();
   $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
+  ULT=d;topo(d);
   const bots=d.bots||[],on=bots.filter(b=>b.online),p=on.find(b=>b.id==="principal"),ap=on.filter(b=>b.aprendiz);
   if(p){$("k1").innerHTML=`<span class="${cl(p.lucro)}">${sg(p.lucro)} USDT</span>`;$("k1b").textContent=`${sg((p.lucro_pct??0)*100)}% · carteira ${fmt(p.carteira)} de ${fmt(p.inicial,0)}`}
   else{$("k1").textContent="—";$("k1b").textContent="bot principal fora do ar"}

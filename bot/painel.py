@@ -54,8 +54,22 @@ def resumo_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
             "taxas": dz.get("taxas"), "hoje_taxas": dz.get("hoje_taxas"), "ops_com_taxa": dz.get("ops_com_taxa", 0),
             "pausado": d.get("pausado"), "agora": d.get("agora"), "termometro": d.get("termometro"),
             "equity": [v for _, v in eh[::passo]][-120:], "por_setup": dz.get("por_setup") or {},
+            "dias": (d.get("dias") or [])[-400:], "intradia": d.get("intradia") or [],
+            **_variacoes(cart, d.get("dias") or []),
             "por_padrao": dz.get("por_padrao") or {}, "por_fase": dz.get("por_fase") or {},
             "ultimas": [{**j, "bot": nome} for j in (d.get("diario") or [])[:10]]}
+
+
+def _variacoes(cart: float, dias: list) -> dict:
+    """Lucro de hoje, dos últimos 7 e 30 dias (saldo agora − saldo de abertura daquele dia)."""
+    if not dias:
+        return {"var_hoje": None, "var_7d": None, "var_30d": None}
+    out = {}
+    for nome, n in (("var_hoje", 0), ("var_7d", 6), ("var_30d", 29)):
+        ref = dias[-1 - n][1] if len(dias) > n else dias[0][1]
+        out[nome] = cart - float(ref)
+        out[nome + "_pct"] = (cart / float(ref) - 1) if ref else None
+    return out
 
 
 def ranking(bots: list[dict], chave: str) -> list[dict]:

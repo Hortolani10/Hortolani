@@ -1133,3 +1133,19 @@ def test_live_venda_nao_passa_do_saldo_livre(cfg):
     b = LiveBroker(cfg, EX(), EX(), {})
     b.sell("BNB/USDT", 0.1)                      # posição de 0,1 BNB, mas as taxas comeram 0,0005
     assert EX.vendido == 0.0995
+
+
+def test_lucro_diario_e_variacoes(synth, cfg, tmp_path, monkeypatch):
+    from bot.demo import resample
+    from bot.painel import _variacoes
+    monkeypatch.chdir(tmp_path)
+    cfg["symbols"] = ["UP/USDT"]; cfg["trend_sleeve"]["enabled"] = False
+    e = synth(2500, H1, 0.0008, 3)
+    tr = Trader(cfg, FakeBroker(e, resample(e, 4)), {}, str(tmp_path / "s.json"))
+    tr.state["equity_hist"] = [[1_700_000_000 + i * 3600, 100.0 + i] for i in range(60)]   # ~2,5 dias de pontos
+    snap = tr.snapshot()
+    dias = snap["dias"]
+    assert len(dias) >= 3 and dias[0][1] == 100.0                 # abertura do 1º dia recuperada do histórico
+    v = _variacoes(110.0, [["2026-01-01", 100.0], ["2026-01-02", 105.0], ["2026-01-03", 108.0]])
+    assert v["var_hoje"] == 2.0 and v["var_7d"] == 10.0 and abs(v["var_hoje_pct"] - 2 / 108) < 1e-9
+    assert _variacoes(100.0, [])["var_hoje"] is None

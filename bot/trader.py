@@ -5,7 +5,7 @@ import copy
 import json
 import logging
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import exploracao, regime
@@ -429,6 +429,7 @@ class Trader:
         if not hist or now_s - hist[-1][0] >= 300:            # um ponto a cada 5 minutos
             hist.append([now_s, round(total, 4)])
             del hist[:-3000]
+        dias = self._registrar_dia(total, hist)
         precos, var24 = {}, {}
         try:
             tk = self.broker.market.fetch_tickers(list(self.cfg["symbols"]))
@@ -459,8 +460,23 @@ class Trader:
             "timeframes": self.cfg["timeframes"], "lateral_ligada": bool((self.cfg.get("lateral") or {}).get("enabled")),
             "termometro": self._termo_info(),
             "inicial": self._inicial(), "aprendiz": bool(exploracao.ativos(self.cfg)),
+            "dias": dias, "intradia": [p for p in hist if p[0] >= now_s - 86_400][::3],
             "desempenho": self._desempenho(),
         }
+
+    def _registrar_dia(self, total: float, hist: list) -> list:
+        """Saldo de ABERTURA de cada dia (horário de Brasília) para o lucro diário. Guarda até 400 dias.
+        Na primeira vez, recupera os dias anteriores a partir do histórico de 5 em 5 minutos."""
+        br = timezone(timedelta(hours=-3))
+        dia = lambda ts: datetime.fromtimestamp(ts, br).strftime("%Y-%m-%d")
+        d = self.state.setdefault("equity_dia", {})
+        if not d:
+            for ts, v in hist:
+                d.setdefault(dia(ts), v)
+        d.setdefault(dia(time.time()), round(total, 4))
+        for k in sorted(d)[:-400]:
+            del d[k]
+        return sorted(d.items())
 
     def _inicial(self) -> float:
         """Capital de partida, para medir lucro ou prejuízo."""
