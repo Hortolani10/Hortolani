@@ -83,9 +83,10 @@ trend_sleeve:
   enabled: true
   fraction: 0.40              # 40% da carteira (era 25%). Teste nov/2026: mais retorno em 2018-20 (nunca visto),
                               # 2020-hoje e últimos 12 meses; pior queda 19% -> 27%. PESQUISA.md seção 19.
-  symbols: [BTC/USDT, ETH/USDT]
+  symbols: [BTC/USDT, ETH/USDT, BNB/USDT]   # BNB entrou em nov/2026: carteira 2020-hoje 413 -> 502, 2018-20 165 -> 168,
+                                            # pior queda 27% -> 22%. ETH e BNB só com o BTC também acima da média.
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
-  sinal: media                # segura enquanto o preço fecha ACIMA da média de 50 dias (ETH só com o BTC também)
+  sinal: media                # segura enquanto o preço fecha ACIMA da média de 50 dias (ETH/BNB só com o BTC também)
   media_dias: 50              # testado de 30 a 150 dias: todos venceram a regra antiga (PESQUISA.md seção 16)
                               # sinal: tendencia = regra antiga (EMA200), mais lenta
 

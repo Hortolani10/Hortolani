@@ -387,6 +387,7 @@ def test_sleeve_eth_needs_btc_up(synth, cfg):
 
 
 def test_sleeve_backtest_cash_in_downtrend(synth, cfg):
+    cfg["trend_sleeve"]["symbols"] = ["BTC/USDT", "ETH/USDT"]   # dados de exemplo só têm BTC e ETH
     from bot import sleeve
     daily = {"BTC/USDT": _daily(synth, -0.004, 1), "ETH/USDT": _daily(synth, -0.004, 2)}
     start = int(daily["BTC/USDT"]["ts"].iloc[300])
@@ -428,6 +429,7 @@ def test_buckets_are_separate_and_rebalance_monthly(cfg, tmp_path, monkeypatch):
 
 
 def test_portfolio_backtest(synth, cfg):
+    cfg["trend_sleeve"]["symbols"] = ["BTC/USDT", "ETH/USDT"]   # dados de exemplo só têm BTC e ETH
     from bot import sleeve
     from bot.data import prepare
     up, _ = make(synth, cfg, 0.0008, n=9000, seed=3)        # ~375 dias de 1h

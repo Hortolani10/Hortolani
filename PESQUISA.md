@@ -550,6 +550,21 @@ são "moedas de empresa" (Binance, Tron) e escolher pelo passado repete o erro d
 depois, +770% e +342% dois anos depois, mas o BTC ainda caiu mais 71% e 59% depois do início das compras. É investimento
 de longo prazo, fora do bot (pode ser feito pela "Compra recorrente" da Binance), só com dinheiro para 2–4 anos.
 
+## 22. Moedas do cofre (nov/2026)
+
+Carteira completa (bot 60% + cofre 40%, média de 50 dias), 100 USDT:
+
+| Cofre | 2018–20 | 2020–hoje | 2023–hoje | 12 meses | Pior queda 2020–hoje |
+|---|---|---|---|---|---|
+| BTC + ETH | 165 | 413 | 191 | 105 | 27% |
+| **BTC + ETH + BNB (adotado)** | **168** | **502** | 186 | 105 | **22%** |
+| BTC + ETH + BNB + XRP | 148 | 451 | 194 | 104 | 26% |
+| + SOL | (não existia) | 848 | 213 | 102 | 25% |
+| Muitas moedas (6 ou 16) | 83 | 113 | 112 | 99 | — |
+
+SOL descartada: o número vem da alta de 2020–21, sem como confirmar em 2018 e pior no último ano. Muitas moedas
+pioram (altcoins caem mais e as partes ficam abaixo da ordem mínima).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

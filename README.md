@@ -4,7 +4,7 @@
 
 | Bot | O que faz | Para quê |
 |---|---|---|
-| **Principal** (60% bot + 40% cofre) | Swing no 4h só a favor da tendência, lateralização e cofre BTC/ETH; termômetro reduz o risco em mercado defensivo | É o candidato a dinheiro real: poucas operações, risco controlado |
+| **Principal** (60% bot + 40% cofre) | Swing no 4h só a favor da tendência, lateralização e cofre BTC/ETH/BNB; termômetro reduz o risco em mercado defensivo | É o candidato a dinheiro real: poucas operações, risco controlado |
 | **Aprendizes** (4h, 2h, 1h e 15 min) | Operam quase todo dia com 7 setups (tendência, lateral, rompimento, reversão do RSI, padrão no suporte, divergência, pullback livre), 0,5% de risco cada | **Coletar dados**: cada operação grava setup, padrões de gráfico e tempo gráfico. O que funcionar na prática é testado em 6 anos e só então vai para o principal |
 
 Principal, teste de 6 anos (fev/2020–nov/2026, 100 USDT, reequilíbrio mensal 75/25):
