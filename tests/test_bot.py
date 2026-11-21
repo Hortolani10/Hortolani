@@ -405,6 +405,7 @@ class SleeveBroker(LiveLikeBroker):
 
 
 def test_buckets_are_separate_and_rebalance_monthly(cfg, tmp_path, monkeypatch):
+    cfg["trend_sleeve"]["fraction"] = 0.25                 # números do teste foram feitos com 25%
     from datetime import datetime, timezone
     from bot.sleeve import TrendSleeve
     monkeypatch.chdir(tmp_path)
@@ -484,6 +485,7 @@ def test_log_handler_forwards_only_important_events():
 
 
 def test_trader_telegram_commands_and_status(cfg, tmp_path, monkeypatch):
+    cfg["trend_sleeve"]["fraction"] = 0.25                 # números do teste foram feitos com 25%
     from bot.notify import Telegram
     monkeypatch.chdir(tmp_path)
     cfg["mode"] = "paper"

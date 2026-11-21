@@ -76,13 +76,13 @@ risk:
   cooldown_hours: 24
   min_reward_risk: 0.0      # exige espaço até a resistência (em R). No 4h, 1.5 barrava 95% dos sinais
 
-# Cofre "seguir a tendência": parte da carteira fica em BTC/ETH enquanto a tendência
-# DIÁRIA estiver em ALTA (ETH só com o BTC também em alta); senão fica em USDT.
-# Testado em 6 anos: 25% no cofre + 75% no bot, reequilibrando todo mês:
-# 100 -> ~227 USDT (queda máx. 19%); só o bot: 100 -> 139 (queda 12%). Ver PESQUISA.md.
+# Cofre "seguir a tendência": parte da carteira fica em BTC/ETH enquanto o preço estiver acima da
+# média de 50 dias (ETH só com o BTC também acima); senão fica em USDT. Reequilíbrio todo mês.
+# É a parte mais robusta do sistema: ganhou em 2018-20 (nunca visto) e em 2020-hoje. PESQUISA.md 16 e 19.
 trend_sleeve:
   enabled: true
-  fraction: 0.25              # 25% da carteira
+  fraction: 0.40              # 40% da carteira (era 25%). Teste nov/2026: mais retorno em 2018-20 (nunca visto),
+                              # 2020-hoje e últimos 12 meses; pior queda 19% -> 27%. PESQUISA.md seção 19.
   symbols: [BTC/USDT, ETH/USDT]
   rebalance_tolerance: 0.05   # reequilíbrio mensal só se o desvio passar de 5% do alvo
   sinal: media                # segura enquanto o preço fecha ACIMA da média de 50 dias (ETH só com o BTC também)

@@ -519,6 +519,24 @@ Em 2018 (queda): −6% contra −55% do BTC. **Cofre pela média de 50 dias conf
 
 Mais cofre = mais retorno em todos os períodos, mas quedas maiores. É escolha de risco do dono.
 
+## 20. Índice de Medo e Ganância e sazonalidade (nov/2026)
+
+Dados do Fear & Greed (alternative.me) de fev/2018 a nov/2026; testes em 2018–20 (nunca visto) e 2020–hoje.
+
+**Comprar no medo extremo (BTC/ETH):** com índice ≤ 10 ganhou em 2018–20 (poucas vezes: 3 a 7), mas em 2020–hoje
+segurar 30–90 dias depois do medo rendeu **menos** que comprar em qualquer dia (BTC 90 dias: +7% contra +14%).
+Não é consistente: descartado.
+
+**Filtros de sentimento nas entradas do bot** (não entrar com ganância > 75, com medo < 20, ou só entre 20 e 75):
+nenhum melhorou os dois períodos (carteira 2020–hoje 373–416 contra 413). Descartados.
+
+**Sazonalidade:** segunda-feira positiva e quinta negativa nos dois períodos (BTC: seg +0,55% / +0,30%,
+qui −0,54% / −0,20% por dia), mas o efeito é pequeno. Horários: sem padrão estável. **Não entrar no fim de semana:**
+carteira 2020–hoje 413 → 451 e último ano 105 → 107, mas 2018–20 igual (165) e com a média do bot pior
+(−0,51R → −0,58R). Não passou nos dois períodos: não adotado (fica em observação).
+
+**Adotado nesta rodada:** cofre de 25% para **40%** (seção 19).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
