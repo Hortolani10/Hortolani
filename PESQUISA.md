@@ -471,6 +471,25 @@ no 4h, negativo no último ano. Descartado.
 
 **Divergência de alta no RSI:** desligada nos aprendizes (pior setup no histórico e na prática).
 
+## 18. Conferência independente com o Freqtrade (nov/2026)
+
+O Freqtrade (57 mil estrelas no GitHub, GPLv3) é o robô de código aberto mais usado em cripto. A estratégia de
+tendência do bot foi reescrita nele (`pesquisa/freqtrade/HortolaniTendencia.py`, com os mesmos indicadores) e
+testada com os mesmos candles, taxas (0,075%), 16 moedas, 2 posições, risco 1%, 2021 até 20/11/2026:
+
+| Motor | Operações | Acerto | Resultado | Queda máx. |
+|---|---|---|---|---|
+| Freqtrade | 207 | 39,1% | +25,6% | 12,7% |
+| Nosso simulador | 203 | 39,4% | +31,4% | 14,5% |
+
+Operação a operação: **198 iguais** (mesma moeda e hora), preço de entrada idêntico, saída praticamente igual em
+197 de 198 e **o mesmo ganho/perda em 100%**. As poucas diferenças vêm da ordem em que cada motor escolhe as
+moedas quando há mais sinais que vagas (2 posições). **Ferramenta anti "olhar o futuro" do Freqtrade
+(lookahead-analysis): nenhum viés encontrado.** Conclusão: o nosso simulador está correto.
+
+**Proteção "pausar moeda que vive perdendo"** (LowProfitPairs do Freqtrade), testada em 4 versões:
+carteira 6 anos 291–294 contra 292 sem ela, último ano igual. Não adotada (o bot já pausa após 3 stops seguidos).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
