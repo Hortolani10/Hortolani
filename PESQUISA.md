@@ -490,6 +490,35 @@ moedas quando há mais sinais que vagas (2 posições). **Ferramenta anti "olhar
 **Proteção "pausar moeda que vive perdendo"** (LowProfitPairs do Freqtrade), testada em 4 versões:
 carteira 6 anos 291–294 contra 292 sem ela, último ano igual. Não adotada (o bot já pausa após 3 stops seguidos).
 
+## 19. Teste fora da amostra: mar/2018 a set/2020 (período nunca usado em nenhuma decisão)
+
+6 moedas que já existiam (BTC, ETH, BNB, LTC, XRP, ADA), dados reais da Binance, mesmas regras e taxas.
+
+**Carteira completa (bot 75% + cofre 25%):** +33% (queda máx. 15%) contra segurar BTC +41% (que caiu −55% em 2018).
+Em 2018 (queda): −6% contra −55% do BTC. **Cofre pela média de 50 dias confirmado: +33% contra +8% da regra antiga.**
+
+**Só o bot (sem cofre):** perdeu (−9%, −0,29R por operação). A entrada de pullback foi a parte fraca: 20 ops, −0,37R
+(em 2020–2026 foi +0,27R). O ganho da carteira veio do cofre.
+
+**Setups dos aprendizes (4h):** rompimento **+0,23R** (505 ops, acerto 52%), pullback livre +0,08R; reversão do RSI
+−0,24R, padrão no suporte −0,18R, divergência −0,09R. Mesma ordem do período 2020–2026: comprar força > comprar fraqueza.
+
+**Capitulação 4h:** −0,09R (61 ops em 29 dias). **Não confirmou** fora da amostra: segue só em paper.
+
+**Rompimento no bot principal (com filtro de tendência e stop móvel):** melhora 2018–20 (carteira 133 → 160) mas piora
+2020–hoje (265 → 233), porque ocupa as vagas do pullback. Resultado muda de lado: não adotado.
+
+**Tamanho do cofre** (a parte mais robusta nos dois períodos):
+
+| Cofre / bot | 2018–2020 | 2020–hoje | 2023–hoje | 12 meses | Queda máx. (2020–hoje) |
+|---|---|---|---|---|---|
+| 25% / 75% (atual) | 133 | 265 | 160 | 103 | 19% |
+| 40% / 60% | 165 | 413 | 191 | 105 | 27% |
+| 50% / 50% | 188 | 592 | 213 | 108 | 32% |
+| 75% / 25% | 252 | 1062 | 277 | 111 | 42% |
+
+Mais cofre = mais retorno em todos os períodos, mas quedas maiores. É escolha de risco do dono.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
