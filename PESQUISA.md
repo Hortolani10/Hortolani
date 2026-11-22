@@ -586,6 +586,22 @@ termômetro), short (perdeu até em 2022), grid (cai junto com a moeda), robô d
 capitulação (só paper), medo extremo (inconsistente), funding (rende pouco na queda). Na queda, o melhor resultado
 comprovado é **perder pouco** e deixar o dinheiro parado rendendo (CDI ou Earn).
 
+## 24. Busca aprofundada: estratégias para queda (nov/2026)
+
+Estudos encontrados: (1) **reversão de curto prazo** só em moedas pequenas/sem liquidez; nas grandes há força
+(momentum) e nenhum estudo mostra lucro depois das taxas na queda; (2) **repique após liquidações em massa** falhou
+fora da amostra nos testes publicados (igual à nossa capitulação); (3) **trading de pares BTC×ETH** com Sharpe
+1,6–2,5 em 2022–2024 (inclui o bear de 2022).
+
+Teste do trading de pares (neutro ao mercado, as duas pernas em futuros 1x, taxas 0,05% por lado e funding real):
+- Proporção 1:1 (BTC×ETH, BTC×BNB, ETH×BNB): negativo em quase todos os períodos (BTC×ETH −3% a −42% ao ano).
+- **Proporção estatística (como no artigo), BTC×ETH:** 2022 (queda) **+15% a +19% ao ano**, últimos 12 meses
+  **+2% a +7%**, mas **2018 (queda) −12% a −34%**, 2019 −16% a +23%, 2023–hoje −2% a −10%, quedas de 30–45%.
+
+O resultado positivo do artigo vem do período escolhido (2022–2024). Na queda de 2018, o mesmo método perdeu.
+**Não adotado.** Conclusão da busca: nenhuma estratégia testada dá lucro consistente em todas as quedas;
+o que funciona em todas é ficar fora (filtro de tendência) e deixar o dinheiro rendendo.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
