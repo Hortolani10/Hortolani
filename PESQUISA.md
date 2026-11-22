@@ -565,6 +565,27 @@ Carteira completa (bot 60% + cofre 40%, média de 50 dias), 100 USDT:
 SOL descartada: o número vem da alta de 2020–21, sem como confirmar em 2018 e pior no último ano. Muitas moedas
 pioram (altcoins caem mais e as partes ficam abaixo da ordem mínima).
 
+## 23. Estratégias para mercado de baixa: arbitragem de funding (nov/2026)
+
+Histórico oficial de funding da Binance (data.binance.vision), jan/2020–out/2026. Cash-and-carry sem alavancagem:
+metade do capital comprada à vista, metade de garantia num short de futuros 1x; taxas de entrada/saída incluídas.
+Rendimento ao ano sobre o capital total:
+
+| Moeda (sempre ligado) | 2020 | 2021 alta | 2022 queda | 2023 | 2024 alta | 2025 | 2026 até out | 12 meses |
+|---|---|---|---|---|---|---|---|---|
+| BTC | +8,9% | +16,5% | +2,0% | +4,0% | +6,1% | +2,5% | +1,5% | +1,6% |
+| ETH | +14,7% | +20,6% | +0,3% | +4,2% | +6,7% | +2,4% | +1,0% | +1,1% |
+| SOL | −6,3% | +15,3% | −17,5% | +0,6% | +7,0% | +0,1% | −0,4% | −0,2% |
+
+Ligar só com funding positivo ou alto não ajudou na queda (rende 0% porque fica desligado). **O funding paga quando o
+mercado está em alta e some na queda** — o oposto do que se procura no bear. CDI (10–14% ao ano) ganhou em todos os
+anos menos 2021, sem risco de corretora, de liquidação nem de gestão de garantia. **Não adotado.**
+
+Resumo do que já foi testado para o mercado de baixa: filtro de tendência (adotado: cofre média 50, filtro do BTC,
+termômetro), short (perdeu até em 2022), grid (cai junto com a moeda), robô de média (preso em quedas de até −98%),
+capitulação (só paper), medo extremo (inconsistente), funding (rende pouco na queda). Na queda, o melhor resultado
+comprovado é **perder pouco** e deixar o dinheiro parado rendendo (CDI ou Earn).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
