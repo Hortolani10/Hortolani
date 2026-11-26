@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesa dos Robôs</title>
+<style>
+/* Mesa dos Robôs: cada função do bot é um robozinho em pixel art (arte própria, desenhada em SVG),
+   e tudo o que ele diz vem dos dados reais do bot (/api/status e /api/central). Só leitura. */
+:root{--bg:#0a0f1a;--floor1:#101828;--floor2:#0d1422;--panel:#111a23;--panel2:#16212c;--line:#22324a;--fg:#e7eef4;--muted:#8796a5;--faint:#5b6b7a;
+ --accent:#5b8cff;--up:#2fd39d;--down:#ff6f6f;--flat:#f3b54a;--screen:#07111f;--glow:#45e3ff;color-scheme:dark}
+:root[data-theme="light"]{--bg:#e9eef5;--floor1:#dfe6f0;--floor2:#d6dee9;--panel:#fff;--panel2:#f3f6fa;--line:#cfd8e3;--fg:#13202b;--muted:#5b6977;--faint:#93a0ad;--screen:#0d1a2b;color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif}
+.num,.px{font-family:"Cascadia Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--flat)}.muted{color:var(--muted)}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 85%,transparent);position:sticky;top:0;z-index:5;backdrop-filter:blur(8px)}
+.brand{display:flex;gap:10px;align-items:center}.brand b{display:block;font-size:16px}.brand small{color:var(--muted);font-size:12px}
+.logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#5b8cff,#8f6bff)}
+.btn{font:inherit;font-size:12px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.live{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--up);animation:pulso 2s infinite}.dot.off{background:var(--down);animation:none}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(47,211,157,.6)}100%{box-shadow:0 0 0 9px rgba(47,211,157,0)}}
+main{padding:18px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto}
+/* faixa do topo (o "letreiro" da mesa) */
+.faixa{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;padding:10px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.faixa span{font-size:12px;color:var(--muted)}.faixa b{color:var(--fg)}
+/* o "chão" do escritório em pixels */
+.sala{position:relative;border:2px solid var(--line);border-radius:14px;padding:18px;overflow:hidden;
+ background:repeating-conic-gradient(var(--floor1) 0 25%,var(--floor2) 0 50%) 0 0/32px 32px}
+.sala::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at top,rgba(91,140,255,.12),transparent 60%);pointer-events:none}
+.mesas{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.mesa{position:relative;display:grid;justify-items:center;gap:6px;padding:12px 10px 10px;border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);min-width:0}
+.mesa.trab{border-color:color-mix(in srgb,var(--up) 45%,var(--line))}.mesa.alerta{border-color:color-mix(in srgb,var(--down) 55%,var(--line))}
+/* monitor */
+.monitor{width:100%;max-width:220px;aspect-ratio:16/9;background:var(--screen);border:4px solid #2b3a52;border-radius:6px;box-shadow:0 0 18px rgba(69,227,255,.12) inset;position:relative;overflow:hidden}
+.monitor::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 3px);pointer-events:none}
+.monitor svg{width:100%;height:100%;display:block}
+.pe{width:28px;height:8px;background:#2b3a52;margin-top:-6px}
+/* balão de fala */
+.balao{position:relative;max-width:100%;min-height:52px;font-size:12px;line-height:1.35;padding:7px 10px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);text-align:center}
+.balao::after{content:"";position:absolute;left:50%;bottom:-7px;width:12px;height:12px;transform:translateX(-50%) rotate(45deg);background:var(--panel2);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+/* robô */
+.robo{width:72px;height:66px;image-rendering:pixelated;animation:mexe 2.4s steps(2) infinite}
+.mesa:nth-child(2n) .robo{animation-delay:-.7s}.mesa:nth-child(3n) .robo{animation-delay:-1.3s}
+@keyframes mexe{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.robo .olho{animation:pisca 4s infinite}.mesa:nth-child(2n) .robo .olho{animation-delay:-2s}
+@keyframes pisca{0%,92%,100%{opacity:1}95%{opacity:0}}
+.balcao{width:100%;height:12px;border-radius:3px;background:linear-gradient(#6b4f35,#4d3826);margin-top:-14px;box-shadow:0 3px 0 #33251a}
+.placa{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.luz{width:9px;height:9px;border-radius:2px;background:var(--faint)}
+.luz.trab{background:var(--up);box-shadow:0 0 8px var(--up)}.luz.esp{background:var(--flat)}.luz.alerta{background:var(--down);box-shadow:0 0 8px var(--down);animation:pisca 1s infinite}
+.funcao{font-size:11px;color:var(--muted);text-align:center}
+/* registro ao vivo */
+.registro{border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.registro h2{margin:0;padding:12px 16px 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.linhas{max-height:340px;overflow:auto;padding:4px 16px 14px;font-size:12.5px}
+.linhas div{display:grid;grid-template-columns:52px 120px minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.linhas div:last-child{border-bottom:0}
+.quem{font-weight:700}
+footer{color:var(--faint);font-size:12px}
+@media(max-width:1100px){.mesas{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){main,header{padding-left:16px;padding-right:16px}.sala{padding:12px}.mesas{gap:12px}.linhas div{grid-template-columns:44px 92px minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){.robo,.robo .olho,.dot,.luz.alerta{animation:none}}
+</style></head><body>
+<header>
+ <div class="brand"><div class="logo"><svg width="22" height="22" viewBox="0 0 11 11" shape-rendering="crispEdges"><rect x="5" y="0" width="1" height="2" fill="#fff"/><rect x="2" y="2" width="7" height="5" fill="#fff"/><rect x="3" y="3" width="5" height="3" fill="#20304d"/><rect x="4" y="4" width="1" height="1" fill="#45e3ff"/><rect x="6" y="4" width="1" height="1" fill="#45e3ff"/><rect x="3" y="7" width="5" height="3" fill="#fff"/></svg></div>
+  <div><b>Mesa dos Robôs</b><small>cada robô é uma parte do bot · dados ao vivo · só leitura</small></div></div>
+ <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="live"><i class="dot" id="dot"></i><span id="hora">conectando…</span></div>
+  <a class="btn" href="/">⌂ Central</a><a class="btn" href="/historico">☰ Histórico</a><button class="btn" id="tema" type="button">◐ Tema</button></div>
+</header>
+<main>
+ <div class="faixa" id="faixa"><span>Carregando a mesa…</span></div>
+ <section class="sala" aria-label="Mesa dos robôs"><div class="mesas" id="mesas"></div></section>
+ <section class="registro"><h2>Registro ao vivo · o que cada robô fez por último</h2><div class="linhas num" id="linhas"></div></section>
+ <footer>Os robôs são só uma forma visual de mostrar o bot: cada um representa uma parte do programa e fala com os números reais dele. Ninguém aqui compra, vende ou muda configurações.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const sg=(v,d=2)=>v==null||isNaN(v)?"—":(v>0?"+":"")+fmt(v,d);
+const cl=v=>v>0?"up":v<0?"down":"";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const base=s=>String(s||"").split("/")[0];
+let tema="dark";try{tema=localStorage.getItem("painel-tema")||"dark"}catch(e){}
+const aplica=()=>{document.documentElement.setAttribute("data-theme",tema==="light"?"light":"dark")};aplica();
+$("tema").onclick=()=>{tema=tema==="light"?"dark":"light";try{localStorage.setItem("painel-tema",tema)}catch(e){}aplica()};
+
+/* ---------- robô em pixel art (14 x 13), desenhado aqui mesmo ---------- */
+const SPRITE=[
+ "......A.......",
+ "......A.......",
+ "...HHHHHHHH...",
+ "..HFFFFFFFFH..",
+ "..HFEEFFEEFH..",
+ "..HFFFFFFFFH..",
+ "..HFFMMMMFFH..",
+ "...HHHHHHHH...",
+ ".....NNNN.....",
+ "..BBBBBBBBBB..",
+ ".SB.BCCCCB.BS.",
+ ".S..BCLLCB..S.",
+ "....BBBBBB...."];
+function robo(cor,escura,acento){
+ const pal={A:acento,H:cor,F:"#0e1626",E:"#45e3ff",M:"#7aa2c8",N:escura,B:cor,C:"#dfe8f5",L:acento,S:escura};
+ let r="";SPRITE.forEach((linha,y)=>[...linha].forEach((ch,x)=>{if(ch===".")return;
+  r+=`<rect ${ch==="E"?'class="olho" ':''}x="${x}" y="${y}" width="1" height="1" fill="${pal[ch]}"/>`}));
+ return `<svg class="robo" viewBox="0 0 14 13" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+}
+const CORES={radar:["#4f8bff","#2a4f9e","#ffe066"],tendencia:["#22c38e","#147a59","#b7ffde"],termo:["#ff7a59","#a8432b","#ffd0c2"],risco:["#f5b83d","#a07418","#fff2c2"],
+ exec:["#a46bff","#5f37a8","#e9d8ff"],cofre:["#e6c34a","#8f7a26","#fff6c8"],aprend:["#38c7e8","#1f7a90","#c8f6ff"],chefe:["#e6e9ef","#7b8794","#ff6f6f"]};
+
+/* ---------- telinhas dos monitores ---------- */
+const W=220,H=124;
+const tela=conteudo=>`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${conteudo}</svg>`;
+const txt=(x,y,t,c="#cfe6ff",s=12,a="start",p="")=>`<text x="${x}" y="${y}" fill="${c}" font-size="${s}" text-anchor="${a}" font-family="ui-monospace,Consolas,monospace" ${p}>${esc(t)}</text>`;
+function telaRadar(rad){
+ const it=Object.entries(rad||{}).slice(0,16);if(!it.length)return tela(txt(W/2,H/2,"aguardando…","#6f8aa8",12,"middle"));
+ const bw=(W-20)/it.length;let s=txt(10,16,"REGRAS CUMPRIDAS · 16 MOEDAS","#6f8aa8",9);
+ it.forEach(([sym,x],i)=>{const h=Math.max(3,(x.regras_ok/Math.max(1,x.regras_total))*80),cor=x.sinal_tendencia?"#2fd39d":x.tendencia==="ALTA"?"#4fd3a0":x.tendencia==="BAIXA"?"#ff6f6f":"#f3b54a";
+  s+=`<rect x="${10+i*bw+1}" y="${104-h}" width="${bw-3}" height="${h}" fill="${cor}" opacity=".85"/>`});
+ return tela(s);
+}
+function telaTendencia(t){const alta=t==="ALTA",baixa=t==="BAIXA",c=alta?"#2fd39d":baixa?"#ff6f6f":"#f3b54a";
+ const seta=alta?"M60 90 L110 40 L160 90":baixa?"M60 40 L110 90 L160 40":"M50 65 L170 65";
+ return tela(txt(10,16,"BTC · TENDÊNCIA DIÁRIA","#6f8aa8",9)+`<path d="${seta}" stroke="${c}" stroke-width="10" fill="none" stroke-linecap="square"/>`+txt(W/2,116,t==="SEM_DADOS"?"sem dados":String(t||"—").toLowerCase(),c,14,"middle",'font-weight="700"'))}
+function telaTermo(n){const v=Math.max(0,Math.min(100,n??0)),c=v>=60?"#2fd39d":v>=40?"#f3b54a":"#ff6f6f";
+ let s=txt(10,16,"TERMÔMETRO DO MERCADO","#6f8aa8",9);for(let i=0;i<20;i++){const on=i<v/5;s+=`<rect x="${12+i*10}" y="40" width="8" height="34" fill="${on?c:"#1b2a40"}"/>`}
+ return tela(s+txt(W/2,106,`${n??"—"}/100`,c,20,"middle",'font-weight="700"'))}
+function telaRisco(esc_,pausa){const p=Math.round((esc_??1)*100),c=pausa?"#ff6f6f":p<100?"#f3b54a":"#2fd39d",a=2*Math.PI*(p/100);
+ const x=W/2+38*Math.sin(a),y=70-38*Math.cos(a),arc=p>=100?`<circle cx="${W/2}" cy="70" r="38" stroke="${c}" stroke-width="10" fill="none"/>`:`<path d="M${W/2} 32 A38 38 0 ${p>50?1:0} 1 ${x} ${y}" stroke="${c}" stroke-width="10" fill="none"/>`;
+ return tela(txt(10,16,"RISCO POR OPERAÇÃO","#6f8aa8",9)+`<circle cx="${W/2}" cy="70" r="38" stroke="#1b2a40" stroke-width="10" fill="none"/>`+arc+txt(W/2,76,pausa?"PAUSA":`${p}%`,c,16,"middle",'font-weight="700"'))}
+function telaExec(pos){let s=txt(10,16,"POSIÇÕES ABERTAS","#6f8aa8",9);
+ if(!pos.length)return tela(s+txt(W/2,72,"nenhuma · aguardando sinal","#6f8aa8",11,"middle"));
+ pos.slice(0,4).forEach((p,i)=>{const r=p.resultado_pct*100,c=r>=0?"#2fd39d":"#ff6f6f";s+=txt(12,40+i*22,base(p.simbolo),"#cfe6ff",13)+txt(W-12,40+i*22,`${r>=0?"+":""}${fmt(r,1)}%`,c,13,"end")});
+ return tela(s)}
+function telaCofre(moedas){const tem=Object.keys(moedas||{}).map(base);let s=txt(10,16,"COFRE · SEGURANDO","#6f8aa8",9);
+ ["BTC","ETH","BNB"].forEach((m,i)=>{const on=tem.includes(m),x=30+i*62;s+=`<rect x="${x}" y="38" width="46" height="46" rx="4" fill="${on?"#e6c34a":"#1b2a40"}"/>`+txt(x+23,67,m,on?"#2a2000":"#4d6280",12,"middle",'font-weight="700"')});
+ return tela(s+txt(W/2,112,tem.length?"em posição":"tudo em USDT · esperando","#6f8aa8",10,"middle"))}
+function telaAprend(ap){let s=txt(10,16,"OPERAÇÕES HOJE","#6f8aa8",9);if(!ap.length)return tela(s+txt(W/2,70,"sem aprendizes","#6f8aa8",11,"middle"));
+ const mx=Math.max(1,...ap.map(b=>b.hoje_ops||0)),bw=(W-30)/ap.length;
+ ap.forEach((b,i)=>{const h=Math.max(3,(b.hoje_ops||0)/mx*66),c=(b.var_hoje||0)>=0?"#38c7e8":"#ff6f6f";s+=`<rect x="${16+i*bw+4}" y="${96-h}" width="${bw-10}" height="${h}" fill="${c}"/>`+txt(16+i*bw+bw/2,112,(b.tf||b.id.replace("aprendiz-","")).slice(0,6),"#6f8aa8",9,"middle")+txt(16+i*bw+bw/2,90-h,String(b.hoje_ops||0),"#cfe6ff",10,"middle")});
+ return tela(s)}
+function telaChefe(eh){let s=txt(10,16,"SALDO · BOT PRINCIPAL","#6f8aa8",9);const v=(eh||[]).map(x=>x[1]).slice(-120);
+ if(v.length<2)return tela(s+txt(W/2,70,"juntando dados…","#6f8aa8",11,"middle"));
+ const mn=Math.min(...v),mx=Math.max(...v),r=mx-mn||1,pts=v.map((y,i)=>`${10+i/(v.length-1)*(W-20)},${100-(y-mn)/r*70}`).join(" "),c=v[v.length-1]>=v[0]?"#2fd39d":"#ff6f6f";
+ return tela(s+`<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="3"/>`)}
+
+/* ---------- registro: cada linha do log vai para o robô responsável ---------- */
+const QUEM=[[/COMPRA|VENDA|FECHOU|STOP executado|stop \(gap\)/,"exec","Executor"],[/COFRE/,"cofre","Cofre"],[/Termômetro|termometro/,"termo","Termômetro"],
+ [/ALARME|bloqueada|PAUSAR|pausado|perda diária/,"risco","Risco"],[/sem entrada|sinal válido|radar/i,"radar","Radar"],[/Bot iniciado|Painel/,"chefe","Chefe"]];
+function quem(msg){for(const [re,k,n] of QUEM)if(re.test(msg))return [k,n];return ["chefe","Chefe"]}
+function limpa(msg){return msg.replace(/\[tendência (\w+)\] falhou: (.*)/,(m,t,f)=>`tendência ${t.toLowerCase()} · faltou: ${f.replace(/_/g," ").split(", ").slice(0,3).join(", ")}`)}
+
+let ultimoLog=null;
+async function carrega(){
+ try{
+  const [st,ce]=await Promise.all([fetch("/api/status",{cache:"no-store"}).then(r=>r.json()),fetch("/api/central",{cache:"no-store"}).then(r=>r.json()).catch(()=>({bots:[]}))]);
+  $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
+  if(st.carregando){$("faixa").innerHTML="<span>O bot está começando o primeiro ciclo…</span>";return}
+  const rad=st.radar||{},btc=(rad["BTC/USDT"]||{}),tm=st.termometro||{},pos=st.posicoes||[],bots=ce.bots||[],ap=bots.filter(b=>b.online&&b.aprendiz),pr=bots.find(b=>b.id==="principal")||{};
+  const ord=Object.entries(rad).sort((a,b)=>((b[1].sinal_tendencia||b[1].sinal_lateral)?100:0)+b[1].regras_ok-((a[1].sinal_tendencia||a[1].sinal_lateral)?100:0)-a[1].regras_ok),perto=ord[0];
+  const emAlta=Object.values(rad).filter(x=>x.tendencia==="ALTA").length,cofreM=Object.keys(st.cofre_moedas||{}).map(base);
+  const melhor=(ce.setups||[])[0],apHoje=ap.reduce((s,b)=>s+(b.hoje_ops||0),0),apVar=ap.reduce((s,b)=>s+(b.var_hoje||0),0);
+  const risco=tm.risco??1,alerta=st.pausado||st.alarme;
+  $("faixa").innerHTML=`<span>Saldo <b class="num">${fmt(st.carteira)} USDT</b></span><span>Hoje <b class="num ${cl(pr.var_hoje)}">${sg(pr.var_hoje)} USDT</b></span>
+   <span>Termômetro <b class="${(tm.nota??0)>=60?"up":(tm.nota??0)>=40?"flat":"down"}">${tm.nota??"—"}/100</b></span><span>Posições <b>${pos.length}</b></span>
+   <span>Cofre <b>${cofreM.length?cofreM.join(", "):"em USDT"}</b></span><span>Situação <b class="${alerta?"down":"up"}">${st.pausado?"⏸ pausado":st.alarme?"alarme de desvio":"operando"}</b></span>`;
+  const M=[
+   {k:"radar",nome:"Radar",fun:"analisa as moedas a cada minuto",est:perto&&(perto[1].sinal_tendencia||perto[1].sinal_lateral)?"trab":"trab",tela:telaRadar(rad),
+    fala:perto?`Olhei ${ord.length} moedas. Mais perto de um sinal: <b>${esc(base(perto[0]))}</b> (${perto[1].regras_ok}/${perto[1].regras_total} regras)${perto[1].sinal_tendencia?" · <b class='up'>SINAL!</b>":""}`:"Começando a análise…"},
+   {k:"tendencia",nome:"Tendência",fun:"filtro do BTC",est:btc.tendencia==="ALTA"?"trab":"esp",tela:telaTendencia(btc.tendencia),
+    fala:btc.tendencia==="ALTA"?"BTC em alta no diário: <b class='up'>compras liberadas</b>.":btc.tendencia==="BAIXA"?"BTC em baixa no diário: <b class='down'>seguro as compras de tendência</b>.":"BTC andando de lado: só a lateralização pode entrar."},
+   {k:"termo",nome:"Termômetro",fun:"mede o humor do mercado",est:(tm.nota??50)<20?"alerta":(tm.nota??50)<40?"esp":"trab",tela:telaTermo(tm.nota),
+    fala:`Nota <b>${tm.nota??"—"}/100</b> · ${esc(tm.rotulo||"")}. ${tm.moedas_em_alta??emAlta} de ${tm.moedas??Object.keys(rad).length} moedas em alta.`},
+   {k:"risco",nome:"Risco",fun:"tamanho e proteções",est:alerta?"alerta":risco<1?"esp":"trab",tela:telaRisco(risco,st.pausado),
+    fala:st.pausado?"<b class='down'>Pausado</b>: nenhuma compra nova até /retomar.":st.alarme?"<b class='down'>Alarme de desvio</b>: arriscando metade.":risco<1?`Mercado defensivo: arrisco <b>${fmt(risco*100,0)}%</b> do normal por operação.`:"Risco normal: 1% por operação, no máximo 2 posições."},
+   {k:"exec",nome:"Executor",fun:"compra, vende e cuida dos stops",est:pos.length?"trab":"esp",tela:telaExec(pos),
+    fala:pos.length?`Cuidando de <b>${pos.length}</b> posição(ões): ${pos.map(p=>`${esc(base(p.simbolo))} <span class="${cl(p.resultado_pct)}">${sg(p.resultado_pct*100,1)}%</span>`).join(", ")}. Stops conferidos a cada 10 s.`:"Sem posições. Esperando o Radar trazer um sinal."},
+   {k:"cofre",nome:"Cofre",fun:"BTC, ETH e BNB pela média de 50 dias",est:cofreM.length?"trab":"esp",tela:telaCofre(st.cofre_moedas),
+    fala:cofreM.length?`Segurando <b>${cofreM.join(", ")}</b> (${fmt(st.cofre)} USDT) enquanto estão acima da média de 50 dias.`:`Tudo em USDT (${fmt(st.cofre)}). Compro quando o BTC voltar para cima da média de 50 dias.`},
+   {k:"aprend",nome:"Aprendizes",fun:"testam setups em paper",est:apHoje?"trab":"esp",tela:telaAprend(ap),
+    fala:ap.length?`${ap.length} aprendizes · <b>${apHoje}</b> operações hoje (<span class="${cl(apVar)}">${sg(apVar)}</span> fictício).${melhor?` Melhor setup: <b>${esc(melhor.nome.replace(/_/g," "))}</b> ${sg(melhor.media_r)}R.`:""}`:"Aprendizes fora do ar ou ainda sem dados."},
+   {k:"chefe",nome:"Chefe",fun:"resume o dia",est:alerta?"alerta":"trab",tela:telaChefe(st.equity_hist),
+    fala:`Saldo <b>${fmt(st.carteira)}</b> USDT · hoje <b class="${cl(pr.var_hoje)}">${sg(pr.var_hoje)}</b> · desde o início <b class="${cl(pr.lucro)}">${sg(pr.lucro)}</b>.`}];
+  $("mesas").innerHTML=M.map(m=>{const [c,e,a]=CORES[m.k];return `<div class="mesa ${m.est==="trab"?"trab":m.est==="alerta"?"alerta":""}">
+   <div class="monitor">${m.tela}</div><div class="pe"></div>
+   <div class="balao">${m.fala}</div>${robo(c,e,a)}<div class="balcao"></div>
+   <div class="placa"><i class="luz ${m.est==="trab"?"trab":m.est==="alerta"?"alerta":"esp"}" title="${m.est==="trab"?"trabalhando":m.est==="alerta"?"alerta":"esperando"}"></i>${m.nome}</div>
+   <div class="funcao">${m.fun}</div></div>`}).join("");
+  const log=(st.log||[]).slice(-40).reverse(),assinatura=log.join("|");
+  if(assinatura!==ultimoLog){ultimoLog=assinatura;
+   $("linhas").innerHTML=log.length?log.map(l=>{const m=l.match(/^\S+ (\d\d:\d\d):\d\d\S* \w+ (.*)$/);const hora=m?m[1]:"",msg=m?m[2]:l;const [k,n]=quem(msg);
+    return `<div><span class="muted">${hora}</span><span class="quem" style="color:${CORES[k][0]}">${n}</span><span>${esc(limpa(msg))}</span></div>`}).join(""):'<div><span></span><span></span><span class="muted">Sem atividade registrada ainda.</span></div>'}
+ }catch(e){$("dot").className="dot off";$("hora").textContent="sem conexão com o bot"}
+}
+carrega();setInterval(carrega,10000);
+</script>
+</body></html>

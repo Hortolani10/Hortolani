@@ -1037,6 +1037,8 @@ def test_historico_junta_todos_os_bots(monkeypatch, tmp_path):
     assert [o["simbolo"] for o in h["operacoes"]] == ["ETH/USDT", "BTC/USDT"]       # mais recente primeiro
     assert h["operacoes"][0]["bot"] == "aprendiz-4h" and h["operacoes"][0]["setup"] == "rompimento"
     assert "Histórico de operações".encode() in urllib.request.urlopen(base + "/historico", timeout=5).read()
+    mesa = urllib.request.urlopen(base + "/mesa", timeout=5).read()
+    assert "Mesa dos Robôs".encode() in mesa and b"/api/status" in mesa and b"<script src" not in mesa
     s_ap.shutdown(); s_m.shutdown()
 
 

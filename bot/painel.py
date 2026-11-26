@@ -236,6 +236,8 @@ class Painel:
                     self._send(200, HTML.encode(), "text/html; charset=utf-8")
                 elif u.path == "/historico":
                     self._send(200, HISTORICO.encode(), "text/html; charset=utf-8")
+                elif u.path == "/mesa":
+                    self._send(200, MESA.encode(), "text/html; charset=utf-8")
                 elif u.path == "/api/diario":
                     self._send(200, json.dumps(painel.diario(), ensure_ascii=False, default=str).encode(),
                                "application/json; charset=utf-8")
@@ -283,3 +285,4 @@ def from_config(cfg: dict) -> Painel | None:
 HTML = (Path(__file__).with_name("static") / "painel.html").read_text(encoding="utf-8")
 CENTRAL = (Path(__file__).with_name("static") / "central.html").read_text(encoding="utf-8")
 HISTORICO = (Path(__file__).with_name("static") / "historico.html").read_text(encoding="utf-8")
+MESA = (Path(__file__).with_name("static") / "mesa.html").read_text(encoding="utf-8")
