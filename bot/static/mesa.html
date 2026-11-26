@@ -22,7 +22,10 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 main{padding:18px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto}
 /* faixa do topo (o "letreiro" da mesa) */
 .faixa{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;padding:10px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-.faixa span{font-size:12px;color:var(--muted)}.faixa b{color:var(--fg)}
+.faixa span{font-size:12px;color:var(--muted)}
+.sel{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.sel small{color:var(--muted);font-size:12px;margin-right:4px}
+.sel a{font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);text-decoration:none}
+.sel a[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:#fff}.faixa b{color:var(--fg)}
 /* o "chão" do escritório em pixels */
 .sala{position:relative;border:2px solid var(--line);border-radius:14px;padding:18px;overflow:hidden;
  background:repeating-conic-gradient(var(--floor1) 0 25%,var(--floor2) 0 50%) 0 0/32px 32px}
@@ -90,6 +93,7 @@ footer{color:var(--faint);font-size:12px}
   <a class="btn" href="/">⌂ Central</a><a class="btn" href="/historico">☰ Histórico</a><button class="btn" id="tema" type="button">◐ Tema</button></div>
 </header>
 <main>
+ <nav class="sel" id="selbot" aria-label="Escolher o bot"><small>Mesa do:</small></nav>
  <div class="faixa" id="faixa"><span>Carregando a mesa…</span></div>
  <section class="sala" aria-label="Mesa dos robôs"><div class="mesas" id="mesas"></div></section>
  <section class="conversa"><h2>Conversa da equipe · toque num robô para ver a ficha dele</h2><div id="conversa"><div class="muted">Os robôs já vão começar a conversar…</div></div></section>
@@ -163,7 +167,7 @@ function telaAprend(ap){let s=txt(10,16,"OPERAÇÕES HOJE","#6f8aa8",9);if(!ap.l
  const mx=Math.max(1,...ap.map(b=>b.hoje_ops||0)),bw=(W-30)/ap.length;
  ap.forEach((b,i)=>{const h=Math.max(3,(b.hoje_ops||0)/mx*66),c=(b.var_hoje||0)>=0?"#38c7e8":"#ff6f6f";s+=`<rect x="${16+i*bw+4}" y="${96-h}" width="${bw-10}" height="${h}" fill="${c}"/>`+txt(16+i*bw+bw/2,112,(b.tf||b.id.replace("aprendiz-","")).slice(0,6),"#6f8aa8",9,"middle")+txt(16+i*bw+bw/2,90-h,String(b.hoje_ops||0),"#cfe6ff",10,"middle")});
  return tela(s)}
-function telaChefe(eh){let s=txt(10,16,"SALDO · BOT PRINCIPAL","#6f8aa8",9);const v=(eh||[]).map(x=>x[1]).slice(-120);
+function telaChefe(eh,nome){let s=txt(10,16,("SALDO · "+(nome||"bot principal")).toUpperCase(),"#6f8aa8",9);const v=(eh||[]).map(x=>x[1]).slice(-120);
  if(v.length<2)return tela(s+txt(W/2,70,"juntando dados…","#6f8aa8",11,"middle"));
  const mn=Math.min(...v),mx=Math.max(...v),r=mx-mn||1,pts=v.map((y,i)=>`${10+i/(v.length-1)*(W-20)},${100-(y-mn)/r*70}`).join(" "),c=v[v.length-1]>=v[0]?"#2fd39d":"#ff6f6f";
  return tela(s+`<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="3"/>`)}
@@ -174,6 +178,9 @@ const QUEM=[[/COMPRA|VENDA|FECHOU|STOP executado|stop \(gap\)/,"exec","Executor"
 function quem(msg){for(const [re,k,n] of QUEM)if(re.test(msg))return [k,n];return ["chefe","Chefe"]}
 function limpa(msg){return msg.replace(/\[tendência (\w+)\] falhou: (.*)/,(m,t,f)=>`tendência ${t.toLowerCase()} · faltou: ${f.replace(/_/g," ").split(", ").slice(0,3).join(", ")}`)}
 
+const BOT=new URLSearchParams(location.search).get("b")||"";      // qual bot esta mesa mostra (vazio = principal)
+const QB=BOT?"?b="+encodeURIComponent(BOT):"";
+const nomeBot=b=>b.id==="principal"?"Bot principal":(b.nome||b.id);
 let ultimoLog=null,ROTEIRO=[],FICHAS={},passo=0,rodando=false;
 const NOMES={radar:"Radar",tendencia:"Tendência",termo:"Termômetro",risco:"Risco",exec:"Executor",cofre:"Cofre",aprend:"Aprendizes",chefe:"Chefe"};
 const parado=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -200,15 +207,15 @@ async function conversa(){
   anota(de,para,msg);
   await new Promise(r=>setTimeout(r,document.hidden?6000:1400))}
 }
-function fichas(st,ce,ord,pos,ap,tm,btc,cofreM){const li=a=>"<ul>"+a.map(x=>`<li>${x}</li>`).join("")+"</ul>";return{
+function fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre){const li=a=>"<ul>"+a.map(x=>`<li>${x}</li>`).join("")+"</ul>";return{
  radar:li(ord.slice(0,6).map(([s,x])=>`<b>${esc(base(s))}</b> ${x.regras_ok}/${x.regras_total} regras · tendência ${esc(String(x.tendencia||"—").toLowerCase())}${x.sinal_tendencia||x.sinal_lateral?" · <b class='up'>sinal</b>":""}`)),
  tendencia:li([`BTC no diário: <b>${esc(String(btc.tendencia||"—").toLowerCase())}</b>`,"Compras de tendência só com a moeda e o BTC em alta no diário.","Com o BTC de lado ou em baixa, só a lateralização pode entrar."]),
  termo:li([`Nota <b>${tm.nota??"—"}/100</b> · ${esc(tm.rotulo||"")}`,"Abaixo de 40: o bot arrisca metade do normal.","Fases: queda forte (&lt;20), defensivo (&lt;40), neutro (&lt;60), alta."]),
- risco:li([`Risco por operação agora: <b>${fmt((tm.risco??1)*100,0)}%</b> do normal (normal = 1% do saldo)`,"No máximo 2 posições ao mesmo tempo.",`Pausado: <b>${st.pausado?"sim":"não"}</b> · alarme de desvio: <b>${st.alarme?"sim":"não"}</b>`]),
+ risco:eAp?li(["Aprendiz: cada operação usa um valor fixo fictício.",`Pausado: <b>${st.pausado?"sim":"não"}</b>`]):li([`Risco por operação agora: <b>${fmt((tm.risco??1)*100,0)}%</b> do normal (normal = 1% do saldo)`,"No máximo 2 posições ao mesmo tempo.",`Pausado: <b>${st.pausado?"sim":"não"}</b> · alarme de desvio: <b>${st.alarme?"sim":"não"}</b>`]),
  exec:pos.length?li(pos.map(p=>`<b>${esc(base(p.simbolo))}</b> entrada ${fmt(p.entrada,4)} · stop ${fmt(p.stop,4)} · <span class="${cl(p.resultado_pct)}">${sg(p.resultado_pct*100,2)}%</span>`)):li(["Nenhuma posição aberta.","O stop móvel (3 ATR) sobe junto com o preço e é conferido a cada 10 segundos."]),
- cofre:li([`Valor: <b>${fmt(st.cofre)} USDT</b> (40% da carteira)`,`Segurando: <b>${cofreM.length?esc(cofreM.join(", ")):"nada, tudo em USDT"}</b>`,"Compra BTC, ETH e BNB quando ficam acima da média de 50 dias (ETH e BNB só com o BTC também acima)."]),
+ cofre:!temCofre?li(["Este bot não tem cofre."]):li([`Valor: <b>${fmt(st.cofre)} USDT</b> (40% da carteira)`,`Segurando: <b>${cofreM.length?esc(cofreM.join(", ")):"nada, tudo em USDT"}</b>`,"Compra BTC, ETH e BNB quando ficam acima da média de 50 dias (ETH e BNB só com o BTC também acima)."]),
  aprend:ap.length?li(ap.map(b=>`<b>${esc(b.nome||b.id)}</b> · ${b.hoje_ops||0} operações hoje · <span class="${cl(b.var_hoje)}">${sg(b.var_hoje)}</span> fictício`)):li(["Nenhum aprendiz respondeu agora."]),
- chefe:li([`Saldo <b>${fmt(st.carteira)} USDT</b> (bot ${fmt(st.bot)} + cofre ${fmt(st.cofre)})`,`Posições abertas: <b>${pos.length}</b>`,'<a href="/" style="color:var(--accent)">Abrir a Central completa →</a>'])}}
+ chefe:li([`${eAp?"Saldo fictício":"Saldo"} <b>${fmt(st.carteira)} USDT</b>`+(temCofre?` (bot ${fmt(st.bot)} + cofre ${fmt(st.cofre)})`:""),`Posições abertas: <b>${pos.length}</b>`,'<a href="${BOT?"/bot?b="+encodeURIComponent(BOT):"/bot"}" style="color:var(--accent)">Abrir o painel deste bot →</a>'])}}
 $("mesas").addEventListener("click",e=>{const m=e.target.closest(".robo")&&e.target.closest(".mesa");if(!m)return;const k=m.dataset.k,[c,ec,a]=CORES[k];
  $("fichacx").style.setProperty("--cor",c);$("fichacx").innerHTML=`<h3>${robo(c,ec,a)}${NOMES[k]}</h3><div class="muted">${esc(m.querySelector(".funcao").textContent)}</div>${FICHAS[k]||""}<p><button class="btn" id="fecha" type="button">Fechar</button></p>`;
  $("ficha").classList.add("on");$("fecha").focus()});
@@ -216,34 +223,36 @@ $("ficha").addEventListener("click",e=>{if(e.target.id==="ficha"||e.target.id===
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("ficha").classList.remove("on")});
 async function carrega(){
  try{
-  const [st,ce]=await Promise.all([fetch("/api/status",{cache:"no-store"}).then(r=>r.json()),fetch("/api/central",{cache:"no-store"}).then(r=>r.json()).catch(()=>({bots:[]}))]);
+  const [st,ce]=await Promise.all([fetch("/api/status"+QB,{cache:"no-store"}).then(r=>r.json()),fetch("/api/central",{cache:"no-store"}).then(r=>r.json()).catch(()=>({bots:[]}))]);
   $("dot").className="dot";$("hora").textContent="ao vivo · "+new Date().toLocaleTimeString("pt-BR");
   if(st.carregando){$("faixa").innerHTML="<span>O bot está começando o primeiro ciclo…</span>";return}
-  const rad=st.radar||{},btc=(rad["BTC/USDT"]||{}),tm=st.termometro||{},pos=st.posicoes||[],bots=ce.bots||[],ap=bots.filter(b=>b.online&&b.aprendiz),pr=bots.find(b=>b.id==="principal")||{};
+  const rad=st.radar||{},btc=(rad["BTC/USDT"]||{}),tm=st.termometro||{},pos=st.posicoes||[],bots=ce.bots||[],ap=bots.filter(b=>b.online&&b.aprendiz),pr=bots.find(b=>b.id===(BOT||"principal"))||{},eAp=!!st.aprendiz,temCofre=(st.cofre||0)>0||Object.keys(st.cofre_moedas||{}).length>0;
+  $("selbot").innerHTML='<small>Mesa do:</small>'+bots.filter(b=>b.online).map(b=>`<a href="/mesa${b.id==="principal"?"":"?b="+encodeURIComponent(b.id)}" aria-current="${b.id===(BOT||"principal")}">${esc(nomeBot(b))}</a>`).join("");
+  document.title="Mesa dos Robôs · "+nomeBot(pr.id?pr:{id:BOT||"principal"});
   const ord=Object.entries(rad).sort((a,b)=>((b[1].sinal_tendencia||b[1].sinal_lateral)?100:0)+b[1].regras_ok-((a[1].sinal_tendencia||a[1].sinal_lateral)?100:0)-a[1].regras_ok),perto=ord[0];
   const emAlta=Object.values(rad).filter(x=>x.tendencia==="ALTA").length,cofreM=Object.keys(st.cofre_moedas||{}).map(base);
   const melhor=(ce.setups||[])[0],apHoje=ap.reduce((s,b)=>s+(b.hoje_ops||0),0),apVar=ap.reduce((s,b)=>s+(b.var_hoje||0),0);
   const risco=tm.risco??1,alerta=st.pausado||st.alarme;
-  $("faixa").innerHTML=`<span>Saldo <b class="num">${fmt(st.carteira)} USDT</b></span><span>Hoje <b class="num ${cl(pr.var_hoje)}">${sg(pr.var_hoje)} USDT</b></span>
+  $("faixa").innerHTML=`<span>${esc(nomeBot(pr.id?pr:{id:BOT||"principal"}))}${eAp?" (fictício)":""}</span><span>Saldo <b class="num">${fmt(st.carteira)} USDT</b></span><span>Hoje <b class="num ${cl(pr.var_hoje)}">${sg(pr.var_hoje)} USDT</b></span>
    <span>Termômetro <b class="${(tm.nota??0)>=60?"up":(tm.nota??0)>=40?"flat":"down"}">${tm.nota??"—"}/100</b></span><span>Posições <b>${pos.length}</b></span>
-   <span>Cofre <b>${cofreM.length?cofreM.join(", "):"em USDT"}</b></span><span>Situação <b class="${alerta?"down":"up"}">${st.pausado?"⏸ pausado":st.alarme?"alarme de desvio":"operando"}</b></span>`;
+   ${temCofre?`<span>Cofre <b>${cofreM.length?cofreM.join(", "):"em USDT"}</b></span>`:""}<span>Situação <b class="${alerta?"down":"up"}">${st.pausado?"⏸ pausado":st.alarme?"alarme de desvio":"operando"}</b></span>`;
   const M=[
    {k:"radar",nome:"Radar",fun:"analisa as moedas a cada minuto",est:perto&&(perto[1].sinal_tendencia||perto[1].sinal_lateral)?"trab":"trab",tela:telaRadar(rad),
     fala:perto?`Olhei ${ord.length} moedas. Mais perto de um sinal: <b>${esc(base(perto[0]))}</b> (${perto[1].regras_ok}/${perto[1].regras_total} regras)${perto[1].sinal_tendencia?" · <b class='up'>SINAL!</b>":""}`:"Começando a análise…"},
    {k:"tendencia",nome:"Tendência",fun:"filtro do BTC",est:btc.tendencia==="ALTA"?"trab":"esp",tela:telaTendencia(btc.tendencia),
-    fala:btc.tendencia==="ALTA"?"BTC em alta no diário: <b class='up'>compras liberadas</b>.":btc.tendencia==="BAIXA"?"BTC em baixa no diário: <b class='down'>seguro as compras de tendência</b>.":"BTC andando de lado: só a lateralização pode entrar."},
+    fala:btc.tendencia==="ALTA"?"BTC em alta no diário: <b class='up'>compras liberadas</b>.":btc.tendencia==="BAIXA"?"BTC em baixa no diário: <b class='down'>seguro as compras de tendência</b>.":!btc.tendencia||btc.tendencia==="SEM_DADOS"?"Ainda sem dados do BTC.":"BTC andando de lado: só a lateralização pode entrar."},
    {k:"termo",nome:"Termômetro",fun:"mede o humor do mercado",est:(tm.nota??50)<20?"alerta":(tm.nota??50)<40?"esp":"trab",tela:telaTermo(tm.nota),
     fala:`Nota <b>${tm.nota??"—"}/100</b> · ${esc(tm.rotulo||"")}. ${tm.moedas_em_alta??emAlta} de ${tm.moedas??Object.keys(rad).length} moedas em alta.`},
    {k:"risco",nome:"Risco",fun:"tamanho e proteções",est:alerta?"alerta":risco<1?"esp":"trab",tela:telaRisco(risco,st.pausado),
-    fala:st.pausado?"<b class='down'>Pausado</b>: nenhuma compra nova até /retomar.":st.alarme?"<b class='down'>Alarme de desvio</b>: arriscando metade.":risco<1?`Mercado defensivo: arrisco <b>${fmt(risco*100,0)}%</b> do normal por operação.`:"Risco normal: 1% por operação, no máximo 2 posições."},
+    fala:st.pausado?"<b class='down'>Pausado</b>: nenhuma compra nova até /retomar.":st.alarme?"<b class='down'>Alarme de desvio</b>: arriscando metade.":eAp?"Aprendiz: cada operação usa um valor fixo fictício, só para aprender.":risco<1?`Mercado defensivo: arrisco <b>${fmt(risco*100,0)}%</b> do normal por operação.`:"Risco normal: 1% por operação, no máximo 2 posições."},
    {k:"exec",nome:"Executor",fun:"compra, vende e cuida dos stops",est:pos.length?"trab":"esp",tela:telaExec(pos),
     fala:pos.length?`Cuidando de <b>${pos.length}</b> posição(ões): ${pos.map(p=>`${esc(base(p.simbolo))} <span class="${cl(p.resultado_pct)}">${sg(p.resultado_pct*100,1)}%</span>`).join(", ")}. Stops conferidos a cada 10 s.`:"Sem posições. Esperando o Radar trazer um sinal."},
    {k:"cofre",nome:"Cofre",fun:"BTC, ETH e BNB pela média de 50 dias",est:cofreM.length?"trab":"esp",tela:telaCofre(st.cofre_moedas),
-    fala:cofreM.length?`Segurando <b>${cofreM.join(", ")}</b> (${fmt(st.cofre)} USDT) enquanto estão acima da média de 50 dias.`:`Tudo em USDT (${fmt(st.cofre)}). Compro quando o BTC voltar para cima da média de 50 dias.`},
+    fala:!temCofre?"Este bot não tem cofre: tudo fica no operacional.":cofreM.length?`Segurando <b>${cofreM.join(", ")}</b> (${fmt(st.cofre)} USDT) enquanto estão acima da média de 50 dias.`:`Tudo em USDT (${fmt(st.cofre)}). Compro quando o BTC voltar para cima da média de 50 dias.`},
    {k:"aprend",nome:"Aprendizes",fun:"testam setups em paper",est:apHoje?"trab":"esp",tela:telaAprend(ap),
     fala:ap.length?`${ap.length} aprendizes · <b>${apHoje}</b> operações hoje (<span class="${cl(apVar)}">${sg(apVar)}</span> fictício).${melhor?` Melhor setup: <b>${esc(melhor.nome.replace(/_/g," "))}</b> ${sg(melhor.media_r)}R.`:""}`:"Aprendizes fora do ar ou ainda sem dados."},
-   {k:"chefe",nome:"Chefe",fun:"resume o dia",est:alerta?"alerta":"trab",tela:telaChefe(st.equity_hist),
-    fala:`Saldo <b>${fmt(st.carteira)}</b> USDT · hoje <b class="${cl(pr.var_hoje)}">${sg(pr.var_hoje)}</b> · desde o início <b class="${cl(pr.lucro)}">${sg(pr.lucro)}</b>.`}];
+   {k:"chefe",nome:"Chefe",fun:"resume o dia",est:alerta?"alerta":"trab",tela:telaChefe(st.equity_hist,nomeBot(pr.id?pr:{id:BOT||"principal"})),
+    fala:`${eAp?"<i>(fictício)</i> ":""}Saldo <b>${fmt(st.carteira)}</b> USDT · hoje <b class="${cl(pr.var_hoje)}">${sg(pr.var_hoje)}</b> · desde o início <b class="${cl(pr.lucro)}">${sg(pr.lucro)}</b>.`}];
   if(!$("mesas").children.length)$("mesas").innerHTML=M.map(m=>{const [c,e,a]=CORES[m.k];return `<div class="mesa" data-k="${m.k}" style="--cor:${c}">
    <div class="monitor"></div><div class="pe"></div>
    <div class="balao"></div><span title="ver a ficha do ${m.nome}">${robo(c,e,a)}</span><div class="balcao"></div>
@@ -257,15 +266,15 @@ async function carrega(){
   const nota=tm.nota??"—",X=perto?base(perto[0]):"—",sinalJa=perto&&(perto[1].sinal_tendencia||perto[1].sinal_lateral);
   const C=[["chefe","termo","Como está o mercado agora?"],
    ["termo","risco",`Nota ${nota}/100 (${tm.rotulo||"sem rótulo"}). ${tm.moedas_em_alta??emAlta} de ${tm.moedas??Object.keys(rad).length} moedas em alta.`],
-   ["risco","exec",st.pausado?"Estamos pausados: nenhuma compra nova.":st.alarme?"Alarme de desvio: usa metade do risco.":risco<1?`Mercado defensivo: arrisca só ${fmt(risco*100,0)}% do normal.`:"Risco normal: 1% por operação, até 2 posições."],
+   ["risco","exec",st.pausado?"Estamos pausados: nenhuma compra nova.":st.alarme?"Alarme de desvio: usa metade do risco.":eAp?"Aqui é treino: valor fixo fictício por operação.":risco<1?`Mercado defensivo: arrisca só ${fmt(risco*100,0)}% do normal.`:"Risco normal: 1% por operação, até 2 posições."],
    ["radar","tendencia",perto?`${X} está com ${perto[1].regras_ok}/${perto[1].regras_total} regras. O BTC deixa?`:"Ainda analisando as moedas…"],
-   ["tendencia","radar",btc.tendencia==="ALTA"?"Deixa! BTC em alta no diário.":btc.tendencia==="BAIXA"?"Segura: BTC em baixa no diário, compra de tendência bloqueada.":"BTC de lado: só a lateralização pode entrar."],
+   ["tendencia","radar",btc.tendencia==="ALTA"?"Deixa! BTC em alta no diário.":btc.tendencia==="BAIXA"?"Segura: BTC em baixa no diário, compra de tendência bloqueada.":!btc.tendencia||btc.tendencia==="SEM_DADOS"?"Ainda não tenho dados do BTC.":"BTC de lado: só a lateralização pode entrar."],
    ["radar","exec",sinalJa?`SINAL em ${X}! Pode executar.`:`Nada pronto ainda. O mais perto é ${X}.`],
    ["exec","chefe",pos.length?pos.map(p=>`${base(p.simbolo)} ${sg(p.resultado_pct*100,1)}%`).join(" · ")+". Stops conferidos.":"Sem posições abertas, esperando sinal."],
-   ["cofre","chefe",cofreM.length?`Segurando ${cofreM.join(", ")} (${fmt(st.cofre)} USDT).`:`Tudo em USDT (${fmt(st.cofre)}), esperando o BTC passar da média de 50 dias.`]];
+   ["cofre","chefe",!temCofre?"Neste bot não tem cofre, só olho.":cofreM.length?`Segurando ${cofreM.join(", ")} (${fmt(st.cofre)} USDT).`:`Tudo em USDT (${fmt(st.cofre)}), esperando o BTC passar da média de 50 dias.`]];
   if(ap.length)C.push(["aprend","chefe",`${apHoje} operações hoje (${sg(apVar)} fictício).${melhor?` Melhor setup: ${melhor.nome.replace(/_/g," ")} ${sg(melhor.media_r)}R.`:""}`]);
   C.push(["chefe","aprend",`Fechando a rodada: saldo ${fmt(st.carteira)} USDT, hoje ${sg(pr.var_hoje)}.`]);
-  ROTEIRO=C;FICHAS=fichas(st,ce,ord,pos,ap,tm,btc,cofreM);if(!rodando){rodando=true;conversa()}
+  ROTEIRO=C;FICHAS=fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre);if(!rodando){rodando=true;conversa()}
   const log=(st.log||[]).slice(-40).reverse(),assinatura=log.join("|");
   if(assinatura!==ultimoLog){ultimoLog=assinatura;
    $("linhas").innerHTML=log.length?log.map(l=>{const m=l.match(/^\S+ (\d\d:\d\d):\d\d\S* \w+ (.*)$/);const hora=m?m[1]:"",msg=m?m[2]:l;const [k,n]=quem(msg);
