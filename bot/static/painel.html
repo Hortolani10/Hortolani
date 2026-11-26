@@ -182,7 +182,6 @@ footer{color:var(--faint);font-size:12px}
 const $=id=>document.getElementById(id);
 const BOT=new URLSearchParams(location.search).get("b")||"";      // bot escolhido na Central
 const QB=BOT?"b="+encodeURIComponent(BOT):"";
-if(BOT)document.getElementById("linkmesa").href="/mesa?b="+encodeURIComponent(BOT);
 if(BOT)document.getElementById("linkhist").href="/historico?b="+encodeURIComponent(BOT);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const fmt=(v,d=2)=>v==null||isNaN(v)?"—":Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});

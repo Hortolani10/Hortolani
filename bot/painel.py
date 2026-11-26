@@ -60,6 +60,34 @@ def resumo_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
             "ultimas": [{**j, "bot": nome} for j in (d.get("diario") or [])[:10]]}
 
 
+def sala_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
+    """Resumo enxuto de um bot para a Mesa dos Robôs (todos os bots na mesma sala)."""
+    if not d or d.get("carregando"):
+        return {"id": nome, "online": False, "erro": erro or "carregando"}
+    dz = d.get("desempenho") or {}
+    rad = d.get("radar") or {}
+    top = sorted(rad.items(), key=lambda x: (bool(x[1].get("sinal_tendencia") or x[1].get("sinal_lateral")), x[1].get("regras_ok", 0)),
+                 reverse=True)[:5]
+    cart = float(d.get("carteira") or 0)
+    return {"id": nome, "online": True, "nome": d.get("nome"), "tf": (d.get("timeframes") or {}).get("entry"),
+            "aprendiz": bool(d.get("aprendiz")), "real": d.get("real"), "pausado": d.get("pausado"), "alarme": d.get("alarme"),
+            "carteira": cart, "inicial": d.get("inicial"), "cofre": d.get("cofre"), "cofre_moedas": d.get("cofre_moedas") or {},
+            "termometro": d.get("termometro"), "precos": {k: v for k, v in (d.get("precos") or {}).items() if k.startswith("BTC/")},
+            "var24": {k: v for k, v in (d.get("var24") or {}).items() if k.startswith("BTC/")},
+            "posicoes": [{k: p.get(k) for k in ("simbolo", "estrategia", "entrada", "preco", "stop", "resultado_pct", "aberta")}
+                         for p in d.get("posicoes") or []],
+            "radar": [{"simbolo": s, **{k: r.get(k) for k in ("tendencia", "regras_ok", "regras_total", "falhou", "rsi",
+                                                              "sinal_tendencia", "sinal_lateral", "preco")}} for s, r in top],
+            "rsi_min": min(({"simbolo": s, "rsi": r.get("rsi")} for s, r in rad.items() if r.get("rsi") is not None),
+                           key=lambda x: x["rsi"], default=None),
+            "barras": [[r.get("regras_ok", 0), r.get("regras_total", 0), bool(r.get("sinal_tendencia") or r.get("sinal_lateral")),
+                        r.get("tendencia")] for r in rad.values()],
+            "btc": (rad.get("BTC/USDT") or {}).get("tendencia"), "moedas": len(rad),
+            "ops": dz.get("ops", 0), "acerto": dz.get("acerto"), "hoje_ops": dz.get("hoje_ops", 0), "hoje_pnl": dz.get("hoje_pnl"),
+            "realizado": dz.get("realizado"), **_variacoes(cart, d.get("dias") or []),
+            "equity": [v for _, v in (d.get("equity_hist") or [])][-80:], "log": (d.get("log") or [])[-30:]}
+
+
 def _variacoes(cart: float, dias: list) -> dict:
     """Lucro de hoje, dos últimos 7 e 30 dias (saldo agora − saldo de abertura daquele dia)."""
     if not dias:
@@ -101,6 +129,7 @@ class Painel:
         self.charts: dict = {}
         self.lock = threading.Lock()
         self._central: tuple[float, bytes] | None = None
+        self._sala: tuple[float, bytes] | None = None
 
     def update(self, snap: dict, charts: dict | None = None) -> None:
         with self.lock:
@@ -207,6 +236,26 @@ class Painel:
         self._central = (time.time(), body)
         return body
 
+    def sala(self) -> bytes:
+        """Todos os bots para a Mesa dos Robôs, numa resposta só (guardada 5 s)."""
+        if self._sala and time.time() - self._sala[0] < 5:
+            return self._sala[1]
+        bots = [sala_bot(self.nome, json.loads(self.payload()))]
+
+        def busca(item):
+            n, url = item
+            try:
+                return sala_bot(n, _get_json(url.rstrip("/") + "/api/status"))
+            except Exception as e:
+                return sala_bot(n, None, f"fora do ar ({type(e).__name__})")
+
+        if self.outros:
+            with ThreadPoolExecutor(max_workers=len(self.outros)) as ex:
+                bots += list(ex.map(busca, self.outros.items()))
+        body = json.dumps({"agora": time.time(), "bots": bots}, ensure_ascii=False, default=str).encode()
+        self._sala = (time.time(), body)
+        return body
+
     def start(self) -> None:
         painel = self
 
@@ -243,6 +292,8 @@ class Painel:
                                "application/json; charset=utf-8")
                 elif u.path == "/api/historico":
                     self._send(200, painel.historico(), "application/json; charset=utf-8")
+                elif u.path == "/api/sala":
+                    self._send(200, painel.sala(), "application/json; charset=utf-8")
                 elif u.path == "/api/central":
                     self._send(200, painel.central(), "application/json; charset=utf-8")
                 elif u.path == "/api/status":

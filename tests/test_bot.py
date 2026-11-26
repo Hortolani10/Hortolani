@@ -1038,7 +1038,9 @@ def test_historico_junta_todos_os_bots(monkeypatch, tmp_path):
     assert h["operacoes"][0]["bot"] == "aprendiz-4h" and h["operacoes"][0]["setup"] == "rompimento"
     assert "Histórico de operações".encode() in urllib.request.urlopen(base + "/historico", timeout=5).read()
     mesa = urllib.request.urlopen(base + "/mesa", timeout=5).read()
-    assert "Mesa dos Robôs".encode() in mesa and b"/api/status" in mesa and b"<script src" not in mesa
+    assert "Mesa dos Robôs".encode() in mesa and b"/api/sala" in mesa and b"<script src" not in mesa
+    sala = _j.loads(urllib.request.urlopen(base + "/api/sala", timeout=10).read())
+    assert [b["id"] for b in sala["bots"]] == ["principal", "aprendiz-4h"]
     s_ap.shutdown(); s_m.shutdown()
 
 
