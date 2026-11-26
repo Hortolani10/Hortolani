@@ -62,15 +62,23 @@ main{padding:18px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto
 footer{color:var(--faint);font-size:12px}
 /* conversa entre os robôs: um bilhete voa de uma mesa para a outra */
 .robo{cursor:pointer}
-.carta{position:absolute;left:0;top:0;z-index:4;pointer-events:none;display:flex;align-items:center;gap:6px;max-width:230px;padding:5px 9px 5px 6px;border-radius:9px;
- background:var(--panel2);border:2px solid var(--cor,#5b8cff);font-size:11.5px;line-height:1.3;box-shadow:0 6px 18px rgba(0,0,0,.35);will-change:transform}
-.carta svg{flex:none;width:18px;height:14px}
 .mesa.fala .robo{animation:fala .25s steps(2) 4}
 @keyframes fala{50%{transform:translateY(-4px) rotate(-4deg)}}
 .mesa.recebe .robo{animation:recebe .5s steps(3) 2}
 @keyframes recebe{50%{transform:translateY(-8px)}}
 .mesa.recebe{box-shadow:0 0 0 2px var(--cor,#5b8cff),0 0 24px color-mix(in srgb,var(--cor,#5b8cff) 40%,transparent)}
 .mesa{transition:box-shadow .3s}
+/* escritório: a cena em pixel art (canvas) com balões e plaquinhas em HTML por cima */
+.escwrap{border:2px solid var(--line);border-radius:14px;overflow-x:auto;overflow-y:hidden;background:#151b28}
+#esc{position:relative;min-width:720px}
+#office{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges;cursor:pointer}
+.fl{position:absolute;transform:translate(-50%,-100%);z-index:3;max-width:210px;padding:5px 8px;border-radius:6px;background:#fffdf5;color:#141a24;
+ border:2px solid var(--cor,#141a24);font:600 12px/1.3 "Segoe UI",system-ui,sans-serif;text-align:center;pointer-events:none;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.fl::after{content:"";position:absolute;left:50%;bottom:-7px;width:8px;height:8px;background:#fffdf5;border-right:2px solid var(--cor,#141a24);border-bottom:2px solid var(--cor,#141a24);transform:translateX(-50%) rotate(45deg)}
+.rot{position:absolute;transform:translate(-50%,0);z-index:2;display:flex;align-items:center;gap:5px;padding:1px 7px;border-radius:5px;background:rgba(10,15,26,.78);
+ color:#e7eef4;font:700 11px/1.5 "Segoe UI",system-ui,sans-serif;letter-spacing:.03em;white-space:nowrap;cursor:pointer;border:1px solid rgba(255,255,255,.12)}
+.rot .luz{width:7px;height:7px}
+.dica{font-size:12px;color:var(--muted);margin:-8px 2px 0}
 .conversa{border:1px solid var(--line);border-radius:12px;background:var(--panel)}
 .conversa h2{margin:0;padding:12px 16px 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 #conversa{padding:2px 16px 12px;font-size:13px;min-height:40px}
@@ -95,8 +103,11 @@ footer{color:var(--faint);font-size:12px}
 <main>
  <nav class="sel" id="selbot" aria-label="Escolher o bot"><small>Mesa do:</small></nav>
  <div class="faixa" id="faixa"><span>Carregando a mesa…</span></div>
- <section class="sala" aria-label="Mesa dos robôs"><div class="mesas" id="mesas"></div></section>
- <section class="conversa"><h2>Conversa da equipe · toque num robô para ver a ficha dele</h2><div id="conversa"><div class="muted">Os robôs já vão começar a conversar…</div></div></section>
+ <section class="escwrap" aria-label="Escritório dos robôs"><div id="esc"><canvas id="office" width="384" height="216" role="img" aria-label="Escritório em pixel art com os robôs do bot"></canvas></div></section>
+ <p class="dica">No celular a sala acompanha quem está falando, e você também pode arrastar para o lado. Os robôs levantam e vão até a mesa do colega para passar o que descobriram, com os números reais do bot. O quadro branco mostra o radar das moedas e a TV mostra o saldo, o BTC e o termômetro. Toque num robô para ver a ficha dele.</p>
+ <section class="conversa"><h2>Conversa da equipe</h2><div id="conversa"><div class="muted">Os robôs já vão começar a conversar…</div></div></section>
+ <h2 style="margin:6px 2px -6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">As mesas em detalhe</h2>
+ <section class="sala" aria-label="Mesas em detalhe"><div class="mesas" id="mesas"></div></section>
  <section class="registro"><h2>Registro ao vivo · o que cada robô fez por último</h2><div class="linhas num" id="linhas"></div></section>
  <div class="ficha" id="ficha" role="dialog" aria-modal="true"><div class="cx" id="fichacx"></div></div>
  <footer>Os robôs são só uma forma visual de mostrar o bot: cada um representa uma parte do programa e fala com os números reais dele. Ninguém aqui compra, vende ou muda configurações.</footer>
@@ -184,29 +195,9 @@ const nomeBot=b=>b.id==="principal"?"Bot principal":(b.nome||b.id);
 let ultimoLog=null,ROTEIRO=[],FICHAS={},passo=0,rodando=false;
 const NOMES={radar:"Radar",tendencia:"Tendência",termo:"Termômetro",risco:"Risco",exec:"Executor",cofre:"Cofre",aprend:"Aprendizes",chefe:"Chefe"};
 const parado=matchMedia("(prefers-reduced-motion: reduce)").matches;
-const ENVELOPE='<svg viewBox="0 0 9 7" shape-rendering="crispEdges"><rect width="9" height="7" fill="#f4efe1"/><rect x="0" y="0" width="1" height="1" fill="#b9ad8c"/><rect x="1" y="1" width="1" height="1" fill="#b9ad8c"/><rect x="2" y="2" width="1" height="1" fill="#b9ad8c"/><rect x="3" y="3" width="3" height="1" fill="#b9ad8c"/><rect x="6" y="2" width="1" height="1" fill="#b9ad8c"/><rect x="7" y="1" width="1" height="1" fill="#b9ad8c"/><rect x="8" y="0" width="1" height="1" fill="#b9ad8c"/><rect x="4" y="4" width="1" height="1" fill="#ff6f6f"/></svg>';
-function centro(k){const sala=document.querySelector(".sala").getBoundingClientRect(),r=document.querySelector(`.mesa[data-k="${k}"] .robo`).getBoundingClientRect();
- return [r.left-sala.left+r.width/2,r.top-sala.top+r.height/2]}
 function anota(de,para,msg){const box=$("conversa");if(box.firstElementChild&&box.firstElementChild.classList.contains("muted"))box.innerHTML="";
- const d=document.createElement("div");d.innerHTML=`<span class="muted num">${new Date().toLocaleTimeString("pt-BR").slice(0,5)}</span> <b style="color:${CORES[de][0]}">${NOMES[de]}</b> → <b style="color:${CORES[para][0]}">${NOMES[para]}</b>: ${esc(msg)}`;
+ const d=document.createElement("div");d.innerHTML=`<span class="muted num">${new Date().toLocaleTimeString("pt-BR").slice(0,5)}</span> <b style="color:${CORES[de][0]}">${NOMES[de]}</b> → <b style="color:${(CORES[para]||["var(--fg)"])[0]}">${NOMES[para]||"Equipe"}</b>: ${esc(msg)}`;
  box.prepend(d);while(box.children.length>7)box.lastChild.remove()}
-function pisca(k,cls,ms){const m=document.querySelector(`.mesa[data-k="${k}"]`);if(!m)return;m.classList.add(cls);setTimeout(()=>m.classList.remove(cls),ms)}
-async function conversa(){
- while(true){
-  if(!ROTEIRO.length){await new Promise(r=>setTimeout(r,1500));continue}
-  const [de,para,msg]=ROTEIRO[passo%ROTEIRO.length];passo++;
-  if(!document.hidden&&!parado&&document.querySelector(`.mesa[data-k="${de}"]`)){
-   pisca(de,"fala",900);
-   const sala=document.querySelector(".sala"),c=document.createElement("div");c.className="carta";c.style.setProperty("--cor",CORES[de][0]);
-   c.innerHTML=ENVELOPE+`<span>${esc(msg)}</span>`;sala.appendChild(c);
-   const [x1,y1]=centro(de),[x2,y2]=centro(para),w=c.offsetWidth,h=c.offsetHeight,cx=v=>Math.max(4,Math.min(sala.clientWidth-w-4,v-w/2));
-   const ida=c.animate([{transform:`translate(${cx(x1)}px,${y1-h-30}px) scale(.6)`,opacity:0},{transform:`translate(${cx(x1)}px,${y1-h-34}px) scale(1)`,opacity:1,offset:.12},
-    {transform:`translate(${cx(x1)}px,${y1-h-34}px)`,offset:.45},{transform:`translate(${cx((x1+x2)/2)}px,${Math.min(y1,y2)-h-70}px)`,offset:.72},
-    {transform:`translate(${cx(x2)}px,${y2-h-30}px) scale(.9)`,opacity:1,offset:.95},{transform:`translate(${cx(x2)}px,${y2-h-24}px) scale(.5)`,opacity:0}],{duration:3400,easing:"ease-in-out"});
-   await ida.finished.catch(()=>{});c.remove();pisca(para,"recebe",1000)}
-  anota(de,para,msg);
-  await new Promise(r=>setTimeout(r,document.hidden?6000:1400))}
-}
 function fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre){const li=a=>"<ul>"+a.map(x=>`<li>${x}</li>`).join("")+"</ul>";return{
  radar:li(ord.slice(0,6).map(([s,x])=>`<b>${esc(base(s))}</b> ${x.regras_ok}/${x.regras_total} regras · tendência ${esc(String(x.tendencia||"—").toLowerCase())}${x.sinal_tendencia||x.sinal_lateral?" · <b class='up'>sinal</b>":""}`)),
  tendencia:li([`BTC no diário: <b>${esc(String(btc.tendencia||"—").toLowerCase())}</b>`,"Compras de tendência só com a moeda e o BTC em alta no diário.","Com o BTC de lado ou em baixa, só a lateralização pode entrar."]),
@@ -215,12 +206,109 @@ function fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre){const li=a=>"<ul>"+
  exec:pos.length?li(pos.map(p=>`<b>${esc(base(p.simbolo))}</b> entrada ${fmt(p.entrada,4)} · stop ${fmt(p.stop,4)} · <span class="${cl(p.resultado_pct)}">${sg(p.resultado_pct*100,2)}%</span>`)):li(["Nenhuma posição aberta.","O stop móvel (3 ATR) sobe junto com o preço e é conferido a cada 10 segundos."]),
  cofre:!temCofre?li(["Este bot não tem cofre."]):li([`Valor: <b>${fmt(st.cofre)} USDT</b> (40% da carteira)`,`Segurando: <b>${cofreM.length?esc(cofreM.join(", ")):"nada, tudo em USDT"}</b>`,"Compra BTC, ETH e BNB quando ficam acima da média de 50 dias (ETH e BNB só com o BTC também acima)."]),
  aprend:ap.length?li(ap.map(b=>`<b>${esc(b.nome||b.id)}</b> · ${b.hoje_ops||0} operações hoje · <span class="${cl(b.var_hoje)}">${sg(b.var_hoje)}</span> fictício`)):li(["Nenhum aprendiz respondeu agora."]),
- chefe:li([`${eAp?"Saldo fictício":"Saldo"} <b>${fmt(st.carteira)} USDT</b>`+(temCofre?` (bot ${fmt(st.bot)} + cofre ${fmt(st.cofre)})`:""),`Posições abertas: <b>${pos.length}</b>`,'<a href="${BOT?"/bot?b="+encodeURIComponent(BOT):"/bot"}" style="color:var(--accent)">Abrir o painel deste bot →</a>'])}}
-$("mesas").addEventListener("click",e=>{const m=e.target.closest(".robo")&&e.target.closest(".mesa");if(!m)return;const k=m.dataset.k,[c,ec,a]=CORES[k];
+ chefe:li([`${eAp?"Saldo fictício":"Saldo"} <b>${fmt(st.carteira)} USDT</b>`+(temCofre?` (bot ${fmt(st.bot)} + cofre ${fmt(st.cofre)})`:""),`Posições abertas: <b>${pos.length}</b>`,`<a href="${BOT?"/bot?b="+encodeURIComponent(BOT):"/bot"}" style="color:var(--accent)">Abrir o painel deste bot →</a>`])}}
+function abreFicha(k){const m=document.querySelector(`.mesa[data-k="${k}"]`);if(!m)return;const [c,ec,a]=CORES[k];
  $("fichacx").style.setProperty("--cor",c);$("fichacx").innerHTML=`<h3>${robo(c,ec,a)}${NOMES[k]}</h3><div class="muted">${esc(m.querySelector(".funcao").textContent)}</div>${FICHAS[k]||""}<p><button class="btn" id="fecha" type="button">Fechar</button></p>`;
- $("ficha").classList.add("on");$("fecha").focus()});
+ $("ficha").classList.add("on");$("fecha").focus()}
+$("mesas").addEventListener("click",e=>{const m=e.target.closest(".robo")&&e.target.closest(".mesa");if(m)abreFicha(m.dataset.k)});
 $("ficha").addEventListener("click",e=>{if(e.target.id==="ficha"||e.target.id==="fecha")$("ficha").classList.remove("on")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("ficha").classList.remove("on")});
+/* ================= ESCRITÓRIO: a sala com as 8 mesas, robôs andando e conversando =================
+   Tudo desenhado aqui em pixels (arte própria). As falas vêm do ROTEIRO, montado com os dados reais. */
+const OW=384,OH=216,CORR=134,TOPO=68;
+const LUG={radar:[66,98],tendencia:[156,98],termo:[246,98],risco:[336,98],exec:[66,172],cofre:[156,172],aprend:[246,172],chefe:[336,172]};
+const OK={radar:"Valeu!",tendencia:"Ok, anotado.",termo:"Certo.",risco:"Anotado.",exec:"Entendido!",cofre:"Ok!",aprend:"Beleza!",chefe:"Ótimo, obrigado!"};
+const EST={},R={};let reuniao=false,TV={nota:null,btc:"",eq:[],rad:[]};
+const cv=$("office"),ctx=cv.getContext("2d");cv.width=OW;cv.height=OH;ctx.imageSmoothingEnabled=false;
+const P=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)};
+let semente=7;const rnd=()=>(semente=(semente*16807)%2147483647)/2147483647;
+const fundo=document.createElement("canvas");fundo.width=OW;fundo.height=OH;
+(function(){const f=fundo.getContext("2d"),Q=(x,y,w,h,c)=>{f.fillStyle=c;f.fillRect(x,y,w,h)};
+ Q(0,0,OW,48,"#25314b");for(let x=0;x<OW;x+=16)Q(x,0,1,44,"#2a3756");Q(0,44,OW,4,"#151d2f");
+ for(let y=48;y<OH;y+=12)for(let x=0;x<OW;x+=12)Q(x,y,12,12,((x+y)/12)%2?"#2b3142":"#272d3c");
+ Q(0,48,OW,2,"#1b2131");
+ const janela=(x,y,w,h)=>{Q(x-2,y-2,w+4,h+4,"#8c98ab");Q(x,y,w,h,"#0c1531");
+  for(let i=0;i<9;i++){const bw=4+Math.floor(rnd()*6),bh=6+Math.floor(rnd()*16),bx=x+Math.floor(rnd()*(w-bw));Q(bx,y+h-bh,bw,bh,"#18244a");
+   for(let j=0;j<4;j++)if(rnd()>.5)Q(bx+1+Math.floor(rnd()*(bw-2)),y+h-bh+1+Math.floor(rnd()*(bh-2)),1,1,"#ffd76a")}
+  Q(x+w/2-1,y,2,h,"#8c98ab");Q(x+4,y+3,2,2,"#e8edf3")};
+ janela(92,8,48,28);janela(244,8,48,28);
+ Q(10,6,64,34,"#8c98ab");Q(12,8,60,30,"#e9eef4");Q(12,38,60,2,"#6b778a");                 // quadro branco (radar)
+ Q(150,4,86,38,"#3b4660");Q(152,6,82,34,"#060b14");                                          // TV da sala
+ Q(304,10,16,16,"#cfd8e3");Q(306,12,12,12,"#f5f7fa");Q(311,14,2,5,"#222");Q(311,18,4,2,"#222"); // relógio
+ Q(340,26,22,40,"#4b5563");Q(342,30,18,10,"#1f2937");Q(356,32,2,2,"#ff6f6f");Q(344,46,14,2,"#374151");Q(348,52,6,6,"#f4efe1");Q(354,53,2,3,"#f4efe1"); // café
+ Q(364,40,12,24,"#9cc9f5");Q(364,40,12,10,"#5ba4e8");Q(366,58,8,6,"#e5e7eb");                // bebedouro
+ const planta=(x,y)=>{Q(x+2,y+12,10,10,"#8a5a3b");Q(x+3,y+11,8,2,"#a06a46");for(let i=0;i<22;i++)Q(x+Math.floor(rnd()*14),y+Math.floor(rnd()*13),2,2,rnd()>.4?"#2f9e6a":"#237a50")};
+ planta(1,40);planta(368,186);planta(80,40);
+ Q(4,196,40,14,"#5b3b8c");Q(4,192,40,6,"#6d4aa3");Q(2,194,4,16,"#4a2f73");Q(42,194,4,16,"#4a2f73");   // sofá
+})();
+function roboPx(k,x,y,andando,t){const [c,e,a]=CORES[k],pal={A:a,H:c,F:"#0e1626",E:"#45e3ff",M:"#7aa2c8",N:e,B:c,C:"#dfe8f5",L:a,S:e};
+ const off=(LUG[k][0]+LUG[k][1])/37,pisca=((t+off)%4.5)<.12,bob=andando?Math.floor(t*7)%2:(((t*.8+off)%3)<.25?1:0),ox=x-7,oy=y-15-bob;
+ P(x-6,y,12,1,"rgba(0,0,0,.35)");
+ SPRITE.forEach((l,yy)=>{for(let xx=0;xx<l.length;xx++){const ch=l[xx];if(ch===".")continue;P(ox+xx,oy+yy,1,1,ch==="E"&&pisca?pal.F:pal[ch])}});
+ if(andando&&Math.floor(t*7)%2){P(ox+4,oy+13,2,2,e);P(ox+8,oy+13,2,1,e)}else if(andando){P(ox+4,oy+13,2,1,e);P(ox+8,oy+13,2,2,e)}else{P(ox+4,oy+13,2,2,e);P(ox+8,oy+13,2,2,e)}}
+function mesaPx(k,t){const [x,y]=LUG[k],cor=CORES[k][0],st=EST[k]||"esp",tela=st==="trab"?"#0f3b2e":st==="alerta"?"#4a1616":"#3b3011",luz=st==="trab"?"#2fd39d":st==="alerta"?"#ff6f6f":"#f3b54a";
+ P(x-24,y-3,48,4,"#8b6a48");P(x-24,y+1,48,9,"#6b4f35");P(x-24,y+5,48,1,cor);P(x-23,y+10,2,6,"#4d3826");P(x+21,y+10,2,6,"#4d3826");
+ P(x-8,y-3,10,2,"#cbd5e1");P(x+9,y-16,15,12,"#2b3a52");P(x+10,y-15,13,9,tela);P(x+15,y-4,3,1,"#2b3a52");
+ for(let i=0;i<3;i++){const w=3+Math.floor(((Math.sin(t*2+i*1.7+x)+1)/2)*8);P(x+11,y-14+i*3,w,1,luz)}
+ if(st==="alerta"&&Math.floor(t*2)%2){P(x-1,y-26,2,5,"#ff6f6f");P(x-1,y-20,2,2,"#ff6f6f")}}
+function cadeira(k){const [x,y]=LUG[k];P(x-8,y-18,16,13,"#334155");P(x-7,y-17,14,11,"#3f4d66")}
+function telaTV(t){P(152,6,82,34,"#060b14");
+ const v=TV.eq;if(v.length>1){const mn=Math.min(...v),mx=Math.max(...v),r=mx-mn||1;ctx.strokeStyle=v[v.length-1]>=v[0]?"#2fd39d":"#ff6f6f";ctx.lineWidth=1;ctx.beginPath();
+  v.forEach((y,i)=>{const X=155+i/(v.length-1)*48,Y=24-(y-mn)/r*15;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});ctx.stroke()}
+ const al=TV.btc==="ALTA",bx=TV.btc==="BAIXA",c=al?"#2fd39d":bx?"#ff6f6f":"#f3b54a";
+ if(al)for(let i=0;i<6;i++)P(218-i,10+i,1+i*2,1,c),P(217,16,3,8,c);else if(bx)for(let i=0;i<6;i++)P(213+i,18+i,13-i*2,1,c),P(217,10,3,8,c);else P(211,16,16,3,c);
+ const n=TV.nota??0,cn=n>=60?"#2fd39d":n>=40?"#f3b54a":"#ff6f6f";for(let i=0;i<10;i++)P(156+i*7.5,31,6,5,i<n/10?cn:"#1b2a40");
+ if(Math.floor(t*1.5)%2)P(229,8,2,2,"#ff6f6f")}
+function quadro(){P(12,8,60,30,"#e9eef4");const r=TV.rad;if(!r.length)return;const bw=56/r.length;
+ r.forEach((x,i)=>{const h=Math.max(1,Math.round(x.regras_ok/Math.max(1,x.regras_total)*22));P(14+i*bw,36-h,Math.max(1,bw-1),h,x.sinal_tendencia||x.sinal_lateral?"#16a34a":x.tendencia==="ALTA"?"#22c38e":x.tendencia==="BAIXA"?"#e5484d":"#d4a017")})}
+let ultimo=performance.now();
+function quadroAnim(agora){const dt=Math.min(.1,(agora-ultimo)/1000),t=agora/1000;ultimo=agora;
+ for(const k in R){const r=R[k];if(!r.path.length)continue;const [tx,ty]=r.path[0],dx=tx-r.x,dy=ty-r.y,d=Math.hypot(dx,dy),v=parado?1e5:38*dt;
+  if(d<=v){r.x=tx;r.y=ty;r.path.shift();if(!r.path.length){const f=r.fim;r.fim=null;f&&f()}}else{r.x+=dx/d*v;r.y+=dy/d*v}}
+ ctx.drawImage(fundo,0,0);telaTV(t);quadro();
+ const ent=[];for(const k in LUG){ent.push([LUG[k][1]-18,()=>cadeira(k)]);ent.push([LUG[k][1]+.5,()=>mesaPx(k,t)])}
+ for(const k in R){const r=R[k];ent.push([r.y,()=>roboPx(k,r.x,r.y,r.path.length>0,t)])}
+ ent.sort((a,b)=>a[0]-b[0]).forEach(e=>e[1]());
+ const W=$("esc").clientWidth,S=W/OW;
+ for(const k in R){const r=R[k],b=r.bal;if(b.style.display==="none")continue;const bw=b.offsetWidth,x=Math.max(bw/2+4,Math.min(W-bw/2-4,r.x*S));b.style.left=x+"px";b.style.top=((r.y-17)*S)+"px"}
+ requestAnimationFrame(quadroAnim)}
+const espera=ms=>new Promise(r=>setTimeout(r,ms));
+function andar(r,pts){r.path=pts.slice();return new Promise(res=>{r.fim=res;if(!pts.length)res()})}
+function ir(r,dx,dy,via){const pts=[],sx=LUG[r.k][0];let ax=r.x;if(r.sentado){ax=sx-34;pts.push([ax,r.y])}r.sentado=false;
+ pts.push([ax,via],[dx,via],[dx,dy]);return andar(r,pts)}
+async function voltar(r,via){const [sx,sy]=LUG[r.k];await andar(r,[[r.x,via],[sx-34,via],[sx-34,sy],[sx,sy]]);r.sentado=true}
+async function fala(r,txt,ms){const b=r.bal,w=$("esc").parentElement;
+ if(w.scrollWidth>w.clientWidth+4)w.scrollTo({left:r.x*$("esc").clientWidth/OW-w.clientWidth/2,behavior:parado?"auto":"smooth"});   // celular: a câmera segue quem está falando
+b.textContent=txt;b.style.display="block";b.style.setProperty("--cor",CORES[r.k][0]);await espera(ms);b.style.display="none"}
+const livre=async(...rs)=>{while(rs.some(r=>r.ocup))await espera(300)};
+async function conversa1(de,para,msg,resp){const A=R[de],B=R[para];await livre(A,B);A.ocup=B.ocup=true;
+ const [bx,by]=LUG[para];await ir(A,bx-34,by,CORR);B.ocup=false;
+ await fala(A,msg,Math.min(6500,2400+msg.length*45));anota(de,para,msg);
+ const rr=resp||OK[para];await fala(B,rr,Math.min(5000,1500+rr.length*45));if(resp)anota(para,de,resp);
+ voltar(A,CORR).then(()=>{A.ocup=false})}
+async function reuniao1(msg){const ks=Object.keys(R);await livre(...ks.map(k=>R[k]));reuniao=true;ks.forEach(k=>R[k].ocup=true);
+ await Promise.all(ks.map((k,i)=>ir(R[k],18+i*16,TOPO+4,TOPO+4+((i%2)?3:0))));
+ await fala(R.chefe,"Reunião rápida! "+msg,Math.min(7000,2600+msg.length*45));anota("chefe","todos",msg);
+ const dois=ks.filter(k=>k!=="chefe").sort(()=>Math.random()-.5).slice(0,2);for(const k of dois)await fala(R[k],OK[k],1500);
+ await Promise.all(ks.map(k=>voltar(R[k],TOPO+4)));ks.forEach(k=>R[k].ocup=false);reuniao=false}
+async function escritorio(){
+ for(const k in LUG){const [x,y]=LUG[k],b=document.createElement("div");b.className="fl";b.style.display="none";$("esc").appendChild(b);R[k]={k,x,y,path:[],sentado:true,ocup:false,bal:b,fim:null}}
+ requestAnimationFrame(quadroAnim);cafe();
+ while(true){if(!ROTEIRO.length){await espera(1500);continue}
+  const rod=ROTEIRO.slice();
+  for(let i=0;i<rod.length;i++){const [de,para,msg]=rod[i];if(para==="todos"){await reuniao1(msg);continue}
+   const prox=rod[i+1],resp=prox&&prox[0]===para&&prox[1]===de?prox[2]:null;if(resp)i++;
+   conversa1(de,para,msg,resp);await espera(1200);await livre(R[de])}
+  await espera(2500)}}
+async function cafe(){while(true){await espera(9000+Math.random()*12000);if(reuniao)continue;
+ const ks=Object.keys(R).filter(k=>!R[k].ocup);if(!ks.length)continue;const r=R[ks[Math.floor(Math.random()*ks.length)]];r.ocup=true;
+ const ida=Math.random()<.6;await ir(r,ida?346:370,TOPO+2,TOPO+2);await fala(r,ida?"☕ Pausa pro café…":"💧 Um gole d'água…",2600);await voltar(r,TOPO+2);r.ocup=false}}
+cv.addEventListener("click",e=>{const b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*OW,y=(e.clientY-b.top)/b.height*OH;
+ for(const k in R){const r=R[k];if(Math.abs(x-r.x)<=9&&y>=r.y-17&&y<=r.y+2)return abreFicha(k)}
+ for(const k in LUG){const [lx,ly]=LUG[k];if(Math.abs(x-lx)<=24&&y>=ly-18&&y<=ly+16)return abreFicha(k)}});
+
+for(const k in LUG){const [x,y]=LUG[k],d=document.createElement("div");d.className="rot";d.dataset.k=k;d.style.left=(x/OW*100)+"%";d.style.top=((y+12)/OH*100)+"%";
+ d.innerHTML=`<i class="luz"></i>${NOMES[k]}`;d.onclick=()=>abreFicha(k);$("esc").appendChild(d)}
 async function carrega(){
  try{
   const [st,ce]=await Promise.all([fetch("/api/status"+QB,{cache:"no-store"}).then(r=>r.json()),fetch("/api/central",{cache:"no-store"}).then(r=>r.json()).catch(()=>({bots:[]}))]);
@@ -273,8 +361,10 @@ async function carrega(){
    ["exec","chefe",pos.length?pos.map(p=>`${base(p.simbolo)} ${sg(p.resultado_pct*100,1)}%`).join(" · ")+". Stops conferidos.":"Sem posições abertas, esperando sinal."],
    ["cofre","chefe",!temCofre?"Neste bot não tem cofre, só olho.":cofreM.length?`Segurando ${cofreM.join(", ")} (${fmt(st.cofre)} USDT).`:`Tudo em USDT (${fmt(st.cofre)}), esperando o BTC passar da média de 50 dias.`]];
   if(ap.length)C.push(["aprend","chefe",`${apHoje} operações hoje (${sg(apVar)} fictício).${melhor?` Melhor setup: ${melhor.nome.replace(/_/g," ")} ${sg(melhor.media_r)}R.`:""}`]);
-  C.push(["chefe","aprend",`Fechando a rodada: saldo ${fmt(st.carteira)} USDT, hoje ${sg(pr.var_hoje)}.`]);
-  ROTEIRO=C;FICHAS=fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre);if(!rodando){rodando=true;conversa()}
+  C.push(["chefe","todos",`Fechando a rodada: saldo ${fmt(st.carteira)} USDT, hoje ${sg(pr.var_hoje)}.`]);
+  ROTEIRO=C;FICHAS=fichas(st,ce,ord,pos,ap,tm,btc,cofreM,eAp,temCofre);M.forEach(m=>{EST[m.k]=m.est;const l=document.querySelector(`.rot[data-k="${m.k}"] .luz`);if(l)l.className="luz "+(m.est==="trab"?"trab":m.est==="alerta"?"alerta":"esp")});
+  TV.nota=tm.nota;TV.btc=btc.tendencia;TV.eq=(st.equity_hist||[]).map(x=>x[1]).slice(-80);TV.rad=Object.values(rad);
+  if(!rodando){rodando=true;escritorio()}
   const log=(st.log||[]).slice(-40).reverse(),assinatura=log.join("|");
   if(assinatura!==ultimoLog){ultimoLog=assinatura;
    $("linhas").innerHTML=log.length?log.map(l=>{const m=l.match(/^\S+ (\d\d:\d\d):\d\d\S* \w+ (.*)$/);const hora=m?m[1]:"",msg=m?m[2]:l;const [k,n]=quem(msg);
