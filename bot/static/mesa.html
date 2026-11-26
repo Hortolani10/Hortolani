@@ -57,9 +57,31 @@ main{padding:18px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto
 .linhas div:last-child{border-bottom:0}
 .quem{font-weight:700}
 footer{color:var(--faint);font-size:12px}
+/* conversa entre os robôs: um bilhete voa de uma mesa para a outra */
+.robo{cursor:pointer}
+.carta{position:absolute;left:0;top:0;z-index:4;pointer-events:none;display:flex;align-items:center;gap:6px;max-width:230px;padding:5px 9px 5px 6px;border-radius:9px;
+ background:var(--panel2);border:2px solid var(--cor,#5b8cff);font-size:11.5px;line-height:1.3;box-shadow:0 6px 18px rgba(0,0,0,.35);will-change:transform}
+.carta svg{flex:none;width:18px;height:14px}
+.mesa.fala .robo{animation:fala .25s steps(2) 4}
+@keyframes fala{50%{transform:translateY(-4px) rotate(-4deg)}}
+.mesa.recebe .robo{animation:recebe .5s steps(3) 2}
+@keyframes recebe{50%{transform:translateY(-8px)}}
+.mesa.recebe{box-shadow:0 0 0 2px var(--cor,#5b8cff),0 0 24px color-mix(in srgb,var(--cor,#5b8cff) 40%,transparent)}
+.mesa{transition:box-shadow .3s}
+.conversa{border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.conversa h2{margin:0;padding:12px 16px 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#conversa{padding:2px 16px 12px;font-size:13px;min-height:40px}
+#conversa div{padding:5px 0;border-bottom:1px dashed var(--line);animation:entra .4s}
+#conversa div:last-child{border-bottom:0}
+@keyframes entra{from{opacity:0;transform:translateY(-4px)}}
+.ficha{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(3,8,15,.6);padding:16px}
+.ficha.on{display:grid}
+.ficha .cx{width:min(440px,100%);max-height:80vh;overflow:auto;background:var(--panel);border:2px solid var(--cor,#5b8cff);border-radius:14px;padding:16px}
+.ficha h3{margin:0 0 4px;display:flex;gap:8px;align-items:center}.ficha h3 svg{width:40px;height:37px;animation:none}
+.ficha ul{margin:10px 0 0;padding-left:18px}.ficha li{margin:4px 0}
 @media(max-width:1100px){.mesas{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){main,header{padding-left:16px;padding-right:16px}.sala{padding:12px}.mesas{gap:12px}.linhas div{grid-template-columns:44px 92px minmax(0,1fr)}}
-@media (prefers-reduced-motion:reduce){.robo,.robo .olho,.dot,.luz.alerta{animation:none}}
+@media (prefers-reduced-motion:reduce){.robo,.robo .olho,.dot,.luz.alerta,.mesa.fala .robo,.mesa.recebe .robo{animation:none}}
 </style></head><body>
 <header>
  <div class="brand"><div class="logo"><svg width="22" height="22" viewBox="0 0 11 11" shape-rendering="crispEdges"><rect x="5" y="0" width="1" height="2" fill="#fff"/><rect x="2" y="2" width="7" height="5" fill="#fff"/><rect x="3" y="3" width="5" height="3" fill="#20304d"/><rect x="4" y="4" width="1" height="1" fill="#45e3ff"/><rect x="6" y="4" width="1" height="1" fill="#45e3ff"/><rect x="3" y="7" width="5" height="3" fill="#fff"/></svg></div>
@@ -70,7 +92,9 @@ footer{color:var(--faint);font-size:12px}
 <main>
  <div class="faixa" id="faixa"><span>Carregando a mesa…</span></div>
  <section class="sala" aria-label="Mesa dos robôs"><div class="mesas" id="mesas"></div></section>
+ <section class="conversa"><h2>Conversa da equipe · toque num robô para ver a ficha dele</h2><div id="conversa"><div class="muted">Os robôs já vão começar a conversar…</div></div></section>
  <section class="registro"><h2>Registro ao vivo · o que cada robô fez por último</h2><div class="linhas num" id="linhas"></div></section>
+ <div class="ficha" id="ficha" role="dialog" aria-modal="true"><div class="cx" id="fichacx"></div></div>
  <footer>Os robôs são só uma forma visual de mostrar o bot: cada um representa uma parte do programa e fala com os números reais dele. Ninguém aqui compra, vende ou muda configurações.</footer>
 </main>
 <script>
@@ -150,7 +174,46 @@ const QUEM=[[/COMPRA|VENDA|FECHOU|STOP executado|stop \(gap\)/,"exec","Executor"
 function quem(msg){for(const [re,k,n] of QUEM)if(re.test(msg))return [k,n];return ["chefe","Chefe"]}
 function limpa(msg){return msg.replace(/\[tendência (\w+)\] falhou: (.*)/,(m,t,f)=>`tendência ${t.toLowerCase()} · faltou: ${f.replace(/_/g," ").split(", ").slice(0,3).join(", ")}`)}
 
-let ultimoLog=null;
+let ultimoLog=null,ROTEIRO=[],FICHAS={},passo=0,rodando=false;
+const NOMES={radar:"Radar",tendencia:"Tendência",termo:"Termômetro",risco:"Risco",exec:"Executor",cofre:"Cofre",aprend:"Aprendizes",chefe:"Chefe"};
+const parado=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ENVELOPE='<svg viewBox="0 0 9 7" shape-rendering="crispEdges"><rect width="9" height="7" fill="#f4efe1"/><rect x="0" y="0" width="1" height="1" fill="#b9ad8c"/><rect x="1" y="1" width="1" height="1" fill="#b9ad8c"/><rect x="2" y="2" width="1" height="1" fill="#b9ad8c"/><rect x="3" y="3" width="3" height="1" fill="#b9ad8c"/><rect x="6" y="2" width="1" height="1" fill="#b9ad8c"/><rect x="7" y="1" width="1" height="1" fill="#b9ad8c"/><rect x="8" y="0" width="1" height="1" fill="#b9ad8c"/><rect x="4" y="4" width="1" height="1" fill="#ff6f6f"/></svg>';
+function centro(k){const sala=document.querySelector(".sala").getBoundingClientRect(),r=document.querySelector(`.mesa[data-k="${k}"] .robo`).getBoundingClientRect();
+ return [r.left-sala.left+r.width/2,r.top-sala.top+r.height/2]}
+function anota(de,para,msg){const box=$("conversa");if(box.firstElementChild&&box.firstElementChild.classList.contains("muted"))box.innerHTML="";
+ const d=document.createElement("div");d.innerHTML=`<span class="muted num">${new Date().toLocaleTimeString("pt-BR").slice(0,5)}</span> <b style="color:${CORES[de][0]}">${NOMES[de]}</b> → <b style="color:${CORES[para][0]}">${NOMES[para]}</b>: ${esc(msg)}`;
+ box.prepend(d);while(box.children.length>7)box.lastChild.remove()}
+function pisca(k,cls,ms){const m=document.querySelector(`.mesa[data-k="${k}"]`);if(!m)return;m.classList.add(cls);setTimeout(()=>m.classList.remove(cls),ms)}
+async function conversa(){
+ while(true){
+  if(!ROTEIRO.length){await new Promise(r=>setTimeout(r,1500));continue}
+  const [de,para,msg]=ROTEIRO[passo%ROTEIRO.length];passo++;
+  if(!document.hidden&&!parado&&document.querySelector(`.mesa[data-k="${de}"]`)){
+   pisca(de,"fala",900);
+   const sala=document.querySelector(".sala"),c=document.createElement("div");c.className="carta";c.style.setProperty("--cor",CORES[de][0]);
+   c.innerHTML=ENVELOPE+`<span>${esc(msg)}</span>`;sala.appendChild(c);
+   const [x1,y1]=centro(de),[x2,y2]=centro(para),w=c.offsetWidth,h=c.offsetHeight,cx=v=>Math.max(4,Math.min(sala.clientWidth-w-4,v-w/2));
+   const ida=c.animate([{transform:`translate(${cx(x1)}px,${y1-h-30}px) scale(.6)`,opacity:0},{transform:`translate(${cx(x1)}px,${y1-h-34}px) scale(1)`,opacity:1,offset:.12},
+    {transform:`translate(${cx(x1)}px,${y1-h-34}px)`,offset:.45},{transform:`translate(${cx((x1+x2)/2)}px,${Math.min(y1,y2)-h-70}px)`,offset:.72},
+    {transform:`translate(${cx(x2)}px,${y2-h-30}px) scale(.9)`,opacity:1,offset:.95},{transform:`translate(${cx(x2)}px,${y2-h-24}px) scale(.5)`,opacity:0}],{duration:3400,easing:"ease-in-out"});
+   await ida.finished.catch(()=>{});c.remove();pisca(para,"recebe",1000)}
+  anota(de,para,msg);
+  await new Promise(r=>setTimeout(r,document.hidden?6000:1400))}
+}
+function fichas(st,ce,ord,pos,ap,tm,btc,cofreM){const li=a=>"<ul>"+a.map(x=>`<li>${x}</li>`).join("")+"</ul>";return{
+ radar:li(ord.slice(0,6).map(([s,x])=>`<b>${esc(base(s))}</b> ${x.regras_ok}/${x.regras_total} regras · tendência ${esc(String(x.tendencia||"—").toLowerCase())}${x.sinal_tendencia||x.sinal_lateral?" · <b class='up'>sinal</b>":""}`)),
+ tendencia:li([`BTC no diário: <b>${esc(String(btc.tendencia||"—").toLowerCase())}</b>`,"Compras de tendência só com a moeda e o BTC em alta no diário.","Com o BTC de lado ou em baixa, só a lateralização pode entrar."]),
+ termo:li([`Nota <b>${tm.nota??"—"}/100</b> · ${esc(tm.rotulo||"")}`,"Abaixo de 40: o bot arrisca metade do normal.","Fases: queda forte (&lt;20), defensivo (&lt;40), neutro (&lt;60), alta."]),
+ risco:li([`Risco por operação agora: <b>${fmt((tm.risco??1)*100,0)}%</b> do normal (normal = 1% do saldo)`,"No máximo 2 posições ao mesmo tempo.",`Pausado: <b>${st.pausado?"sim":"não"}</b> · alarme de desvio: <b>${st.alarme?"sim":"não"}</b>`]),
+ exec:pos.length?li(pos.map(p=>`<b>${esc(base(p.simbolo))}</b> entrada ${fmt(p.entrada,4)} · stop ${fmt(p.stop,4)} · <span class="${cl(p.resultado_pct)}">${sg(p.resultado_pct*100,2)}%</span>`)):li(["Nenhuma posição aberta.","O stop móvel (3 ATR) sobe junto com o preço e é conferido a cada 10 segundos."]),
+ cofre:li([`Valor: <b>${fmt(st.cofre)} USDT</b> (40% da carteira)`,`Segurando: <b>${cofreM.length?esc(cofreM.join(", ")):"nada, tudo em USDT"}</b>`,"Compra BTC, ETH e BNB quando ficam acima da média de 50 dias (ETH e BNB só com o BTC também acima)."]),
+ aprend:ap.length?li(ap.map(b=>`<b>${esc(b.nome||b.id)}</b> · ${b.hoje_ops||0} operações hoje · <span class="${cl(b.var_hoje)}">${sg(b.var_hoje)}</span> fictício`)):li(["Nenhum aprendiz respondeu agora."]),
+ chefe:li([`Saldo <b>${fmt(st.carteira)} USDT</b> (bot ${fmt(st.bot)} + cofre ${fmt(st.cofre)})`,`Posições abertas: <b>${pos.length}</b>`,'<a href="/" style="color:var(--accent)">Abrir a Central completa →</a>'])}}
+$("mesas").addEventListener("click",e=>{const m=e.target.closest(".robo")&&e.target.closest(".mesa");if(!m)return;const k=m.dataset.k,[c,ec,a]=CORES[k];
+ $("fichacx").style.setProperty("--cor",c);$("fichacx").innerHTML=`<h3>${robo(c,ec,a)}${NOMES[k]}</h3><div class="muted">${esc(m.querySelector(".funcao").textContent)}</div>${FICHAS[k]||""}<p><button class="btn" id="fecha" type="button">Fechar</button></p>`;
+ $("ficha").classList.add("on");$("fecha").focus()});
+$("ficha").addEventListener("click",e=>{if(e.target.id==="ficha"||e.target.id==="fecha")$("ficha").classList.remove("on")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("ficha").classList.remove("on")});
 async function carrega(){
  try{
   const [st,ce]=await Promise.all([fetch("/api/status",{cache:"no-store"}).then(r=>r.json()),fetch("/api/central",{cache:"no-store"}).then(r=>r.json()).catch(()=>({bots:[]}))]);
@@ -181,11 +244,28 @@ async function carrega(){
     fala:ap.length?`${ap.length} aprendizes · <b>${apHoje}</b> operações hoje (<span class="${cl(apVar)}">${sg(apVar)}</span> fictício).${melhor?` Melhor setup: <b>${esc(melhor.nome.replace(/_/g," "))}</b> ${sg(melhor.media_r)}R.`:""}`:"Aprendizes fora do ar ou ainda sem dados."},
    {k:"chefe",nome:"Chefe",fun:"resume o dia",est:alerta?"alerta":"trab",tela:telaChefe(st.equity_hist),
     fala:`Saldo <b>${fmt(st.carteira)}</b> USDT · hoje <b class="${cl(pr.var_hoje)}">${sg(pr.var_hoje)}</b> · desde o início <b class="${cl(pr.lucro)}">${sg(pr.lucro)}</b>.`}];
-  $("mesas").innerHTML=M.map(m=>{const [c,e,a]=CORES[m.k];return `<div class="mesa ${m.est==="trab"?"trab":m.est==="alerta"?"alerta":""}">
-   <div class="monitor">${m.tela}</div><div class="pe"></div>
-   <div class="balao">${m.fala}</div>${robo(c,e,a)}<div class="balcao"></div>
-   <div class="placa"><i class="luz ${m.est==="trab"?"trab":m.est==="alerta"?"alerta":"esp"}" title="${m.est==="trab"?"trabalhando":m.est==="alerta"?"alerta":"esperando"}"></i>${m.nome}</div>
+  if(!$("mesas").children.length)$("mesas").innerHTML=M.map(m=>{const [c,e,a]=CORES[m.k];return `<div class="mesa" data-k="${m.k}" style="--cor:${c}">
+   <div class="monitor"></div><div class="pe"></div>
+   <div class="balao"></div><span title="ver a ficha do ${m.nome}">${robo(c,e,a)}</span><div class="balcao"></div>
+   <div class="placa"><i class="luz"></i>${m.nome}</div>
    <div class="funcao">${m.fun}</div></div>`}).join("");
+  M.forEach(m=>{const d=document.querySelector(`.mesa[data-k="${m.k}"]`);if(!d)return;
+   d.classList.toggle("trab",m.est==="trab");d.classList.toggle("alerta",m.est==="alerta");
+   d.querySelector(".monitor").innerHTML=m.tela;d.querySelector(".balao").innerHTML=m.fala;
+   const l=d.querySelector(".luz");l.className="luz "+(m.est==="trab"?"trab":m.est==="alerta"?"alerta":"esp");l.title=m.est==="trab"?"trabalhando":m.est==="alerta"?"alerta":"esperando"});
+  /* o roteiro da conversa segue a ordem real das decisões do bot, sempre com os números de agora */
+  const nota=tm.nota??"—",X=perto?base(perto[0]):"—",sinalJa=perto&&(perto[1].sinal_tendencia||perto[1].sinal_lateral);
+  const C=[["chefe","termo","Como está o mercado agora?"],
+   ["termo","risco",`Nota ${nota}/100 (${tm.rotulo||"sem rótulo"}). ${tm.moedas_em_alta??emAlta} de ${tm.moedas??Object.keys(rad).length} moedas em alta.`],
+   ["risco","exec",st.pausado?"Estamos pausados: nenhuma compra nova.":st.alarme?"Alarme de desvio: usa metade do risco.":risco<1?`Mercado defensivo: arrisca só ${fmt(risco*100,0)}% do normal.`:"Risco normal: 1% por operação, até 2 posições."],
+   ["radar","tendencia",perto?`${X} está com ${perto[1].regras_ok}/${perto[1].regras_total} regras. O BTC deixa?`:"Ainda analisando as moedas…"],
+   ["tendencia","radar",btc.tendencia==="ALTA"?"Deixa! BTC em alta no diário.":btc.tendencia==="BAIXA"?"Segura: BTC em baixa no diário, compra de tendência bloqueada.":"BTC de lado: só a lateralização pode entrar."],
+   ["radar","exec",sinalJa?`SINAL em ${X}! Pode executar.`:`Nada pronto ainda. O mais perto é ${X}.`],
+   ["exec","chefe",pos.length?pos.map(p=>`${base(p.simbolo)} ${sg(p.resultado_pct*100,1)}%`).join(" · ")+". Stops conferidos.":"Sem posições abertas, esperando sinal."],
+   ["cofre","chefe",cofreM.length?`Segurando ${cofreM.join(", ")} (${fmt(st.cofre)} USDT).`:`Tudo em USDT (${fmt(st.cofre)}), esperando o BTC passar da média de 50 dias.`]];
+  if(ap.length)C.push(["aprend","chefe",`${apHoje} operações hoje (${sg(apVar)} fictício).${melhor?` Melhor setup: ${melhor.nome.replace(/_/g," ")} ${sg(melhor.media_r)}R.`:""}`]);
+  C.push(["chefe","aprend",`Fechando a rodada: saldo ${fmt(st.carteira)} USDT, hoje ${sg(pr.var_hoje)}.`]);
+  ROTEIRO=C;FICHAS=fichas(st,ce,ord,pos,ap,tm,btc,cofreM);if(!rodando){rodando=true;conversa()}
   const log=(st.log||[]).slice(-40).reverse(),assinatura=log.join("|");
   if(assinatura!==ultimoLog){ultimoLog=assinatura;
    $("linhas").innerHTML=log.length?log.map(l=>{const m=l.match(/^\S+ (\d\d:\d\d):\d\d\S* \w+ (.*)$/);const hora=m?m[1]:"",msg=m?m[2]:l;const [k,n]=quem(msg);
