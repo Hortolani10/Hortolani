@@ -89,6 +89,10 @@ def compra(cfg: dict, simbolo: str, setup: str, entrada: float, stop: float, qtd
         linhas.append(f"🎯 Alvo <code>{num(alvo)}</code>  ({sinal((alvo / entrada - 1) * 100, 1)}%)")
     elif r.get("exit_mode") == "trailing":
         linhas.append(f"🎯 Saída: stop móvel ({num(float(r.get('trailing_atr', 3)), 1).rstrip('0').rstrip(',')} ATR), sobe junto")
+        if r.get("trava_gatilho") and setup != "lateral":
+            g, t = float(r["trava_gatilho"]), float(r.get("trava_lucro", r["trava_gatilho"]))
+            linhas.append(f"🔒 Trava: em +{num(g * 100, 1).rstrip('0').rstrip(',')}% o stop sobe para +{num(t * 100, 1).rstrip('0').rstrip(',')}% "
+                          f"(<code>{num(entrada * (1 + t))}</code>)")
     linhas.append(f"⚖️ Risco {num(risco, 2)} USDT · posição {num(qtd * entrada, 2)} USDT")
     if padroes:
         linhas.append("📐 " + escape(" · ".join(CURTO.get(p, p) for p in padroes)))
@@ -106,7 +110,7 @@ def fechou(cfg: dict, simbolo: str, setup: str, entrada: float, saida: float | N
         icone, rotulo = "➖", "EMPATE"
     titulo = SETUPS.get(setup, (setup, ""))[0]
     m = (motivo or "").lower()
-    saiu = ("no alvo" if "alvo" in m else "no stop" if "stop" in m else "por tempo" if "tempo" in m
+    saiu = ("na trava de lucro" if "trava" in m else "no alvo" if "alvo" in m else "no stop" if "stop" in m else "por tempo" if "tempo" in m
             else "na volta à média" if "média" in m else escape(motivo or "—"))
     linhas = [f"{icone} <b>{rotulo} {moeda}  {sinal(pnl)} USDT</b>  ({sinal(r_mult)}R)",
               f"<i>{escape(nome_bot(cfg))}</i>",

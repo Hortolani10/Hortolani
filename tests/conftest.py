@@ -15,7 +15,7 @@ def cfg():
     """config.yaml com os parâmetros que os testes de unidade assumem (dados sintéticos em 1h/4h)."""
     c = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     c["timeframes"] = {"entry": "1h", "trend": "4h"}
-    c["risk"].update({"exit_mode": "parcial", "trend_exit": True, "min_reward_risk": 1.5})
+    c["risk"].update({"exit_mode": "parcial", "trend_exit": True, "min_reward_risk": 1.5, "trava_gatilho": None})
     c["strategy"]["btc_filter"] = False
     return c
 

@@ -1153,3 +1153,20 @@ def test_lucro_diario_e_variacoes(synth, cfg, tmp_path, monkeypatch):
     v = _variacoes(110.0, [["2026-01-01", 100.0], ["2026-01-02", 105.0], ["2026-01-03", 108.0]])
     assert v["var_hoje"] == 2.0 and v["var_7d"] == 10.0 and abs(v["var_hoje_pct"] - 2 / 108) < 1e-9
     assert _variacoes(100.0, [])["var_hoje"] is None
+
+
+def test_trava_de_lucro(cfg):
+    """Chegou a +5%: o stop sobe para +5%; se voltou abaixo no mesmo candle, vende na trava."""
+    import copy
+    from bot.strategy import Position, manage_position
+    c = copy.deepcopy(cfg); c["risk"].update(exit_mode="trailing", trava_gatilho=0.05, trava_lucro=0.05, trailing_atr=3.0)
+    pos = Position("SOL/USDT", 1.0, 100.0, 95.0, 5.0, "2026-11-01T00:00:00", highest=100.0, strategy="tendencia")
+    acts = manage_position(pos, {"open": 101, "high": 106, "low": 100, "close": 105.5, "atr": 4.0, "ema_mid": 90.0}, "ALTA", c)
+    assert abs(pos.stop - 105.0) < 1e-9 and pos.qty == 1.0 and any(a.reason == "trava de lucro" for a in acts)
+    pos2 = Position("SOL/USDT", 1.0, 100.0, 95.0, 5.0, "2026-11-01T00:00:00", highest=100.0, strategy="tendencia")
+    acts = manage_position(pos2, {"open": 101, "high": 106, "low": 100, "close": 103, "atr": 4.0, "ema_mid": 90.0}, "ALTA", c)
+    assert pos2.qty == 0 and acts[-1].kind == "sell" and abs(acts[-1].price - 105.0) < 1e-9
+    lat = Position("SOL/USDT", 1.0, 100.0, 95.0, 5.0, "2026-11-01T00:00:00", highest=100.0, strategy="lateral")
+    c["lateral"] = {**(c.get("lateral") or {}), "max_bars": 99}
+    manage_position(lat, {"open": 101, "high": 106, "low": 100, "close": 99, "atr": 4.0, "bbm": 120, "ema_mid": 90.0}, "ALTA", c)
+    assert lat.stop == 95.0                                  # lateral não usa a trava

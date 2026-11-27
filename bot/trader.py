@@ -19,7 +19,7 @@ from .learn import checar_desvio, ler_diario, registrar
 from .notify import ping_health
 from .shadow import ShadowRange
 from .sleeve import TrendSleeve
-from .strategy import Position, Signal, entry_features, entry_signal, lateral_signal, manage_position
+from .strategy import Position, Signal, entry_features, entry_signal, lateral_signal, manage_position, trava_preco
 
 log = logging.getLogger("bot")
 
@@ -164,6 +164,15 @@ class Trader:
                             sym, now_px, pos.stop)
                 self._sell(sym, pos, pos.qty, "stop (gap)")
                 return
+            # Trava de lucro na hora (não espera o candle fechar): chegou ao gatilho -> stop sobe para garantir o lucro.
+            lock = trava_preco(pos, self.cfg)
+            if (lock is not None and now_px >= pos.entry * (1 + float(self.cfg["risk"]["trava_gatilho"]))
+                    and lock > pos.stop * (1 + 1e-9)):
+                pos.stop = lock
+                log.info("STOP %s -> %.4f (trava de lucro)", sym, lock)
+                self._cancel_stop(sym, pos)
+                self._protect(sym, pos)
+                return
             # Posição sem stop registrado (falha ao colocar, ou cancelado no app): protege de novo.
             if not self.broker.stop_active(sym, pos.stop_order_id):
                 log.warning("%s: posição sem stop ativo na corretora -> registrando de novo", sym)
@@ -175,9 +184,11 @@ class Trader:
         pos.taxas += max(0.0, pos.qty * px - got)
         pos.proceeds += got
         pos.qty = 0
-        pos.reasons.append("stop")
-        log.info("STOP executado %s @ %.4f", sym, px)
-        self._close(sym, pos, "stop")
+        lock = trava_preco(pos, self.cfg)
+        motivo = "trava de lucro" if lock is not None and pos.stop >= lock * (1 - 1e-9) else "stop"
+        pos.reasons.append(motivo)
+        log.info("STOP executado %s @ %.4f (%s)", sym, px, motivo)
+        self._close(sym, pos, motivo)
 
     def _on_closed_bar(self, sym: str, df) -> None:
         i = len(df) - 1

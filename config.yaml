@@ -66,6 +66,8 @@ risk:
   take_partial_r: 1.5       # usado só no exit_mode "parcial": realiza parcial em 1.5x o risco
   partial_fraction: 0.5     # % da posição vendida na parcial
   trailing_atr: 3.0         # trailing stop (chandelier): máxima desde a entrada - 3 ATR
+  trava_gatilho: 0.05       # trava de lucro: quando a moeda chega a +5%...
+  trava_lucro: 0.05         # ...o stop sobe para +5% (lucro garantido) e o resto segue no stop móvel. null = desliga
   breakeven_after_partial: true
   adaptive_risk:            # defesa automática: reage a cada perda sem mudar a estratégia
     enabled: true

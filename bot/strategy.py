@@ -221,6 +221,15 @@ class Action:
     reason: str = ""
 
 
+def trava_preco(pos, cfg: dict) -> float | None:
+    """Preço da trava de lucro (risk.trava_gatilho / trava_lucro), ou None se desligada ou setup lateral."""
+    r = cfg.get("risk") or {}
+    g = r.get("trava_gatilho")
+    if not g or pos.strategy == "lateral":
+        return None
+    return pos.entry * (1 + float(r.get("trava_lucro", g)))
+
+
 def manage_position(pos: Position, candle: pd.Series, trend: str, cfg: dict) -> list[Action]:
     """Gerencia uma posição aberta com o candle fechado mais recente.
 
@@ -255,6 +264,17 @@ def manage_position(pos: Position, candle: pd.Series, trend: str, cfg: dict) -> 
             actions.append(Action("sell", pos.qty, c, "tempo esgotado"))
             pos.qty = 0.0
         return actions
+
+    # trava de lucro: ao chegar em +trava_gatilho, o stop sobe para garantir +trava_lucro e o resto segue no
+    # stop móvel (teste nov/2026: melhor que só o stop móvel em 5 de 6 anos; ver PESQUISA.md)
+    lock = trava_preco(pos, cfg)
+    if lock is not None and pos.highest >= pos.entry * (1 + float(r["trava_gatilho"])) and lock > pos.stop:
+        if c < lock:                         # subiu até o gatilho e voltou abaixo da trava no mesmo candle
+            actions.append(Action("sell", pos.qty, lock, "trava de lucro"))
+            pos.qty = 0.0
+            return actions
+        pos.stop = lock
+        actions.append(Action("move_stop", price=pos.stop, reason="trava de lucro"))
 
     mode = r.get("exit_mode", "parcial")
 

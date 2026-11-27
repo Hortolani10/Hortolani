@@ -43,6 +43,7 @@ risk:
                             # assim o aprendiz não para de operar por falta de tamanho mínimo de ordem
   max_open_positions: 6
   exit_mode: alvo           # saída igual para todos os setups (comparação justa)
+  trava_gatilho: null       # aprendizes não usam a trava de lucro do principal (comparação limpa dos setups)
   target_r: 2.0             # alvo = 2x o risco
   max_bars: 18              # ou sai após 18 candles de 4h (3 dias)
   trend_exit: false

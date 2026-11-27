@@ -602,6 +602,37 @@ O resultado positivo do artigo vem do período escolhido (2022–2024). Na queda
 **Não adotado.** Conclusão da busca: nenhuma estratégia testada dá lucro consistente em todas as quedas;
 o que funciona em todas é ficar fora (filtro de tendência) e deixar o dinheiro rendendo.
 
+## 25. Como sair da operação: stop móvel × lucro fixo × trava de lucro (27/nov/2026)
+
+Pergunta: vender "quando der lucro" é melhor que só o stop móvel de 3 ATR? Bot principal, 16 moedas, candles reais
+da Binance até 27/11/2026, mesmas entradas; só muda a saída. Retorno da parte operacional (1% de risco por operação).
+
+| Saída | 6 anos | 12 meses | 6 meses | 3 meses | queda máx (6a) |
+|---|---|---|---|---|---|
+| Só stop móvel 3 ATR (antes) | +15,6% | −1,8% | −1,4% | −0,6% | 15,2% |
+| Vende sempre no +3% | +10,8% | −1,3% | −0,9% | −0,1% | 12,4% |
+| Vende sempre no +5% | +20,2% | +0,7% | +1,2% | +2,0% | 12,4% |
+| Vende sempre no +8% | +14,6% | +1,6% | +2,0% | +2,9% | 13,7% |
+| Alvo 2R | +3,5% | −0,3% | +0,2% | +1,0% | 12,9% |
+| Metade em 1,5R + resto stop móvel | +17,3% | +0,4% | +0,8% | +1,7% | 11,7% |
+| **No +5% o stop sobe para +5% e o resto corre (ADOTADO)** | **+40,7%** | **+0,7%** | **+1,2%** | **+2,0%** | **12,3%** |
+| No +5% decide por RSI/MACD/ADX/volume, trava +3% | +35 a +42% | +0,4 a +0,7% | ≈ | ≈ | 13% |
+| Termômetro decide (fraco realiza, forte deixa correr) | +15,6 a +23% | −1,8 a +0,1% | | | 15,2% |
+| Alvo por volatilidade (+2/+3/+4 ATR) | +18,8/+8,4/+5,2% | +0,8/+1,6/+3,1% | | | 12-14% |
+
+Ano a ano (cada ano começando do zero): só stop móvel −0,6 / +0,8 / −2,2 / +3,8 / +6,4 / −2,5% (2021→2026);
+com a trava de +5%: +20,7 / +0,8 / −2,1 / +9,7 / +5,8 / 0,0%. Melhor ou igual em 5 de 6 anos. Vizinhos (+4% e +6%)
+também ficam bem acima do stop móvel puro: é uma faixa boa, não um ponto isolado (menos risco de "ajuste à sorte").
+
+Por que funciona: com o stop móvel puro, 124 operações chegaram a +5% em 6 anos e **40 delas terminaram no prejuízo**.
+A trava transforma essas em ganho de ~5% e mantém as grandes altas. Decidir pelo RSI/MACD/volume no momento do +5%
+não acrescentou nada (a informação já está no preço); a regra simples ganhou. O termômetro quase não mudou nada porque,
+com termômetro baixo, o setup de tendência quase não entra.
+
+Implementação: `risk.trava_gatilho`/`trava_lucro` (0,05) no config.yaml; ao vivo a trava é aplicada na hora (conferência
+a cada ~10 s), não só no fechamento do candle. Lateralização e aprendizes não usam (aprendizes: comparação limpa dos setups).
+O backtest do bot com a regra reproduz exatamente os números acima (+40,7% em 6 anos; +0,7% em 12 meses).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
