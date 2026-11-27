@@ -1,0 +1,26 @@
+# Aprendiz "Rafa" — ROTAÇÃO pelas mais fortes (desde 27/11/2026). Só PAPER, dinheiro fictício.
+# Toda segunda-feira compra as 5 moedas (das 16) que mais subiram nos últimos 28 dias, só entre as que estão acima
+# da média de 50 dias e só com o BTC também acima dela; as que saem do grupo são vendidas. Gráfico diário.
+# Teste (PESQUISA.md seção 27): ganhou de segurar BTC nos 4 períodos; quedas grandes (até ~60%) por ficar 100% investido.
+# Substitui o aprendiz de 2h, que perdia com qualquer saída (seção 26).
+herda: config.yaml
+instancia: aprendiz-rotacao
+
+carteira:
+  metodo: rotacao
+  dias: 28                  # força = quanto subiu nos últimos 28 dias
+  top: 5                    # quantas moedas segurar
+  media: 50                 # só moedas (e BTC) acima da média de 50 dias
+  filtro_btc: true
+
+paper:
+  initial_balance: 10000    # dinheiro FICTÍCIO
+
+painel:
+  nome: Bot Aprendiz Rotação
+  port: 8769
+  outros: null
+
+telegram:
+  comandos: false
+  avisos: true

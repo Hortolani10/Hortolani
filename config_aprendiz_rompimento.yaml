@@ -1,0 +1,27 @@
+# Aprendiz "Bia" — ROMPIMENTO DIÁRIO (Donchian 20/10, desde 27/11/2026). Só PAPER, dinheiro fictício.
+# Compra quando a moeda FECHA acima da máxima dos últimos 20 dias (com o BTC acima da média de 50 dias) e vende quando
+# fecha abaixo da mínima dos últimos 10 dias. Até 4 moedas ao mesmo tempo (25% cada). Gráfico diário.
+# Teste (PESQUISA.md seção 27): ganhou de segurar BTC nos 4 períodos, com a menor queda dos métodos testados.
+# Substitui o aprendiz de 1h, que perdia com qualquer saída (seção 26).
+herda: config.yaml
+instancia: aprendiz-rompimento
+
+carteira:
+  metodo: donchian
+  entrada: 20               # compra ao fechar acima da máxima de 20 dias
+  saida: 10                 # vende ao fechar abaixo da mínima de 10 dias
+  vagas: 4                  # até 4 moedas (25% cada)
+  media: 50
+  filtro_btc: true
+
+paper:
+  initial_balance: 10000
+
+painel:
+  nome: Bot Aprendiz Rompimento
+  port: 8770
+  outros: null
+
+telegram:
+  comandos: false
+  avisos: true

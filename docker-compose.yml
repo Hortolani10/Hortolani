@@ -72,31 +72,33 @@ services:
       retries: 2
       start_period: 5m
 
-  aprendiz-2h:
+  # Aprendizes de CARTEIRA no gráfico diário (27/11/2026, PESQUISA.md seção 27): substituem os de 2h e 1h, que perdiam
+  # com qualquer forma de saída. Os dados antigos ficam em runtime/aprendiz-2h e runtime/aprendiz-1h.
+  aprendiz-rotacao:
     <<: *seguro
-    container_name: aprendiz-2h
-    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-2h && cd /app/runtime/aprendiz-2h && exec python -m bot --config /app/config_aprendiz_2h.yaml paper"]
+    container_name: aprendiz-rotacao
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-rotacao && cd /app/runtime/aprendiz-rotacao && exec python -m bot.carteira --config /app/config_aprendiz_rotacao.yaml"]
     environment: [PAINEL_HOST=0.0.0.0]
     ports: ["127.0.0.1:8769:8769"]
     volumes: [./runtime:/app/runtime]
     mem_limit: 512m
     healthcheck:
-      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-2h/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-rotacao/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
       interval: 5m
       timeout: 30s
       retries: 2
       start_period: 5m
 
-  aprendiz-1h:
+  aprendiz-rompimento:
     <<: *seguro
-    container_name: aprendiz-1h
-    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-1h && cd /app/runtime/aprendiz-1h && exec python -m bot --config /app/config_aprendiz_1h.yaml paper"]
+    container_name: aprendiz-rompimento
+    entrypoint: ["sh", "-c", "mkdir -p /app/runtime/aprendiz-rompimento && cd /app/runtime/aprendiz-rompimento && exec python -m bot.carteira --config /app/config_aprendiz_rompimento.yaml"]
     environment: [PAINEL_HOST=0.0.0.0]
     ports: ["127.0.0.1:8770:8770"]
     volumes: [./runtime:/app/runtime]
     mem_limit: 512m
     healthcheck:
-      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-1h/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
+      test: ["CMD", "python", "-c", "import glob,os,sys,time; f=glob.glob('/app/runtime/aprendiz-rompimento/state_*.json'); sys.exit(0 if f and time.time()-max(map(os.path.getmtime,f))<900 else 1)"]
       interval: 5m
       timeout: 30s
       retries: 2

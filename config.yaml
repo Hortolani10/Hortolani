@@ -121,8 +121,8 @@ painel:
   # São os nomes dos contêineres do docker-compose (só funcionam no servidor; no PC aparecem "fora do ar").
   outros:
     aprendiz-4h: http://aprendiz-4h:8768
-    aprendiz-2h: http://aprendiz-2h:8769
-    aprendiz-1h: http://aprendiz-1h:8770
+    aprendiz-rotacao: http://aprendiz-rotacao:8769
+    aprendiz-rompimento: http://aprendiz-rompimento:8770
     aprendiz-capitulacao: http://aprendiz-capitulacao:8771
 
 # Estratégias em OBSERVAÇÃO: o bot registra no diário o que teria acontecido, sem operar.

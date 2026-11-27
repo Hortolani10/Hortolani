@@ -1180,3 +1180,21 @@ def test_revisao_mensal_agenda_dia_1():
     assert proxima(datetime(2026, 12, 31, 23, 0, tzinfo=timezone.utc)).strftime("%d/%m/%Y") == "01/01/2027"
     nomes = [n for n, _ in variantes({"risk": {"trava_gatilho": 0.05}})]
     assert nomes[0].startswith("Regra atual") and len(nomes) == 4
+
+
+def test_carteira_rotacao_e_rompimento():
+    """Rotação escolhe as mais fortes acima da média (e nada com BTC fraco); Donchian compra rompimento e vende na mínima."""
+    import numpy as np
+    import pandas as pd
+    from bot.carteira import alvo_rotacao, sinais_donchian
+    idx = pd.date_range("2026-01-01", periods=80, freq="D")
+    sobe = lambda k: pd.Series(np.linspace(100, 100 + k, 80), index=idx)
+    c = pd.DataFrame({"BTC/USDT": sobe(20), "AAA/USDT": sobe(60), "BBB/USDT": sobe(30), "CCC/USDT": sobe(-30)})
+    assert alvo_rotacao(c, 28, 2) == ["AAA/USDT", "BBB/USDT"]
+    c2 = c.copy(); c2["BTC/USDT"] = sobe(-20)
+    assert alvo_rotacao(c2, 28, 2) == []                                   # BTC abaixo da média: fica em USDT
+    h, l = c * 1.01, c * 0.99
+    cc = c.copy(); cc.iloc[-1, cc.columns.get_loc("BBB/USDT")] = 200        # BBB rompeu a máxima de 20 dias
+    cc.iloc[-1, cc.columns.get_loc("CCC/USDT")] = 10                        # CCC perdeu a mínima de 10 dias
+    comprar, vender = sinais_donchian(h, l, cc, 20, 10, {"CCC/USDT"}, 4)
+    assert "BBB/USDT" in comprar and vender == ["CCC/USDT"]

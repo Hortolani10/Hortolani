@@ -145,14 +145,14 @@ const STAFFX={chefe:64,termo:158,tendencia:252,cofre:346};
 const LUG={},PAP={},R={},EST={},CONF=[],ORDEM=[];let DATA=null;
 for(const k in STAFF){LUG[k]=[STAFFX[k],STAFFY];PAP[k]=STAFF[k]}
 /* nomes dos robôs (dados pelo Claude): cada bot ganha um apelido; o cargo continua na plaquinha */
-const APELIDO={principal:"Max","aprendiz-4h":"Lia","aprendiz-2h":"Rafa","aprendiz-1h":"Bia","aprendiz-capitulacao":"Brava"},RESERVA=["Nico","Duda","Teo","Gabi"];
+const APELIDO={principal:"Max","aprendiz-4h":"Lia","aprendiz-rotacao":"Rafa","aprendiz-rompimento":"Bia","aprendiz-2h":"Rafa","aprendiz-1h":"Bia","aprendiz-capitulacao":"Brava"},RESERVA=["Nico","Duda","Teo","Gabi"];
 const apelidoBot=(id,i)=>APELIDO[id]||RESERVA[i%RESERVA.length];
 const titulo=k=>{const p=PAP[k]||{};return p.apelido?`${p.apelido} · ${p.nome}`:(p.nome||k)};
-const nomeBot=id=>id==="principal"?"Principal":/capitul/.test(id)?"Capitulação":String(id).replace("aprendiz-","Aprendiz ");
+const nomeBot=id=>id==="principal"?"Principal":/capitul/.test(id)?"Capitulação":/rotacao/.test(id)?"Rotação":/rompimento/.test(id)?"Rompimento":String(id).replace("aprendiz-","Aprendiz ");
 function montaTraders(bots){const lista=bots.slice(0,5),n=lista.length,ini=200-(n-1)*38;
  lista.forEach((b,i)=>{const k="t_"+b.id,ap=b.id!=="principal",cap=/capitul/.test(b.id);
   PAP[k]={k,id:b.id,apelido:apelidoBot(b.id,i),nome:nomeBot(b.id),cor:ap?CORT[(i+CORT.length-1)%CORT.length]:"#5b8cff",acc:ap?(cap?"capacete":"capelo"):"estrela",trader:true,
-   fun:ap?(cap?"aprendiz que só compra em pânico (capitulação) · fictício":`aprendiz no gráfico de ${b.tf||"?"} · dinheiro fictício`):"o bot principal · tendência no 4h"};
+   fun:b.metodo?`aprendiz de ${b.metodo} no gráfico diário · dinheiro fictício`:ap?(cap?"aprendiz que só compra em pânico (capitulação) · fictício":`aprendiz no gráfico de ${b.tf||"?"} · dinheiro fictício`):"o bot principal · tendência no 4h"};
   LUG[k]=[ini+i*76,TRADY];ORDEM.push(k)})}
 const AISLES_T=()=>ORDEM.map(k=>LUG[k][0]-AI),AISLES_S=()=>Object.values(STAFFX).map(x=>x-AI).concat([386]);
 
@@ -280,8 +280,11 @@ function roteiro(){const bots=(DATA&&DATA.bots)||[],on=bots.filter(b=>b.online&&
   !top?"Ainda carregando o radar.":top.sinal_tendencia||top.sinal_lateral?`Sim! ${base(top.simbolo)} cumpriu todas as regras, vou executar.`:
   `A mais perto é ${base(top.simbolo)}, com ${top.regras_ok} de ${top.regras_total} regras. Falta ${(top.falhou||[]).slice(0,2).map(f=>FALTA[f]||f.replace(/_/g," ")).join(" e ")||"pouco"}.`]);
  for(const b of on)for(const p of (b.posicoes||[]).slice(0,2)){const pc=(p.resultado_pct||0)*100;
-  C.push([K(b),"chefe",`Estou com ${base(p.simbolo)}${b.aprendiz?" (fictício)":""}: ${sg(pc,1)}% desde a entrada. Stop em ${preco(p.stop)}.`,pc>=0?"Boa! Deixa o stop móvel trabalhar.":"Tudo bem, o stop limita a perda."])}
- const aps=on.filter(b=>b.aprendiz&&!/capitul/.test(b.id)).sort(()=>Math.random()-.5);
+  C.push([K(b),"chefe",`Estou com ${base(p.simbolo)}${b.aprendiz?" (fictício)":""}: ${sg(pc,1)}% desde a entrada.${p.stop!=null?` Stop em ${preco(p.stop)}.`:""}`,pc>=0?"Boa! Deixa o stop móvel trabalhar.":"Tudo bem, o stop limita a perda."])}
+ for(const b of on.filter(b=>b.metodo)){const ps=(b.posicoes||[]).map(p=>base(p.simbolo));
+  C.push([K(b),"chefe",`Na ${b.metodo}${ps.length?` estou com ${ps.join(", ")} (fictício)`:" estou em USDT agora"}. ${b.metodo_fala||""}`,
+   ps.length?"Ótimo, vamos ver se as mais fortes continuam fortes.":"Faz sentido esperar com o mercado assim."])}
+ const aps=on.filter(b=>b.aprendiz&&!/capitul/.test(b.id)&&!b.metodo).sort(()=>Math.random()-.5);
  const coment=b=>{const v=hoje(b),o=b.hoje_ops||0;return o===0?um([" Nenhum setup apareceu."," Fiquei só olhando."]):v<0?um([" Os rompimentos estão falhando nessa queda."," Mercado difícil para comprar."," Stop atrás de stop."]):v>0?um([" Pelo menos deu lucro."," Hoje foi bom."]):""};
  if(aps.length>=2){const [a,b]=aps;C.push([K(a),K(b),`No ${a.tf} fiz ${a.hoje_ops||0} operações hoje, ${sg(hoje(a))} fictício.${coment(a)}`,`Eu fiz ${b.hoje_ops||0} no ${b.tf}, ${sg(hoje(b))}.${coment(b)}`])}
  else if(aps.length===1){const a=aps[0];C.push([K(a),K(pr),`Hoje fiz ${a.hoje_ops||0} operações no ${a.tf}, ${sg(hoje(a))} fictício.${coment(a)}`,"Anotado. É para isso que você treina."])}

@@ -654,6 +654,31 @@ mas 2h e 1h continuam negativos com QUALQUER saída (3 anos, ~2.000–3.700 oper
 (movimento pequeno perto das taxas e muito ruído), não a saída. Mesma saída para todos os setups de um aprendiz, então a
 comparação entre setups continua justa (marco: 27/11/2026).
 
+## 27. Novos aprendizes no diário: rotação pelas mais fortes e rompimento de 20 dias (27/nov/2026)
+
+Motivo: os aprendizes de 2h e 1h perdiam com qualquer saída (seção 26). Em vez de desligar, testamos dois métodos com
+fundamento forte em cripto (momentum / seguir tendência), em gráfico diário (poucas operações, taxas pequenas perto do
+movimento). 16 moedas, candles diários reais até 26/11/2026, taxa+derrapagem 0,125% por lado, 100% investido.
+
+| Método | 6 anos | 12 meses | 6 meses | 3 meses | queda máx (6a) |
+|---|---|---|---|---|---|
+| Segurar BTC (comparação) | +233% | −33,1% | −17,7% | −24,5% | 76,6% |
+| Rotação top 3, 28 dias, filtro BTC | +2.509% | −30,0% | +11,4% | +2,0% | 65,0% |
+| **Rotação top 5, 28 dias, filtro BTC (Rafa)** | **+2.488%** | **−22,7%** | **+14,9%** | **−1,4%** | **61,1%** |
+| Rotação top 3, 56 dias | +1.346% | −0,7% | +4,9% | −8,1% | 59,7% |
+| Rotação sem filtro do BTC | +779% | −38,2% | −5,5% | +2,0% | 76,6% |
+| **Donchian 20/10, filtro BTC (Bia)** | **+1.055%** | **−10,8%** | **+6,1%** | **−7,1%** | **55,0%** |
+| Donchian 30/15 | +544% | −12,6% | +13,4% | −6,0% | 58,8% |
+| Donchian 55/20 | +607% | −20,8% | −7,1% | −11,4% | 53,1% |
+
+Leitura honesta: (1) os dois ganham de segurar BTC em todos os períodos e o filtro do BTC é essencial (sem ele, o
+resultado cai pela metade ou mais); (2) os números de 6 anos estão INFLADOS por viés de sobrevivência: as 16 moedas
+foram escolhidas hoje, e as que sumiram não entram; o grosso veio da alta de 2021; (3) ficam 100% investidos, então as
+quedas são grandes (55–61%), muito acima do Max (12%). Por isso entram como APRENDIZES (fictício) para medir ao vivo;
+se depois de meses forem bem, a ideia candidata é usar a rotação dentro do cofre (que hoje só segura BTC/ETH/BNB).
+Implementação: `bot/carteira.py` (decide 1x por dia com o candle diário já fechado), configs
+`config_aprendiz_rotacao.yaml` e `config_aprendiz_rompimento.yaml`.
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

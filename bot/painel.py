@@ -83,6 +83,7 @@ def sala_bot(nome: str, d: dict | None, erro: str | None = None) -> dict:
             "barras": [[r.get("regras_ok", 0), r.get("regras_total", 0), bool(r.get("sinal_tendencia") or r.get("sinal_lateral")),
                         r.get("tendencia")] for r in rad.values()],
             "btc": (rad.get("BTC/USDT") or {}).get("tendencia"), "moedas": len(rad),
+            "metodo": d.get("metodo"), "metodo_fala": d.get("metodo_fala"),
             "ops": dz.get("ops", 0), "acerto": dz.get("acerto"), "hoje_ops": dz.get("hoje_ops", 0), "hoje_pnl": dz.get("hoje_pnl"),
             "realizado": dz.get("realizado"), **_variacoes(cart, d.get("dias") or []),
             "equity": [v for _, v in (d.get("equity_hist") or [])][-80:], "log": (d.get("log") or [])[-30:]}
