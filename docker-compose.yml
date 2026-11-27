@@ -118,5 +118,16 @@ services:
       retries: 2
       start_period: 5m
 
+  # REVISÃO MENSAL (nov/2026): todo dia 1º, 09:10 de Brasília, refaz o teste das saídas com dados novos da Binance
+  # e manda o resultado no Telegram. Só informa: não muda nada nos bots. Rodar na hora:
+  #   docker compose run --rm revisao --agora
+  revisao:
+    <<: *seguro
+    container_name: hortolani-revisao
+    entrypoint: ["python", "-m", "bot.revisao"]
+    command: []
+    volumes: [./runtime:/app/runtime]
+    mem_limit: 512m
+
   # aprendiz-15m DESLIGADO (nov/2026): no 15 min as taxas comem o resultado, no histórico e na prática
   # (−0,68R por operação). O diário dele fica em runtime/aprendiz-15m. Para religar, ver config_aprendiz_15m.yaml.

@@ -50,7 +50,7 @@ main{padding:18px 24px 40px;display:grid;gap:16px;max-width:1440px;margin:0 auto
 .card>b{display:flex;align-items:center;gap:6px;font-size:13px}.card .tx{font-size:12px;color:var(--muted);line-height:1.4}
 .card.off{opacity:.6}
 .linhas{max-height:360px;overflow:auto;padding:4px 16px 14px;font-size:12.5px}
-.linhas div{display:grid;grid-template-columns:48px 112px minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.linhas div{display:grid;grid-template-columns:48px 150px minmax(0,1fr);gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
 .linhas div:last-child{border-bottom:0}
 .quem{font-weight:700}
 .ficha{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(3,8,15,.6);padding:16px}
@@ -71,7 +71,7 @@ footer{color:var(--faint);font-size:12px}
 <main>
  <div class="faixa" id="faixa"><span>Carregando a sala…</span></div>
  <section class="escwrap" aria-label="Sala dos robôs"><div id="esc"><canvas id="office" width="400" height="232" role="img" aria-label="Sala em pixel art com todos os bots"></canvas></div></section>
- <p class="dica">Na fileira da frente ficam os bots: o Principal (com a estrela) e os aprendizes (de capelo; o da capitulação usa capacete). Atrás fica a equipe que todos consultam: Chefe, Termômetro, Tendência do BTC e Cofre. Eles levantam e vão até a mesa do colega conversar, sempre com os números reais. Quando um bot compra ou vende de verdade, a sala reage. Toque num robô para ver a ficha dele.</p>
+ <p class="dica">Na fileira da frente ficam os bots: Max, o Principal (com a estrela), e os aprendizes Lia, Rafa e Bia (de capelo) e Brava, da capitulação (de capacete). Atrás fica a equipe que todos consultam: Otto, o Chefe; Celso, o Termômetro; Tito, da Tendência do BTC; e Dona Moeda, do Cofre. Eles levantam e vão até a mesa do colega conversar, sempre com os números reais. Quando um bot compra ou vende de verdade, a sala reage. Toque num robô para ver a ficha dele.</p>
  <section class="bloco"><h2>Conversa da sala</h2><div id="conversa"><div class="muted">Os robôs já vão começar a conversar…</div></div></section>
  <section class="bloco"><h2>Quem está na sala</h2><div class="cards" id="cards"></div></section>
  <section class="bloco"><h2>Registro ao vivo · o que cada bot fez por último</h2><div class="linhas num" id="linhas"></div></section>
@@ -135,19 +135,23 @@ function svgRobo(p,o={}){const leg=tom(p.cor,.5);
  return `<svg viewBox="-1 -1 22 22" shape-rendering="crispEdges" aria-hidden="true">${pixels(p,o).map(([x,y,c])=>`<rect x="${x}" y="${y}" width="1" height="1" fill="${c}"/>`).join("")}<rect x="6" y="18" width="3" height="2" fill="${leg}"/><rect x="11" y="18" width="3" height="2" fill="${leg}"/></svg>`}
 
 /* ================= quem está na sala ================= */
-const STAFF={chefe:{k:"chefe",nome:"Chefe",cor:"#e6e9ef",acc:"gravata",antena:"#ff6f6f",fun:"junta tudo e faz a reunião"},
- termo:{k:"termo",nome:"Termômetro",cor:"#ff7a59",acc:"termo",fun:"mede o humor do mercado (0 a 100)"},
- tendencia:{k:"tendencia",nome:"Tendência BTC",cor:"#8fd14f",acc:"fone",fun:"vigia o BTC no gráfico diário"},
- cofre:{k:"cofre",nome:"Cofre",cor:"#e6c34a",acc:"cadeado",fun:"segura BTC/ETH/BNB pela média de 50 dias"}};
+const STAFF={chefe:{k:"chefe",apelido:"Otto",nome:"Chefe",cor:"#e6e9ef",acc:"gravata",antena:"#ff6f6f",fun:"junta tudo e faz a reunião"},
+ termo:{k:"termo",apelido:"Celso",nome:"Termômetro",cor:"#ff7a59",acc:"termo",fun:"mede o humor do mercado (0 a 100)"},
+ tendencia:{k:"tendencia",apelido:"Tito",nome:"Tendência BTC",cor:"#8fd14f",acc:"fone",fun:"vigia o BTC no gráfico diário"},
+ cofre:{k:"cofre",apelido:"Dona Moeda",nome:"Cofre",cor:"#e6c34a",acc:"cadeado",fun:"segura BTC/ETH/BNB pela média de 50 dias"}};
 const CORT=["#22c38e","#38c7e8","#a46bff","#ff9f43","#f472b6"];
 const OW=400,OH=232,TOPO=76,CORR=146,AI=37,STAFFY=106,TRADY=184;
 const STAFFX={chefe:64,termo:158,tendencia:252,cofre:346};
 const LUG={},PAP={},R={},EST={},CONF=[],ORDEM=[];let DATA=null;
 for(const k in STAFF){LUG[k]=[STAFFX[k],STAFFY];PAP[k]=STAFF[k]}
+/* nomes dos robôs (dados pelo Claude): cada bot ganha um apelido; o cargo continua na plaquinha */
+const APELIDO={principal:"Max","aprendiz-4h":"Lia","aprendiz-2h":"Rafa","aprendiz-1h":"Bia","aprendiz-capitulacao":"Brava"},RESERVA=["Nico","Duda","Teo","Gabi"];
+const apelidoBot=(id,i)=>APELIDO[id]||RESERVA[i%RESERVA.length];
+const titulo=k=>{const p=PAP[k]||{};return p.apelido?`${p.apelido} · ${p.nome}`:(p.nome||k)};
 const nomeBot=id=>id==="principal"?"Principal":/capitul/.test(id)?"Capitulação":String(id).replace("aprendiz-","Aprendiz ");
 function montaTraders(bots){const lista=bots.slice(0,5),n=lista.length,ini=200-(n-1)*38;
  lista.forEach((b,i)=>{const k="t_"+b.id,ap=b.id!=="principal",cap=/capitul/.test(b.id);
-  PAP[k]={k,id:b.id,nome:nomeBot(b.id),cor:ap?CORT[(i+CORT.length-1)%CORT.length]:"#5b8cff",acc:ap?(cap?"capacete":"capelo"):"estrela",trader:true,
+  PAP[k]={k,id:b.id,apelido:apelidoBot(b.id,i),nome:nomeBot(b.id),cor:ap?CORT[(i+CORT.length-1)%CORT.length]:"#5b8cff",acc:ap?(cap?"capacete":"capelo"):"estrela",trader:true,
    fun:ap?(cap?"aprendiz que só compra em pânico (capitulação) · fictício":`aprendiz no gráfico de ${b.tf||"?"} · dinheiro fictício`):"o bot principal · tendência no 4h"};
   LUG[k]=[ini+i*76,TRADY];ORDEM.push(k)})}
 const AISLES_T=()=>ORDEM.map(k=>LUG[k][0]-AI),AISLES_S=()=>Object.values(STAFFX).map(x=>x-AI).concat([386]);
@@ -235,7 +239,7 @@ async function vai(r,dx,dy){r.dorme=false;const pts=rota(r,dx,dy);r.sentado=fals
 async function senta(r){const [sx,sy]=LUG[r.k];await vai(r,sx-AI,sy);await andar(r,[[sx,sy]]);r.sentado=true}
 async function fala(r,txt,ms){if(!r)return;const b=r.bal,w=$("esc").parentElement;
  if(w.scrollWidth>w.clientWidth+4)w.scrollTo({left:r.x*$("esc").clientWidth/OW-w.clientWidth/2,behavior:parado?"auto":"smooth"});   // celular: a câmera segue quem fala
- const id=(r.falaId=(r.falaId||0)+1);b.innerHTML=`<small>${esc(PAP[r.k].nome)}</small>${esc(txt)}`;b.style.display="block";b.style.setProperty("--cor",PAP[r.k].cor);
+ const id=(r.falaId=(r.falaId||0)+1);b.innerHTML=`<small>${esc(titulo(r.k))}</small>${esc(txt)}`;b.style.display="block";b.style.setProperty("--cor",PAP[r.k].cor);
  await espera(ms??Math.min(7500,2300+txt.length*50));if(r.falaId===id)b.style.display="none"}
 const livre=async(...rs)=>{while(rs.some(r=>r&&r.ocup))await espera(300)};
 let reuniao=false;
@@ -316,7 +320,7 @@ function evento(b,l){const k="t_"+b.id,r=R[k];if(!r)return;const m=l.match(/^\S+
  if((x=msg.match(/^STOP (\S+) -> ([\d.]+)/))){fala(r,`⬆ Subi o stop de ${base(x[1])} para ${preco(+x[2])}.`,3500);anota(k,"todos",`subiu o stop de ${base(x[1])}`)}}
 
 /* ================= conversa, cartões, fichas e registro ================= */
-const nomeK=k=>k==="todos"?"Todos":(PAP[k]||{}).nome||k,corK=k=>k==="todos"?"var(--fg)":(PAP[k]||{}).cor||"var(--fg)";
+const nomeK=k=>k==="todos"?"Todos":(PAP[k]||{}).apelido||(PAP[k]||{}).nome||k,corK=k=>k==="todos"?"var(--fg)":(PAP[k]||{}).cor||"var(--fg)";
 function anota(de,para,msg,dest){const box=$("conversa");if(box.firstElementChild&&box.firstElementChild.classList.contains("muted"))box.innerHTML="";
  const d=document.createElement("div");d.innerHTML=`<span class="muted num">${new Date().toLocaleTimeString("pt-BR").slice(0,5)}</span> <b style="color:${corK(de)}">${esc(nomeK(de))}</b> → <b style="color:${corK(para)}">${esc(nomeK(para))}</b>: ${esc(msg)}`;
  if(dest)d.className="evt";box.prepend(d);while(box.children.length>8)box.lastChild.remove()}
@@ -341,8 +345,8 @@ function ficha(k){const p=PAP[k];if(!p)return;const bots=(DATA&&DATA.bots)||[],t
  else if(k==="termo")corpo=li([`Nota <b>${tm.nota??"—"}/100</b> · ${esc(tm.rotulo||"")}`,"Abaixo de 40 o bot principal arrisca metade do normal.","Fases: queda forte (&lt;20), defensivo (&lt;40), neutro (&lt;60), alta."]);
  else if(k==="tendencia")corpo=li([estado(k)[1],"Compras de tendência só com a moeda e o BTC em alta no diário.","Com o BTC de lado ou em baixa, só entra a lateralização."]);
  else if(k==="cofre")corpo=li([estado(k)[1],"Compra BTC, ETH e BNB quando ficam acima da média de 50 dias (ETH e BNB só com o BTC também acima)."]);
- else corpo=li(bots.map(b=>`<b>${esc(nomeBot(b.id))}</b>: ${b.online?`${b.aprendiz?"fictício · ":""}hoje <span class="${cl(hoje(b))}">${sg(hoje(b))}</span> · ${(b.posicoes||[]).length} posição(ões)`:"fora do ar"}`));
- $("fichacx").style.setProperty("--cor",p.cor);$("fichacx").innerHTML=`<h3>${svgRobo(p)}${esc(p.nome)}</h3><div class="muted">${esc(p.fun)}</div>${corpo}<p><button class="btn" id="fecha" type="button">Fechar</button></p>`;
+ else corpo=li(bots.map(b=>`<b>${esc(PAP["t_"+b.id]?titulo("t_"+b.id):nomeBot(b.id))}</b>: ${b.online?`${b.aprendiz?"fictício · ":""}hoje <span class="${cl(hoje(b))}">${sg(hoje(b))}</span> · ${(b.posicoes||[]).length} posição(ões)`:"fora do ar"}`));
+ $("fichacx").style.setProperty("--cor",p.cor);$("fichacx").innerHTML=`<h3>${svgRobo(p)}${esc(titulo(k))}</h3><div class="muted">${esc(p.fun)}</div>${corpo}<p><button class="btn" id="fecha" type="button">Fechar</button></p>`;
  $("ficha").classList.add("on");$("fecha").focus()}
 $("ficha").addEventListener("click",e=>{if(e.target.id==="ficha"||e.target.id==="fecha")$("ficha").classList.remove("on")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("ficha").classList.remove("on")});
@@ -350,7 +354,7 @@ cv.addEventListener("click",e=>{const b=cv.getBoundingClientRect(),x=(e.clientX-
  for(const k in R){const r=R[k];if(Math.abs(x-r.x)<=11&&y>=r.y-21&&y<=r.y+2)return ficha(k)}
  for(const k in LUG){const [lx,ly]=LUG[k];if(Math.abs(x-lx)<=26&&y>=ly-24&&y<=ly+16)return ficha(k)}});
 function rotulo(k){if(document.querySelector(`.rot[data-k="${k}"]`))return;const [x,y]=LUG[k],d=document.createElement("div");d.className="rot";d.dataset.k=k;
- d.style.left=(x/OW*100)+"%";d.style.top=((y+13)/OH*100)+"%";d.innerHTML=`<i class="luz"></i>${esc(PAP[k].nome)}`;d.onclick=()=>ficha(k);$("esc").appendChild(d)}
+ d.style.left=(x/OW*100)+"%";d.style.top=((y+13)/OH*100)+"%";d.innerHTML=`<i class="luz"></i>${esc(titulo(k))}`;d.onclick=()=>ficha(k);$("esc").appendChild(d)}
 function entra(k){if(R[k])return;const [x,y]=LUG[k],b=document.createElement("div");b.className="fl";b.style.display="none";$("esc").appendChild(b);
  R[k]={k,x,y,path:[],sentado:true,ocup:false,bal:b,fim:null,festa:0,triste:0,surpresa:0,dorme:false}}
 function sai(k){const r=R[k];if(!r||!r.sentado||r.ocup)return;r.bal.remove();delete R[k]}
@@ -371,11 +375,11 @@ async function carrega(){
    <span>Hoje <b class="num ${cl(hoje(pr))}">${sg(hoje(pr))}</b></span><span>Aprendizes hoje <b class="num ${cl(apv)}">${sg(apv)}</b> fictício</span>
    <span>Termômetro <b class="${(tm.nota??0)>=60?"up":(tm.nota??0)>=40?"flat":"down"}">${tm.nota??"—"}/100</b></span><span>Posições abertas <b>${tp}</b></span>`;
   const ordemCards=[...ORDEM,"chefe","termo","tendencia","cofre"];
-  $("cards").innerHTML=ordemCards.map(k=>{const p=PAP[k],[st,tx]=estado(k);return `<div class="card${st==="off"?" off":""}" data-k="${k}">${svgRobo(p)}<b><i class="luz ${st==="off"?"":st}"></i>${esc(p.nome)}</b><div class="tx">${tx}</div></div>`}).join("");
+  $("cards").innerHTML=ordemCards.map(k=>{const p=PAP[k],[st,tx]=estado(k);return `<div class="card${st==="off"?" off":""}" data-k="${k}">${svgRobo(p)}<b><i class="luz ${st==="off"?"":st}"></i>${esc(titulo(k))}</b><div class="tx">${tx}</div></div>`}).join("");
   $("cards").querySelectorAll(".card").forEach(c=>c.onclick=()=>ficha(c.dataset.k));
   for(const b of on){const ls=b.log||[];if(!VISTOS[b.id]){VISTOS[b.id]=new Set(ls);continue}const nv=ls.filter(l=>!VISTOS[b.id].has(l));VISTOS[b.id]=new Set(ls);if(rodando)nv.forEach(l=>evento(b,l))}
   const linhas=on.flatMap(b=>(b.log||[]).map(l=>{const m=l.match(/^(\S+ \S+) \w+ (.*)$/);return {t:m?m[1]:"",msg:m?m[2]:l,b}})).sort((a,b)=>a.t<b.t?1:-1).slice(0,40);
-  $("linhas").innerHTML=linhas.length?linhas.map(({t,msg,b})=>{const k=/COFRE/.test(msg)?"cofre":"t_"+b.id,p=PAP[k]||{cor:"var(--fg)",nome:nomeBot(b.id)};
+  $("linhas").innerHTML=linhas.length?linhas.map(({t,msg,b})=>{const k=/COFRE/.test(msg)?"cofre":"t_"+b.id,p=PAP[k]?{...PAP[k],nome:titulo(k)}:{cor:"var(--fg)",nome:nomeBot(b.id)};
    return `<div${/^(COMPRA|FECHOU|COFRE COMPRA|COFRE VENDA)/.test(msg)?' class="evt"':""}><span class="muted">${esc(t.slice(11,16))}</span><span class="quem" style="color:${p.cor}">${esc(p.nome)}</span><span>${esc(msg)}</span></div>`}).join(""):
    '<div><span></span><span></span><span class="muted">Sem atividade registrada ainda.</span></div>';
   if(!rodando){rodando=true;sala()}

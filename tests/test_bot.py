@@ -1170,3 +1170,13 @@ def test_trava_de_lucro(cfg):
     c["lateral"] = {**(c.get("lateral") or {}), "max_bars": 99}
     manage_position(lat, {"open": 101, "high": 106, "low": 100, "close": 99, "atr": 4.0, "bbm": 120, "ema_mid": 90.0}, "ALTA", c)
     assert lat.stop == 95.0                                  # lateral não usa a trava
+
+
+def test_revisao_mensal_agenda_dia_1():
+    from datetime import datetime, timezone
+    from bot.revisao import proxima, variantes
+    assert proxima(datetime(2026, 11, 27, 15, 0, tzinfo=timezone.utc)).strftime("%d/%m/%Y %H:%M") == "01/12/2026 09:10"
+    assert proxima(datetime(2026, 12, 1, 11, 0, tzinfo=timezone.utc)).strftime("%d/%m/%Y %H:%M") == "01/12/2026 09:10"
+    assert proxima(datetime(2026, 12, 31, 23, 0, tzinfo=timezone.utc)).strftime("%d/%m/%Y") == "01/01/2027"
+    nomes = [n for n, _ in variantes({"risk": {"trava_gatilho": 0.05}})]
+    assert nomes[0].startswith("Regra atual") and len(nomes) == 4
