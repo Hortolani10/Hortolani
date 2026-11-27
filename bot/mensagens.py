@@ -16,7 +16,7 @@ SETUPS = {
     "padrao_suporte": ("Padrão no suporte", "engolfo de alta ou martelo perto do suporte"),
     "divergencia": ("Divergência no RSI", "divergência de alta no RSI"),
     "pullback_livre": ("Pullback livre", "pullback na EMA21 sem exigir tendência"),
-    "capitulacao": ("Capitulação", "comprou no dia de pânico, vende em 3 dias"),
+    "capitulacao": ("Capitulação", "comprou no pânico, vende em 24 h (6 candles de 4h)"),
 }
 CURTO = {   # padrões em poucas palavras para caber no celular
     "engolfo_alta": "engolfo de alta", "engolfo_baixa": "engolfo de baixa", "martelo": "martelo",
@@ -89,10 +89,10 @@ def compra(cfg: dict, simbolo: str, setup: str, entrada: float, stop: float, qtd
         linhas.append(f"🎯 Alvo <code>{num(alvo)}</code>  ({sinal((alvo / entrada - 1) * 100, 1)}%)")
     elif r.get("exit_mode") == "trailing":
         linhas.append(f"🎯 Saída: stop móvel ({num(float(r.get('trailing_atr', 3)), 1).rstrip('0').rstrip(',')} ATR), sobe junto")
-        if r.get("trava_gatilho") and setup != "lateral":
-            g, t = float(r["trava_gatilho"]), float(r.get("trava_lucro", r["trava_gatilho"]))
-            linhas.append(f"🔒 Trava: em +{num(g * 100, 1).rstrip('0').rstrip(',')}% o stop sobe para +{num(t * 100, 1).rstrip('0').rstrip(',')}% "
-                          f"(<code>{num(entrada * (1 + t))}</code>)")
+    if r.get("trava_gatilho") and setup != "lateral":
+        g, t = float(r["trava_gatilho"]), float(r.get("trava_lucro", r["trava_gatilho"]))
+        linhas.append(f"🔒 Trava: em +{num(g * 100, 1).rstrip('0').rstrip(',')}% o stop sobe para +{num(t * 100, 1).rstrip('0').rstrip(',')}% "
+                      f"(<code>{num(entrada * (1 + t))}</code>)")
     linhas.append(f"⚖️ Risco {num(risco, 2)} USDT · posição {num(qtd * entrada, 2)} USDT")
     if padroes:
         linhas.append("📐 " + escape(" · ".join(CURTO.get(p, p) for p in padroes)))

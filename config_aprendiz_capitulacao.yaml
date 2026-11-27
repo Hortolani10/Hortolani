@@ -33,6 +33,8 @@ risk:
   exit_mode: alvo
   target_r: 50              # sem alvo: sai por tempo
   max_bars: 6               # vende após 6 candles de 4h (24 h)
+  trava_gatilho: 0.03       # trava de lucro (27/11/2026): em +3% o stop sobe para +3% (acerto 70% -> 91% no teste de 6 anos)
+  trava_lucro: 0.03
   stop_min_atr: 4.0         # stop largo de proteção
   stop_max_atr: 6.0
   max_open_positions: 6

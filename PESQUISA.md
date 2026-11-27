@@ -633,6 +633,27 @@ Implementação: `risk.trava_gatilho`/`trava_lucro` (0,05) no config.yaml; ao vi
 a cada ~10 s), não só no fechamento do candle. Lateralização e aprendizes não usam (aprendizes: comparação limpa dos setups).
 O backtest do bot com a regra reproduz exatamente os números acima (+40,7% em 6 anos; +0,7% em 12 meses).
 
+## 26. Trava de lucro nos aprendizes (27/nov/2026)
+
+Mesmo teste da seção 25, agora nos aprendizes (dados reais até 27/11/2026). Média por operação (R) e retorno:
+
+| Aprendiz | Saída | Histórico | 12 meses | 3 meses |
+|---|---|---|---|---|
+| Lia 4h (6 anos) | antes (alvo 2R / 18 candles) | −0,046R | −0,128R (−51,7%) | −0,217R |
+| | **+ trava 2% (adotado)** | **+0,014R (+71,6%)** | **−0,018R (−15,0%)** | **−0,150R** |
+| Rafa 2h (3 anos) | antes | −0,119R | −0,200R | −0,248R |
+| | **+ trava 2%** | **−0,071R** | **−0,126R** | **−0,163R** |
+| Bia 1h (3 anos) | antes | −0,105R | −0,217R | −0,274R |
+| | **+ trava 2%** | **−0,081R** | **−0,164R** | **−0,208R** |
+| Brava capitulação (6 anos) | antes (sai em 6 candles) | +0,179R, acerto 70%, +13,5% | +1,2% | +0,2% |
+| | **+ trava 3% (adotado)** | **+0,166R, acerto 91%, +14,1%, queda 1,1%** | **+1,8%** | **+0,3%** |
+
+Travas de 3% e 5%, "alvo 3R + trava" e "igual ao Max (stop móvel + trava 5%)" também foram testadas; a trava de 2%
+foi a única melhor que a saída antiga em todos os aprendizes e períodos. Conclusão importante: a trava **reduz** a perda,
+mas 2h e 1h continuam negativos com QUALQUER saída (3 anos, ~2.000–3.700 operações cada): o problema deles é a entrada
+(movimento pequeno perto das taxas e muito ruído), não a saída. Mesma saída para todos os setups de um aprendiz, então a
+comparação entre setups continua justa (marco: 27/11/2026).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra
