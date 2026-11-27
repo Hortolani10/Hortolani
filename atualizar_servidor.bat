@@ -5,7 +5,7 @@ cd /d "%~dp0"
 title Atualizar servidor do bot
 echo.
 echo  ============================================
-echo   ATUALIZAR O SERVIDOR (5 bots)
+echo   ATUALIZAR O SERVIDOR (todos os bots)
 echo  ============================================
 echo.
 if not exist "bot\regime.py" (
@@ -16,7 +16,7 @@ if not exist "bot\regime.py" (
 set PACOTE=%TEMP%\bot_atualizacao.tar
 if exist "%PACOTE%" del "%PACOTE%"
 echo  1/3 Juntando os arquivos...
-tar -cf "%PACOTE%" --exclude=__pycache__ --exclude=*.pyc bot pesquisa deploy docs tests config.yaml config_ativo.yaml config_aprendiz.yaml config_aprendiz_2h.yaml config_aprendiz_1h.yaml config_aprendiz_15m.yaml config_aprendiz_capitulacao.yaml requirements.txt Dockerfile docker-compose.yml .dockerignore README.md PESQUISA.md PROMPT_ANALISE.md
+tar -cf "%PACOTE%" --exclude=__pycache__ --exclude=*.pyc bot pesquisa deploy docs tests config.yaml config_ativo.yaml config_aprendiz.yaml config_aprendiz_2h.yaml config_aprendiz_1h.yaml config_aprendiz_15m.yaml config_aprendiz_capitulacao.yaml config_aprendiz_rotacao.yaml config_aprendiz_rompimento.yaml requirements.txt Dockerfile docker-compose.yml .dockerignore README.md PESQUISA.md PROMPT_ANALISE.md
 if errorlevel 1 (
   echo  ERRO ao juntar os arquivos. Confira se o ZIP foi extraido nesta pasta.
   pause

@@ -1198,3 +1198,18 @@ def test_carteira_rotacao_e_rompimento():
     cc.iloc[-1, cc.columns.get_loc("CCC/USDT")] = 10                        # CCC perdeu a mínima de 10 dias
     comprar, vender = sinais_donchian(h, l, cc, 20, 10, {"CCC/USDT"}, 4)
     assert "BBB/USDT" in comprar and vender == ["CCC/USDT"]
+
+
+def test_atualizar_servidor_envia_todos_os_configs():
+    """Todo config usado no docker-compose precisa estar na lista do atualizar_servidor.bat (senão o bot não sobe)."""
+    import re
+    raiz = Path(__file__).resolve().parents[1]
+    compose = (raiz / "docker-compose.yml").read_text(encoding="utf-8")
+    usados = set(re.findall(r"/app/(config[\w]*\.yaml)", compose)) | {"config.yaml"}
+    for f in list(usados):                                   # e os arquivos que eles herdam
+        txt = (raiz / f).read_text(encoding="utf-8")
+        usados |= set(re.findall(r"^herda:\s*(\S+)", txt, re.M))
+    bat = (raiz / "atualizar_servidor.bat").read_text(encoding="utf-8")
+    linha = next(x for x in bat.splitlines() if x.lstrip().startswith("tar -cf"))
+    faltando = sorted(f for f in usados if f not in linha.split())
+    assert not faltando, f"faltam no atualizar_servidor.bat: {faltando}"
