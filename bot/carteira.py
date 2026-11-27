@@ -220,16 +220,27 @@ class Carteira:
         self.painel.start()
         log.info("Bot iniciado: %s (%s, simulação, %d moedas)", self.inst, NOMES[self.metodo], len(self.sim))
         while True:
+            # painel primeiro e separado: um erro na análise nunca deixa o bot "fora do ar" na Central/Mesa
             try:
                 self.atualizar_precos()
-                hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                if self.st.get("decidiu") != hoje and datetime.now(timezone.utc).minute >= 2:
+            except Exception as e:
+                log.warning("preços indisponíveis agora (%s); tento de novo em 1 min", e)
+            try:
+                self.painel.update(self.snapshot())
+            except Exception:
+                log.exception("erro atualizando o painel")
+            hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if self.st.get("decidiu") != hoje and datetime.now(timezone.utc).minute >= 2 and self.precos:
+                try:
                     self.decidir()
                     self.st["decidiu"] = hoje
-                self.painel.update(self.snapshot())
+                    self.painel.update(self.snapshot())
+                except Exception:
+                    log.exception("erro na análise diária; tento de novo no próximo minuto")
+            try:
                 self.salvar()
             except Exception:
-                log.exception("erro no ciclo da carteira")
+                log.exception("erro salvando o estado")
             time.sleep(60)
 
 
