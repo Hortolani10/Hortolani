@@ -169,7 +169,8 @@ def entry_signal(df: pd.DataFrame, i: int, trend: str, cfg: dict) -> Signal:
 def lateral_prefilter(df: pd.DataFrame, cfg: dict) -> pd.Series:
     """Lateralização: diário LATERAL e o 4h fechou abaixo da banda inferior com RSI baixo."""
     lat = cfg.get("lateral") or {}
-    m = (df["trend"] == LATERAL) & (df["close"] < df["bbl"]) & (df["rsi"] < float(lat.get("rsi_max", 30)))
+    tend = lat.get("tendencias") or [LATERAL]          # em quais tendências do diário a lateralização pode entrar
+    m = df["trend"].isin(tend) & (df["close"] < df["bbl"]) & (df["rsi"] < float(lat.get("rsi_max", 30)))
     if lat.get("btc_not_down") and "btc_trend" in df.columns:
         m &= df["btc_trend"] != BAIXA
     m.iloc[:30] = False
