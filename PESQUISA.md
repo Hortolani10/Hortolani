@@ -679,6 +679,30 @@ se depois de meses forem bem, a ideia candidata é usar a rotação dentro do co
 Implementação: `bot/carteira.py` (decide 1x por dia com o candle diário já fechado), configs
 `config_aprendiz_rotacao.yaml` e `config_aprendiz_rompimento.yaml`.
 
+## 28. Operar mais na queda sem perder qualidade (28/nov/2026)
+
+Pedido: com o mercado em queda os bots quase não operam. Testes com dados reais (até 27/11/2026):
+
+**Max: lateralização também com o diário em BAIXA** (hoje só entra com diário lateral). Opera 3,4x mais nos últimos 12 meses
+(141 × 41 ops), mas a média por operação nos 6 anos cai de +0,094R para −0,005R (retorno 6 anos +40,7% → +13,0%; com metade do
+risco +29,7%). Mais exigente (RSI < 25 e metade do risco): 6 anos +42,8%, mas pior em 12 meses (−0,7%) e 3 meses. **Não adotado:**
+operar mais nesse caso é operar pior.
+
+**Brava (capitulação):**
+
+| Regra · moedas | ops 12 meses | acerto 6 anos | média 6 anos | retorno 6a / 12m / 3m |
+|---|---|---|---|---|
+| queda 5% e RSI < 20 · 16 moedas (antes) | 17 | 91% | +0,166R | +14,1% / +1,8% / +0,3% |
+| **queda 5% e RSI < 20 · 26 moedas (ADOTADO)** | **27** | **88%** | **+0,134R** | **+15,0% / +1,8% / +0,3%** |
+| queda 5% e RSI < 25 · 26 moedas | 59 | 76% | +0,039R | +9,1% / +2,5% / +1,9% |
+| queda 4% e RSI < 20 · 16 moedas | 32 | 86% | +0,127R | +13,5% / 0,0% / +0,8% |
+| queda 3% e RSI < 25 · 16 moedas | 90 | 74% | +0,040R | +12,6% / −2,2% / +0,7% |
+
+Afrouxar a regra (4%, 3%, RSI 25–30) aumenta muito as operações, mas o acerto e a média caem e os últimos 12 meses ficam
+negativos. Aumentar as MOEDAS mantendo a regra dá ~60% mais operações com o mesmo resultado: é o "mais operações sem
+perder qualidade". Moedas novas: NEAR, FIL, ETC, AAVE, HBAR, APT, ARB, OP, INJ, SUI (grandes e líquidas; lista escolhida hoje,
+então há algum viés de sobrevivência).
+
 ## Conclusões honestas
 
 - A estratégia **ganha em mercado de alta e perde pouco em mercado de baixa**; ela não lucra

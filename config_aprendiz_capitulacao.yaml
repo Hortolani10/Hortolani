@@ -13,6 +13,36 @@
 herda: config_aprendiz.yaml
 instancia: aprendiz-capitulacao
 
+# 26 moedas (28/11/2026, PESQUISA.md seção 28): as 16 do bot principal + 10 grandes e líquidas.
+# Com a mesma regra, operou ~60% mais e manteve o acerto (81-88%). Só moedas grandes: pânico em moeda pequena pode não ter volta.
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+  - BNB/USDT
+  - SOL/USDT
+  - XRP/USDT
+  - ADA/USDT
+  - LTC/USDT
+  - LINK/USDT
+  - DOGE/USDT
+  - AVAX/USDT
+  - DOT/USDT
+  - TRX/USDT
+  - ATOM/USDT
+  - UNI/USDT
+  - BCH/USDT
+  - XLM/USDT
+  - NEAR/USDT
+  - FIL/USDT
+  - ETC/USDT
+  - AAVE/USDT
+  - HBAR/USDT
+  - APT/USDT
+  - ARB/USDT
+  - OP/USDT
+  - INJ/USDT
+  - SUI/USDT
+
 timeframes:
   trend: 1d
   entry: 4h
