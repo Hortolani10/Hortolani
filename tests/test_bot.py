@@ -1213,3 +1213,17 @@ def test_atualizar_servidor_envia_todos_os_configs():
     linha = next(x for x in bat.splitlines() if x.lstrip().startswith("tar -cf"))
     faltando = sorted(f for f in usados if f not in linha.split())
     assert not faltando, f"faltam no atualizar_servidor.bat: {faltando}"
+
+
+def test_bom_dia_mostra_quem_esta_no_ar():
+    import json as _j
+    from types import SimpleNamespace
+    from bot.trader import Trader
+    bots = [{"id": "principal", "online": True, "hoje_ops": 0, "posicoes": 0},
+            {"id": "aprendiz-4h", "online": True, "nome": "Bot Aprendiz 4h", "hoje_ops": 3, "posicoes": 1},
+            {"id": "aprendiz-rotacao", "online": False}]
+    fake = SimpleNamespace(painel=SimpleNamespace(central=lambda: _j.dumps({"bots": bots}).encode()),
+                           _refresh_painel=lambda: None, _termo_info=lambda: {"nota": 12, "rotulo": "queda forte"},
+                           state={"radar": {"BTC/USDT": {"tendencia": "BAIXA"}}})
+    txt = Trader.bom_dia_text(fake)
+    assert "2 de 3 bots no ar" in txt and "aprendiz-rotacao" in txt and "Aprendiz 4h 3" in txt and "12/100" in txt

@@ -685,6 +685,10 @@ class Trader:
         self._checar_bnb()
         if not self.tg or not self.tg.enabled:
             return
+        br = datetime.now(timezone(timedelta(hours=-3)))
+        if self.painel and self.painel.outros and br.hour >= 9 and self.state.get("bom_dia") != br.strftime("%Y-%m-%d"):
+            self.state["bom_dia"] = br.strftime("%Y-%m-%d")          # sinal de vida diário (só o bot principal manda)
+            self.tg.send(self.bom_dia_text(), dedupe_s=0)
         day = utcnow().strftime("%Y-%m-%d")
         if utcnow().hour >= 1 and self.state.get("summary_day") != day:   # ~22h em Brasília, após o fechamento diário
             self.state["summary_day"] = day
@@ -694,6 +698,30 @@ class Trader:
                 self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n" + self._resumo_aprendiz(), dedupe_s=0)
             else:
                 self.tg.send("🗓 Resumo do dia\n" + self.status_text() + "\n\n" + self.radar_text(), dedupe_s=0)
+
+    def bom_dia_text(self) -> str:
+        """Mensagem das 9h: todos no ar? como está o mercado? por que ninguém comprou?"""
+        try:
+            self._refresh_painel()
+            bots = json.loads(self.painel.central()).get("bots", [])
+        except Exception:
+            log.exception("erro montando o bom dia")
+            return "☀️ Bom dia! O bot principal está no ar (não consegui consultar os outros agora)."
+        nome = lambda b: "Principal" if b["id"] == "principal" else (b.get("nome") or b["id"]).replace("Bot ", "")
+        on = [b for b in bots if b.get("online")]
+        fora = [nome(b) for b in bots if not b.get("online")]
+        linhas = [f"☀️ Bom dia! {len(on)} de {len(bots)} bots no ar." + (f"\n⚠️ Fora do ar: {', '.join(fora)}" if fora else " ✅")]
+        t = self._termo_info()
+        if t:
+            linhas.append(f"🌡 Termômetro {t.get('nota')}/100 ({t.get('rotulo', '')})")
+        ops = sum(int(b.get("hoje_ops") or 0) for b in on)
+        quem = ", ".join(f"{nome(b)} {b['hoje_ops']}" for b in on if b.get("hoje_ops"))
+        pos = sum(int(b.get("posicoes") or 0) for b in on)
+        linhas.append(f"📊 Últimas 24 h: {ops} operação(ões){f' ({quem})' if quem else ''} · {pos} posição(ões) aberta(s)")
+        btc = (self.state.get("radar") or {}).get("BTC/USDT") or {}
+        if ops == 0 and (btc.get("tendencia") == "BAIXA" or (t and (t.get("nota") or 0) < 40)):
+            linhas.append("💤 Ninguém comprou porque o mercado está em queda: os robôs esperam de propósito, é o filtro protegendo o dinheiro.")
+        return "\n".join(linhas)
 
     def _resumo_aprendiz(self) -> str:
         from .learn import DIARIO, ler_diario
